@@ -1,16 +1,14 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import Mars from "./components/Mars";
 import Stars from "./components/Stars";
+import InitialiseSession from "./components/InitialiseSession";
 import "./App.css";
 
-async function App() {
-  const response = await fetch("http://localhost:8000/invoke", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
-  });
+function App() {
+  const [screen, setScreen] = useState("landing");
+
   return (
     <div className="landing">
       <div className="canvas-container">
@@ -56,7 +54,9 @@ async function App() {
             Growing food on Mars starts here.
           </p>
           <div className="cta-group">
-            <button className="cta-primary">Launch Simulation</button>
+            <button className="cta-primary" onClick={() => setScreen("init")}>
+              Launch Simulation
+            </button>
             <button className="cta-secondary">Learn More</button>
           </div>
         </header>
@@ -65,6 +65,10 @@ async function App() {
           <p>Built for the future of space colonization</p>
         </footer>
       </div>
+
+      {screen === "init" && (
+        <InitialiseSession onBack={() => setScreen("landing")} />
+      )}
     </div>
   );
 }
