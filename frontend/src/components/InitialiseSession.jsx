@@ -140,7 +140,8 @@ export default function InitialiseSession({ onBack }) {
           </div>
         </div>
 
-        {/* ── Cards grid ── */}
+        {/* ── Body: config grid + overview sidebar ── */}
+        <div className="is-body">
         <div className="is-grid">
 
           {/* Supplies */}
@@ -224,6 +225,110 @@ export default function InitialiseSession({ onBack }) {
           </div>
 
         </div>
+
+        {/* ── Overview sidebar ── */}
+        <aside className="is-overview">
+          <div className="is-ov__heading">
+            <span className="is-ov__mono">OVERVIEW</span>
+            <span className="is-ov__badge">{changedCount > 0 ? `${changedCount} modified` : 'defaults'}</span>
+          </div>
+
+          <div className="is-ov__section">
+            <span className="is-ov__section-label">Crew</span>
+            <div className="is-ov__rows">
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Astronauts</span>
+                <span className="is-ov__row-val">{cfg.astronauts}</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Pollinators</span>
+                <span className="is-ov__row-val">{cfg.bugs.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="is-ov__section">
+            <span className="is-ov__section-label">Mission</span>
+            <div className="is-ov__rows">
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Duration</span>
+                <span className="is-ov__row-val">{cfg.timeframe} sols</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">≈ Earth days</span>
+                <span className="is-ov__row-val">{Math.round(cfg.timeframe * 1.027)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="is-ov__section">
+            <span className="is-ov__section-label">Greenhouse</span>
+            <div className="is-ov__rows">
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Floor space</span>
+                <span className="is-ov__row-val">{cfg.space} m²</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Seed packs</span>
+                <span className="is-ov__row-val">{cfg.seedAmt}</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Crop types</span>
+                <span className="is-ov__row-val">{cfg.seedTypes.length}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="is-ov__section">
+            <span className="is-ov__section-label">Supplies</span>
+            <div className="is-ov__rows">
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Fertilizer</span>
+                <span className="is-ov__row-val">{cfg.fertilizer.toLocaleString()} kg</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Water</span>
+                <span className="is-ov__row-val">{cfg.water.toLocaleString()} L</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Soil</span>
+                <span className="is-ov__row-val">{cfg.soil.toLocaleString()} kg</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="is-ov__section">
+            <span className="is-ov__section-label">Environment</span>
+            <div className="is-ov__rows">
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Weather</span>
+                <span className="is-ov__row-val">{cfg.weather}</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Air mix</span>
+                <span className="is-ov__row-val">{cfg.airComp}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="is-ov__section">
+            <span className="is-ov__section-label">Crops</span>
+            <div className="is-ov__chips">
+              {cfg.seedTypes.length === 0
+                ? <span className="is-ov__empty">None selected</span>
+                : cfg.seedTypes.map(s => <span key={s} className="is-ov__crop">{s}</span>)
+              }
+            </div>
+          </div>
+
+          <div className="is-ov__total">
+            <span className="is-ov__total-label">Total Supplies</span>
+            <span className="is-ov__total-val">{(cfg.fertilizer + cfg.water + cfg.soil).toLocaleString()}</span>
+            <span className="is-ov__total-unit">kg / L combined</span>
+          </div>
+        </aside>
+
+        </div>{/* end is-body */}
 
         {/* ── Footer ── */}
         <div className="is-footer">
