@@ -83,7 +83,7 @@ function App() {
 
         {isDev && (
           <button className="dev-greenhouse-btn" onClick={() => setScreen('greenhouse')}>
-            [ DEV ] Preview Mars Greenhouse
+            [ DEV ] Preview Mars Colony
           </button>
         )}
       </div>

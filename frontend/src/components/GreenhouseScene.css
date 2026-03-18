@@ -1,4 +1,4 @@
-/* ── Greenhouse scene fullscreen overlay ── */
+/* ── Greenhouse colony scene fullscreen overlay ── */
 
 .gh-overlay {
   position: fixed;
@@ -45,7 +45,7 @@
   text-align: right;
 }
 
-/* ── Exit button ── */
+/* ── Exit scene button ── */
 
 .gh-exit {
   position: fixed;
@@ -69,6 +69,102 @@
 .gh-exit:hover {
   border-color: rgba(232, 120, 64, 0.5);
   color: #f5f0eb;
+}
+
+/* ── Enter dome floating label ── */
+
+.gh-enter-label {
+  position: fixed;
+  z-index: 102;
+  transform: translate(-50%, -100%);
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  border: 1px solid rgba(232, 120, 64, 0.45);
+  border-radius: 6px;
+  background: rgba(232, 120, 64, 0.12);
+  backdrop-filter: blur(8px);
+  color: #f0a870;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 0 18px rgba(232, 120, 64, 0.15), inset 0 0 12px rgba(232, 120, 64, 0.06);
+  animation: gh-label-pulse 1.6s ease-in-out infinite alternate;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.gh-enter-label:hover {
+  background: rgba(232, 120, 64, 0.25);
+  color: #ffe0c0;
+  border-color: rgba(232, 120, 64, 0.8);
+}
+
+@keyframes gh-label-pulse {
+  from { box-shadow: 0 0 12px rgba(232, 120, 64, 0.1); }
+  to   { box-shadow: 0 0 24px rgba(232, 120, 64, 0.3); }
+}
+
+/* ── Exit dome button ── */
+
+.gh-exit-dome {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 102;
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  border: 1px solid rgba(200, 190, 180, 0.25);
+  border-radius: 8px;
+  background: rgba(10, 5, 2, 0.85);
+  backdrop-filter: blur(10px);
+  color: rgba(200, 190, 180, 0.85);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.gh-exit-dome:hover {
+  border-color: rgba(232, 120, 64, 0.6);
+  color: #f5f0eb;
+}
+
+/* ── Enter All Domes button ── */
+
+.gh-enter-all {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 102;
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 14px 32px;
+  border: 1px solid rgba(232, 120, 64, 0.4);
+  border-radius: 10px;
+  background: rgba(232, 120, 64, 0.1);
+  backdrop-filter: blur(10px);
+  color: #f0a870;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 0 20px rgba(232, 120, 64, 0.12);
+  animation: gh-label-pulse 1.6s ease-in-out infinite alternate;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.gh-enter-all:hover {
+  background: rgba(232, 120, 64, 0.22);
+  color: #ffe0c0;
+  border-color: rgba(232, 120, 64, 0.75);
+  box-shadow: 0 0 30px rgba(232, 120, 64, 0.25);
 }
 
 /* ── DEV button on landing page ── */
