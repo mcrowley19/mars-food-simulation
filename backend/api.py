@@ -1,14 +1,13 @@
-# backend/api.py
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import boto3, json
+import traceback
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite default port
+    allow_origins=["http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -16,11 +15,24 @@ app.add_middleware(
 class PromptRequest(BaseModel):
     prompt: str
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 @app.post("/invoke")
 def invoke_agent(req: PromptRequest):
-    client = boto3.client("bedrock-agentcore-runtime", region_name="us-east-1")
-    response = client.invoke_agent_runtime(
-        agentRuntimeArn="<your-arn>",
-        payload=json.dumps({"prompt": req.prompt})
-    )
-    return {"response": response["body"]}
+    try:
+        from agents.orchestrator import run_orchestrator
+        result = run_orchestrator(req.prompt)
+        return {"response": str(result)}
+    except Exception as e:
+        message = str(e)
+        if "AccessDeniedException" in message or "explicit deny" in message:
+            return {
+                "response": (
+                    "Agent invocation is currently blocked by AWS IAM policy "
+                    "(explicit deny on Bedrock model invocation)."
+                )
+            }
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=message)

@@ -50,8 +50,10 @@ const AtmosphereMaterial = shaderMaterial(
 
 extend({ AtmosphereMaterial })
 
-export default function Mars() {
-  const groupRef = useRef()
+export default function Mars({ dashboardActive = false }) {
+  const containerRef = useRef()
+  const spinRef = useRef()
+  const transitionRef = useRef(0)
   const { gl } = useThree()
 
   const marsTexture = useLoader(THREE.TextureLoader, '/mars-texture.jpg')
@@ -60,32 +62,54 @@ export default function Mars() {
   marsTexture.needsUpdate = true
 
   useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.06
+    if (spinRef.current) {
+      spinRef.current.rotation.y += delta * 0.06
+    }
+
+    if (containerRef.current) {
+      const targetProgress = dashboardActive ? 1 : 0
+      transitionRef.current = THREE.MathUtils.damp(
+        transitionRef.current,
+        targetProgress,
+        4.4,
+        delta
+      )
+
+      // Smoothstep easing for cleaner accel/decel on both directions.
+      const t = transitionRef.current
+      const eased = t * t * (3 - 2 * t)
+
+      const x = THREE.MathUtils.lerp(0, -1.15, eased)
+      const scale = THREE.MathUtils.lerp(1, 0.6, eased)
+
+      containerRef.current.position.x = x
+      containerRef.current.scale.setScalar(scale)
     }
   })
 
   return (
-    <group ref={groupRef} rotation={[0.4, 0, 0.08]} position={[0, 0, 0]}>
-      <mesh castShadow receiveShadow>
-        <sphereGeometry args={[1.6, 128, 128]} />
-        <meshStandardMaterial
-          map={marsTexture}
-          roughness={0.9}
-          metalness={0.05}
-          toneMapped={true}
-        />
-      </mesh>
+    <group ref={containerRef}>
+      <group ref={spinRef} rotation={[0.4, 0, 0.08]}>
+        <mesh castShadow receiveShadow>
+          <sphereGeometry args={[1.6, 128, 128]} />
+          <meshStandardMaterial
+            map={marsTexture}
+            roughness={0.9}
+            metalness={0.05}
+            toneMapped={true}
+          />
+        </mesh>
 
-      <mesh scale={[1.03, 1.03, 1.03]}>
-        <sphereGeometry args={[1.6, 96, 96]} />
-        <atmosphereMaterial
-          transparent
-          side={THREE.BackSide}
-          depthWrite={false}
-          blending={THREE.NormalBlending}
-        />
-      </mesh>
+        <mesh scale={[1.03, 1.03, 1.03]}>
+          <sphereGeometry args={[1.6, 96, 96]} />
+          <atmosphereMaterial
+            transparent
+            side={THREE.BackSide}
+            depthWrite={false}
+            blending={THREE.NormalBlending}
+          />
+        </mesh>
+      </group>
     </group>
   )
 }

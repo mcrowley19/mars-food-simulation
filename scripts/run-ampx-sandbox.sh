@@ -3,17 +3,29 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BACKEND_DIR="$ROOT_DIR/backend"
 
 if ! command -v npx >/dev/null 2>&1; then
   echo "npx is required but not installed."
   exit 1
 fi
 
-if [[ ! -f "$ROOT_DIR/amplify.yml" ]] && [[ ! -d "$ROOT_DIR/amplify" ]]; then
-  echo "This repository does not look like an Amplify project yet."
-  echo "If you are using a separate Amplify app, run this script from that app's root."
+if [[ ! -d "$BACKEND_DIR/amplify" ]]; then
+  echo "Amplify backend folder not found at $BACKEND_DIR/amplify."
+  echo "If your Amplify app lives elsewhere, run ampx from that backend root."
   exit 1
 fi
 
+if [[ -f "$BACKEND_DIR/.env" ]]; then
+  # Load AWS_* vars for this shell only.
+  set -a
+  # shellcheck disable=SC1090
+  source "$BACKEND_DIR/.env"
+  set +a
+fi
+
+export PATH="$HOME/.local/bin:$PATH"
+
 echo "Starting Amplify sandbox..."
-npx ampx sandbox
+cd "$BACKEND_DIR"
+npx ampx sandbox --outputs-out-dir "$ROOT_DIR/frontend" --outputs-format json
