@@ -28,10 +28,35 @@ function App() {
     setScreen("landing");
   };
 
-  const handleBeginSimulation = (config) => {
-    const seedSummary = Array.isArray(config?.seedTypes)
-      ? config.seedTypes.join(", ")
-      : "mixed crops";
+  const handleBeginSimulation = async (config) => {
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    const types = Array.isArray(config?.seedTypes) ? config.seedTypes : [];
+    const totalPacks = config?.seedAmt ?? 40;
+    const perType = types.length > 0 ? Math.floor(totalPacks / types.length) : 0;
+    const seedAmounts = {};
+    types.forEach((t, i) => {
+      const name = t.toLowerCase();
+      seedAmounts[name] = perType + (i < totalPacks % types.length ? 1 : 0);
+    });
+
+    try {
+      await fetch(`${API}/setup/manual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          water_l: config?.water ?? 2000,
+          fertilizer_kg: config?.fertilizer ?? 500,
+          soil_kg: config?.soil ?? 1500,
+          floor_space_m2: config?.space ?? 80,
+          mission_days: config?.timeframe ?? 350,
+          astronaut_count: config?.astronauts ?? 4,
+          seed_amounts: seedAmounts,
+        }),
+      });
+    } catch { /* proceed even if setup call fails */ }
+
+    const seedSummary = types.join(", ") || "mixed crops";
     const prompt = [
       "Create a Mars greenhouse startup plan.",
       `Crew: ${config?.astronauts ?? 4}`,
@@ -44,7 +69,6 @@ function App() {
       `Air composition: ${config?.airComp ?? "Hab Mix"}`,
     ].join(" ");
 
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     fetch(`${API}/invoke`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
