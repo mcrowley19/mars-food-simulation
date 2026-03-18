@@ -174,27 +174,7 @@ function App() {
         />
       </div>
 
-      <div
-        className={`keyboard-hints ${
-          isDashboard ? "keyboard-hints--dashboard" : "keyboard-hints--landing"
-        }`}
-      >
-        <div className="keyboard-hints__chip">
-          <span className="keyboard-hints__label">Quick Nav</span>
-        </div>
-        {screen === "landing" && (
-          <div className="keyboard-hints__chip">
-            <kbd>Space</kbd>
-            <span>Launch Dashboard</span>
-          </div>
-        )}
-        {(screen === "dashboard" || screen === "learn" || screen === "greenhouse" || screen === "checkup") && (
-          <div className="keyboard-hints__chip">
-            <kbd>Esc</kbd>
-            <span>Back to Landing</span>
-          </div>
-        )}
-      </div>
+
       {screen === "checkup" && (
         <DailyCheckup onBack={() => setScreen("landing")} />
       )}
