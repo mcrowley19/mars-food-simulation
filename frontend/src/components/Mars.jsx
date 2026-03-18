@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { useFrame, useLoader, extend } from '@react-three/fiber'
+import { useFrame, useLoader, useThree, extend } from '@react-three/fiber'
 import * as THREE from 'three'
 import { shaderMaterial } from '@react-three/drei'
 
@@ -52,10 +52,12 @@ extend({ AtmosphereMaterial })
 
 export default function Mars() {
   const groupRef = useRef()
+  const { gl } = useThree()
 
   const marsTexture = useLoader(THREE.TextureLoader, '/mars-texture.jpg')
   marsTexture.colorSpace = THREE.SRGBColorSpace
-  marsTexture.anisotropy = 8
+  marsTexture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy())
+  marsTexture.needsUpdate = true
 
   useFrame((_, delta) => {
     if (groupRef.current) {

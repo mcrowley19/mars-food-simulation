@@ -1,18 +1,22 @@
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import Mars from "./components/Mars";
 import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
+import LearnMore from "./components/LearnMore";
 import "./App.css";
 
-async function App() {
+function App() {
   const [screen, setScreen] = useState("landing");
-  const response = await fetch("http://localhost:8000/invoke", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
-  });
+
+  useEffect(() => {
+    fetch("http://localhost:8000/invoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
+    });
+  }, []);
   return (
     <div className="landing">
       <div className="canvas-container">
@@ -61,7 +65,7 @@ async function App() {
             <button className="cta-primary" onClick={() => setScreen("init")}>
               Launch Simulation
             </button>
-            <button className="cta-secondary">Learn More</button>
+            <button className="cta-secondary" onClick={() => setScreen("learn")}>Learn More</button>
           </div>
         </header>
 
@@ -72,6 +76,9 @@ async function App() {
 
       {screen === "init" && (
         <InitialiseSession onBack={() => setScreen("landing")} />
+      )}
+      {screen === 'learn' && (
+        <LearnMore onClose={() => setScreen('landing')} />
       )}
     </div>
   );
