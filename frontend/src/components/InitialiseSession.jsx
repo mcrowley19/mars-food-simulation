@@ -89,7 +89,7 @@ function ParamRow({ label, children }) {
 }
 
 /* ── Main component ── */
-export default function InitialiseSession({ onBack }) {
+export default function InitialiseSession({ onBack, disableBackdropClose = false }) {
   const [cfg, setCfg]             = useState(DEFAULTS)
   const [launching, setLaunching] = useState(false)
 
@@ -117,7 +117,12 @@ export default function InitialiseSession({ onBack }) {
   }
 
   return (
-    <div className="is-overlay" onClick={e => { if (e.target === e.currentTarget) onBack() }}>
+    <div
+      className="is-overlay"
+      onClick={e => {
+        if (!disableBackdropClose && e.target === e.currentTarget) onBack()
+      }}
+    >
       <div className="is-panel">
 
         {/* ── Top bar ── */}

@@ -1,21 +1,47 @@
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import Mars from "./components/Mars";
 import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
+import LearnMore from "./components/LearnMore";
 import "./App.css";
 
-async function App() {
+function App() {
   const [screen, setScreen] = useState("landing");
-  const response = await fetch("http://localhost:8000/invoke", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
-  });
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/invoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
+    }).catch(() => {
+      // Backend may not be running yet; landing page should still render.
+    });
+  }, []);
+
+  const isDashboard = screen === "dashboard";
+
+  const handleLaunch = () => {
+    if (isTransitioning || isDashboard) return;
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setScreen("dashboard");
+      setIsTransitioning(false);
+    }, 900);
+  };
+
+  const handleBackToLanding = () => {
+    setScreen("landing");
+  };
   return (
     <div className="landing">
-      <div className="canvas-container">
+      <div
+        className={`canvas-container ${
+          isTransitioning || isDashboard ? "canvas-container--dashboard" : ""
+        }`}
+      >
         <Canvas
           camera={{ position: [0, 0, 5.5], fov: 45 }}
           gl={{ antialias: true, alpha: true }}
@@ -33,7 +59,7 @@ async function App() {
           />
           <pointLight position={[-6, 3, -4]} intensity={0.4} color="#ffd4b8" />
           <Suspense fallback={null}>
-            <Mars />
+            <Mars dashboardActive={isTransitioning || isDashboard} />
             <Stars />
           </Suspense>
           <OrbitControls
@@ -45,7 +71,11 @@ async function App() {
         </Canvas>
       </div>
 
-      <div className="overlay">
+      <div
+        className={`overlay ${
+          isTransitioning || isDashboard ? "overlay--exit-left" : ""
+        }`}
+      >
         <header className="hero-header">
           <span className="tagline">Simulation Platform</span>
           <h1>
@@ -58,10 +88,10 @@ async function App() {
             Growing food on Mars starts here.
           </p>
           <div className="cta-group">
-            <button className="cta-primary" onClick={() => setScreen("init")}>
+            <button className="cta-primary" onClick={handleLaunch}>
               Launch Simulation
             </button>
-            <button className="cta-secondary">Learn More</button>
+            <button className="cta-secondary" onClick={() => setScreen("learn")}>Learn More</button>
           </div>
         </header>
 
@@ -70,9 +100,17 @@ async function App() {
         </footer>
       </div>
 
-      {screen === "init" && (
-        <InitialiseSession onBack={() => setScreen("landing")} />
-      )}
+      <div
+        className={`dashboard-shell ${
+          isTransitioning || isDashboard ? "dashboard-shell--active" : ""
+        }`}
+      >
+        <InitialiseSession
+          onBack={handleBackToLanding}
+          disableBackdropClose={true}
+        />
+      </div>
+      {screen === "learn" && <LearnMore onClose={() => setScreen("landing")} />}
     </div>
   );
 }

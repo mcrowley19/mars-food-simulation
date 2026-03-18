@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .vscode/
 .kiro/
+node_modules/
+frontend/.vite/
+frontend/amplify_outputs.json
+dist/

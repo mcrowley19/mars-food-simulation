@@ -10,10 +10,18 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  width: 100%;
+  transform: translateX(0);
+  will-change: transform;
 }
 
 .canvas-container canvas {
   display: block;
+}
+
+.canvas-container--dashboard {
+  transform: translateX(0);
 }
 
 .overlay {
@@ -25,6 +33,17 @@
   flex-direction: column;
   justify-content: center;
   pointer-events: none;
+  transition:
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.65s ease;
+  transform: translateX(0);
+  opacity: 1;
+  will-change: transform, opacity;
+}
+
+.overlay--exit-left {
+  transform: translateX(-115%);
+  opacity: 0;
 }
 
 .hero-header {
@@ -130,6 +149,61 @@
   margin: 0;
 }
 
+.dashboard-shell {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 66%;
+  height: 100%;
+  z-index: 4;
+  transform: translateX(108%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s ease;
+  will-change: transform, opacity;
+}
+
+.dashboard-shell--active {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dashboard-shell .is-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 12, 0.42);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  overflow-y: auto;
+}
+
+.dashboard-shell .is-panel {
+  max-width: none;
+  min-height: 100%;
+  padding: 0 clamp(16px, 2.6vw, 34px) 32px;
+}
+
+/* Dashboard runs in a narrower 2/3 pane, so force a non-overlapping layout */
+.dashboard-shell .is-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 26%, 240px);
+  gap: 14px;
+  align-items: start;
+}
+
+.dashboard-shell .is-grid {
+  grid-template-columns: 1fr;
+  min-width: 0;
+}
+
+.dashboard-shell .is-overview {
+  width: auto;
+  min-width: 190px;
+}
+
 @keyframes fadeSlideUp {
   from {
     opacity: 0;
@@ -142,6 +216,23 @@
 }
 
 @media (max-width: 768px) {
+  .canvas-container,
+  .canvas-container--dashboard {
+    width: 100%;
+  }
+
+  .overlay--exit-left {
+    transform: translateX(-140%);
+  }
+
+  .dashboard-shell {
+    width: 100%;
+  }
+
+  .dashboard-shell .is-body {
+    grid-template-columns: 1fr;
+  }
+
   .hero-header {
     padding: 0 6vw;
     text-align: center;

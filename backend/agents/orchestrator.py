@@ -13,10 +13,6 @@ harvest_optimizer = create_harvest_optimizer()
 fault_handler = create_fault_handler()
 
 
-@tool
-def delegate_to_crop_planner(task: str) -> str:
-    """Delegate a crop planning or scheduling task."""
-    return str(crop_planner(task))
 
 
 @tool
