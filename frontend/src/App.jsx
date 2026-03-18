@@ -6,9 +6,13 @@ import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
 import "./App.css";
 
-function App() {
+async function App() {
   const [screen, setScreen] = useState("landing");
-
+  const response = await fetch("http://localhost:8000/invoke", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
+  });
   return (
     <div className="landing">
       <div className="canvas-container">
