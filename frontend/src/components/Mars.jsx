@@ -54,6 +54,7 @@ export default function Mars({ dashboardActive = false }) {
   const containerRef = useRef()
   const spinRef = useRef()
   const transitionRef = useRef(0)
+  const introRef = useRef(0)
   const { gl } = useThree()
 
   const marsTexture = useLoader(THREE.TextureLoader, '/mars-texture.jpg')
@@ -67,6 +68,11 @@ export default function Mars({ dashboardActive = false }) {
     }
 
     if (containerRef.current) {
+      // Landing intro "swoosh-in": starts behind camera depth and settles smoothly.
+      introRef.current = THREE.MathUtils.damp(introRef.current, 1, 2.2, delta)
+      const introT = introRef.current
+      const introEased = 1 - Math.pow(1 - introT, 3)
+
       const targetProgress = dashboardActive ? 1 : 0
       transitionRef.current = THREE.MathUtils.damp(
         transitionRef.current,
@@ -79,10 +85,18 @@ export default function Mars({ dashboardActive = false }) {
       const t = transitionRef.current
       const eased = t * t * (3 - 2 * t)
 
-      const x = THREE.MathUtils.lerp(0, -1.15, eased)
-      const scale = THREE.MathUtils.lerp(1, 0.6, eased)
+      const introX = THREE.MathUtils.lerp(2.8, 0, introEased)
+      const introZ = THREE.MathUtils.lerp(-3.2, 0, introEased)
+      const introScale = THREE.MathUtils.lerp(0.52, 1, introEased)
+      const dashboardX = THREE.MathUtils.lerp(0, -1.25, eased)
+      const dashboardScale = THREE.MathUtils.lerp(1, 0.6, eased)
+
+      const x = introX + dashboardX
+      const scale = introScale * dashboardScale
 
       containerRef.current.position.x = x
+      containerRef.current.position.z = introZ
+      containerRef.current.rotation.z = THREE.MathUtils.lerp(-0.28, 0, introEased)
       containerRef.current.scale.setScalar(scale)
     }
   })
