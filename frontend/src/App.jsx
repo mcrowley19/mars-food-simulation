@@ -4,21 +4,27 @@ import { OrbitControls } from "@react-three/drei";
 import Mars from "./components/Mars";
 import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
-import LearnMore from "./components/LearnMore";
+import SetupScreen from "./components/SetupScreen";
 import "./App.css";
+
+const API = "http://localhost:8000";
 
 function App() {
   const [screen, setScreen] = useState("landing");
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(false);
+  const [initialState, setInitialState] = useState(null);
 
+  // Check setup status on mount
   useEffect(() => {
-    fetch("http://localhost:8000/invoke", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
-    }).catch(() => {
-      // Backend may not be running yet; landing page should still render.
-    });
+    fetch(`${API}/setup-status`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.setup_complete) {
+          setSetupComplete(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const isDashboard = screen === "dashboard";
@@ -32,9 +38,15 @@ function App() {
     }, 900);
   };
 
+  const handleSetupComplete = (state) => {
+    setSetupComplete(true);
+    setInitialState(state);
+  };
+
   const handleBackToLanding = () => {
     setScreen("landing");
   };
+
   return (
     <div className="landing">
       <div
@@ -91,7 +103,6 @@ function App() {
             <button className="cta-primary" onClick={handleLaunch}>
               Launch Simulation
             </button>
-            <button className="cta-secondary" onClick={() => setScreen("learn")}>Learn More</button>
           </div>
         </header>
 
@@ -105,12 +116,16 @@ function App() {
           isTransitioning || isDashboard ? "dashboard-shell--active" : ""
         }`}
       >
-        <InitialiseSession
-          onBack={handleBackToLanding}
-          disableBackdropClose={true}
-        />
+        {!setupComplete ? (
+          <SetupScreen onSetupComplete={handleSetupComplete} />
+        ) : (
+          <InitialiseSession
+            onBack={handleBackToLanding}
+            disableBackdropClose={true}
+            initialState={initialState}
+          />
+        )}
       </div>
-      {screen === "learn" && <LearnMore onClose={() => setScreen("landing")} />}
     </div>
   );
 }
