@@ -17,13 +17,23 @@ INITIAL_STATE = {
         "light_intensity": Decimal("1.0"),
     },
     "resources": {
-        "water_l": 5000,
-        "nutrients_kg": 200,
+        "water_l": 0,
+        "nutrients_kg": 0,
     },
     "harvest_schedule": [],
     "alerts": [],
     "active_events": [],
     "agent_last_actions": {},
+    "water_l": 0,
+    "fertilizer_kg": 0,
+    "soil_kg": 0,
+    "floor_space_m2": 0,
+    "mission_days": 0,
+    "astronaut_count": 0,
+    "seed_amounts": {},
+    "setup_complete": False,
+    "setup_mode": "NONE",
+    "ai_setup_reasoning": "NONE",
 }
 
 

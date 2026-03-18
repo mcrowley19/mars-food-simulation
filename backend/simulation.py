@@ -3,6 +3,9 @@ import math
 
 
 def apply_mars_rules(state: dict) -> dict:
+    if not state.get("setup_complete"):
+        raise ValueError("Setup not complete. Call /setup/manual or /setup/ai-optimised first.")
+
     env = state["environment"]
     res = state["resources"]
     crops = state["crops"]

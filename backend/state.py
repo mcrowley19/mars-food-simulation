@@ -8,7 +8,9 @@ _table = boto3.resource("dynamodb", region_name=REGION).Table(TABLE_NAME)
 
 
 def _decimals_to_native(obj):
-    """Convert DynamoDB Decimal types back to int/float."""
+    """Convert DynamoDB Decimal types back to int/float and 'NONE' to None."""
+    if obj == "NONE":
+        return None
     if isinstance(obj, list):
         return [_decimals_to_native(i) for i in obj]
     if isinstance(obj, dict):
@@ -19,7 +21,11 @@ def _decimals_to_native(obj):
 
 
 def _native_to_decimals(obj):
-    """Convert float/int to Decimal for DynamoDB."""
+    """Convert float/int to Decimal and None to 'NONE' for DynamoDB."""
+    if obj is None:
+        return "NONE"
+    if isinstance(obj, bool):
+        return obj
     if isinstance(obj, list):
         return [_native_to_decimals(i) for i in obj]
     if isinstance(obj, dict):
