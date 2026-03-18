@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#090d1b"/>
+      <stop offset="100%" stop-color="#151733"/>
+    </linearGradient>
+    <radialGradient id="mars" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#ffbe8c"/>
+      <stop offset="50%" stop-color="#dc7044"/>
+      <stop offset="100%" stop-color="#8a3424"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="980" cy="160" r="3" fill="#d7e2ff"/>
+  <circle cx="1080" cy="260" r="2.5" fill="#ffffff"/>
+  <circle cx="940" cy="310" r="2" fill="#d7e2ff"/>
+  <circle cx="250" cy="90" r="2.5" fill="#ffffff"/>
+  <circle cx="170" cy="220" r="2" fill="#d7e2ff"/>
+  <circle cx="860" cy="370" r="190" fill="#ff9a6a22"/>
+  <circle cx="860" cy="370" r="165" fill="url(#mars)"/>
+  <path d="M730 372c35-18 79-18 126 0 48 18 90 18 130 0" fill="none" stroke="#7e2f21" stroke-width="18" stroke-linecap="round" opacity="0.62"/>
+  <path d="M750 306c30-16 58-17 102-3 39 13 74 12 112-6" fill="none" stroke="#8f3d29" stroke-width="14" stroke-linecap="round" opacity="0.55"/>
+  <text x="90" y="250" fill="#f4f7ff" font-family="'Segoe UI', Tahoma, sans-serif" font-size="72" font-weight="700">
+    Mars Food Simulation
+  </text>
+  <text x="90" y="330" fill="#b5c0df" font-family="'Segoe UI', Tahoma, sans-serif" font-size="38">
+    Sustainable greenhouse planning for life on Mars
+  </text>
+</svg>

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import * as THREE from 'three'
+import useGreenhouseState from '../hooks/useGreenhouseState'
 import './GreenhouseScene.css'
 
 /* ═══════════════════════════════════════════════════════════
@@ -23,8 +24,18 @@ function compassDir(deg) {
 function lerp(a, b, t) { return a + (b - a) * t }
 function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2 }
 
-/* ── Colony layout — positions + radii for 7 domes ──────── */
-const DOME_DEFS = [
+const CROP_COLORS = {
+  lettuce: '#33cc55', potato: '#8B7355', wheat: '#DAA520', tomato: '#FF6347',
+  soybean: '#9ACD32', spinach: '#33cc55', radish: '#FF4500', pea: '#90EE90',
+  kale: '#228B22', carrot: '#FF8C00',
+}
+const CROP_EMPTY_COLOR = '#3a2a1e'
+const CROP_DEAD_COLOR  = '#8B4513'
+const CROP_HARVEST_EMISSIVE = '#FFD700'
+const INITIAL_WATER = 4800
+
+/* ── Colony layout — positions + base radii for 7 domes ── */
+const DOME_DEFS_BASE = [
   { id: 'DOME_01', x:  0,   z:  0,   r: 24  },
   { id: 'DOME_02', x: -48,  z: -14,  r: 18  },
   { id: 'DOME_03', x:  44,  z: -20,  r: 20  },
@@ -33,6 +44,24 @@ const DOME_DEFS = [
   { id: 'DOME_06', x: -55,  z:  28,  r: 12  },
   { id: 'DOME_07', x:  62,  z:  16,  r: 14  },
 ]
+
+const MIN_DOME_R = 8
+const MAX_DOME_R = 35
+
+function scaleDomeDefs(floorSpaceM2) {
+  const baseRadii = DOME_DEFS_BASE.map(d => d.r)
+  const baseAreas = baseRadii.map(r => Math.PI * r * r)
+  const totalBaseArea = baseAreas.reduce((a, b) => a + b, 0)
+  return DOME_DEFS_BASE.map((def, i) => {
+    const share = (baseAreas[i] / totalBaseArea) * floorSpaceM2
+    const raw = Math.sqrt(share / Math.PI)
+    const clamped = Math.max(MIN_DOME_R, Math.min(MAX_DOME_R, raw))
+    return { ...def, r: clamped }
+  })
+}
+
+/* Fallback: use base radii as-is */
+let DOME_DEFS = DOME_DEFS_BASE
 
 // Pairs of domes to connect with tunnels
 const TUNNELS = [
@@ -188,10 +217,14 @@ function buildSingleDome(def) {
   }
 
   // ── interior (hidden by default) ──
-  const interior = buildDomeInterior(r)
-  interior.visible = false
-  interior.name = 'interior'
-  group.add(interior)
+  const { group: interiorGroup, plantMeshes, waterPoolMat } = buildDomeInterior(r)
+  interiorGroup.visible = false
+  interiorGroup.name = 'interior'
+  group.add(interiorGroup)
+
+  group.userData.plantMeshes = plantMeshes
+  group.userData.waterPoolMat = waterPoolMat
+  group.userData.shellMat = domeMat
 
   return group
 }
@@ -246,16 +279,14 @@ function buildDomeInterior(radius) {
   const bayCount = 8
   const bedMat = new THREE.MeshStandardMaterial({ color: '#1e2e1e', roughness: 0.6, metalness: 0.3 })
   const soilMat = new THREE.MeshStandardMaterial({ color: '#1a1a10', roughness: 0.8 })
-  const plantMat = new THREE.MeshStandardMaterial({
-    color: '#33cc55', emissive: '#22aa44', emissiveIntensity: 0.35, roughness: 0.6,
-  })
+  const plantMeshes = []
+  const plantBaseRadius = []
+  const plantGeom = new THREE.SphereGeometry(1, 8, 6)
 
   for (let bay = 0; bay < bayCount; bay++) {
     const angle = (bay / bayCount) * Math.PI * 2
-    // skip bay near airlock (positive z)
     if (Math.abs(angle - Math.PI / 2) < 0.5) continue
 
-    // each bay has 2 rows at different radii
     for (let row = 0; row < 2; row++) {
       const rowR = radius * (0.35 + row * 0.28)
       const bx = Math.cos(angle) * rowR
@@ -266,7 +297,6 @@ function buildDomeInterior(radius) {
       const bedD = radius * 0.08
       const bedH = 0.35
 
-      // raised bed — uniform white containers
       const container = new THREE.Mesh(new THREE.BoxGeometry(bedW, bedH, bedD), panelMat)
       container.position.set(bx, bedH / 2 + 0.02, bz)
       container.rotation.y = angle
@@ -274,29 +304,29 @@ function buildDomeInterior(radius) {
       container.castShadow = true
       g.add(container)
 
-      // soil strip
       const soil = new THREE.Mesh(new THREE.BoxGeometry(bedW * 0.88, 0.04, bedD * 0.88), soilMat)
       soil.position.set(bx, bedH + 0.04, bz)
       soil.rotation.y = angle
       g.add(soil)
 
-      // uniform plant row (cylindrical clusters in a line)
       const ca = Math.cos(angle), sa = Math.sin(angle)
       const plantSpacing = bedW / 5
       for (let p = -2; p <= 2; p++) {
         const ox = p * plantSpacing * 0.8
         const ph = 0.12 + (row * 0.05)
-        const plant = new THREE.Mesh(new THREE.SphereGeometry(ph, 8, 6), plantMat)
-        plant.position.set(
-          bx + ox * ca,
-          bedH + 0.04 + ph,
-          bz + ox * sa
-        )
-        plant.scale.y = 1.3
+        const mat = new THREE.MeshStandardMaterial({
+          color: CROP_EMPTY_COLOR, emissive: '#000000', emissiveIntensity: 0, roughness: 0.6,
+        })
+        const plant = new THREE.Mesh(plantGeom, mat)
+        plant.position.set(bx + ox * ca, bedH + 0.04 + ph, bz + ox * sa)
+        plant.scale.set(ph, ph * 1.3, ph)
+        plant.userData.isPlant = true
+        plant.userData.baseScale = ph
         g.add(plant)
+        plantMeshes.push(plant)
+        plantBaseRadius.push(ph)
       }
 
-      // LED strip above each bed
       const ledMat = new THREE.MeshStandardMaterial({
         color: '#cc88ff', emissive: '#aa44ee', emissiveIntensity: 0.8,
         transparent: true, opacity: 0.7,
@@ -305,7 +335,6 @@ function buildDomeInterior(radius) {
       led.position.set(bx, radius * 0.28, bz)
       led.rotation.y = angle
       g.add(led)
-      // support strut
       const strut = new THREE.Mesh(
         new THREE.CylinderGeometry(0.02, 0.02, radius * 0.27, 4), metalMat
       )
@@ -498,6 +527,7 @@ function buildDomeInterior(radius) {
     new THREE.CylinderGeometry(radius * 0.12, radius * 0.13, 0.12, 24), waterMat
   )
   pool.position.set(radius * 0.28, 0.06, -radius * 0.22)
+  pool.userData.isWaterPool = true
   g.add(pool)
   const poolRim = new THREE.Mesh(
     new THREE.TorusGeometry(radius * 0.125, 0.05, 6, 24), metalMat
@@ -520,7 +550,7 @@ function buildDomeInterior(radius) {
     g.add(pipe)
   }
 
-  return g
+  return { group: g, plantMeshes, waterPoolMat: waterMat }
 }
 
 /* ── build the full colony ────────────────────────────────── */
@@ -570,9 +600,9 @@ function buildColony(scene) {
 /* ── lighting ─────────────────────────────────────────────── */
 
 function setupLighting(scene) {
-  scene.add(new THREE.AmbientLight('#441a00', 0.35))
+  const ambient = new THREE.AmbientLight('#441a00', 0.35)
+  scene.add(ambient)
 
-  // warm fill light from below
   const fill = new THREE.DirectionalLight('#ff8844', 0.3)
   fill.position.set(0, -10, 0)
   scene.add(fill)
@@ -588,19 +618,94 @@ function setupLighting(scene) {
   sun.shadow.camera.far = 300
   sun.shadow.bias = -0.0005
   scene.add(sun)
-  return sun
+  return { sun, ambient, fill }
+}
+
+/* ═══════════════ crop distribution helpers ════════════════ */
+
+function distributeCrops(crops, domeDefsArr) {
+  if (!crops || !crops.length || !domeDefsArr) return domeDefsArr.map(() => [])
+  const areas = domeDefsArr.map(d => Math.PI * d.r * d.r)
+  const totalArea = areas.reduce((a, b) => a + b, 0)
+  const result = domeDefsArr.map(() => [])
+  let assigned = 0
+  const counts = domeDefsArr.map((_, i) => {
+    const c = Math.floor(crops.length * (areas[i] / totalArea))
+    assigned += c
+    return c
+  })
+  let remainder = crops.length - assigned
+  for (let i = 0; i < domeDefsArr.length && remainder > 0; i++) {
+    counts[i]++
+    remainder--
+  }
+  let idx = 0
+  for (let i = 0; i < domeDefsArr.length; i++) {
+    result[i] = crops.slice(idx, idx + counts[i])
+    idx += counts[i]
+  }
+  return result
 }
 
 /* ═════════════════ React component ════════════════════════ */
 
-export default function GreenhouseScene({ onExit }) {
+export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const canvasRef = useRef(null)
-  const labelsRef = useRef(null)      // DOM container for dome labels
+  const labelsRef = useRef(null)
   const stateRef = useRef(null)
   const rafRef = useRef(null)
-  const [hud, setHud] = useState({ angle: 0, dir: 'N', fps: 0, dome: '—', zoom: '1.0' })
-  const [enterLabel, setEnterLabel] = useState(null)   // { id, x, y }
+  const [hud, setHud] = useState({
+    angle: 0, dir: 'N', fps: 0, dome: '—', zoom: '1.0',
+    missionDay: 0, waterL: 0, nutrientsKg: 0,
+    cropsGrowing: 0, cropsReady: 0, activeEvents: [],
+  })
+  const [enterLabel, setEnterLabel] = useState(null)
   const [insideDome, setInsideDome] = useState(null)
+  const [simDay, setSimDay] = useState(1)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const isPlayingRef = useRef(false)
+  const simDayFracRef = useRef(0.25)
+  const playIntervalRef = useRef(null)
+  const [domeDefs, setDomeDefs] = useState(null)
+
+  const simState = useGreenhouseState(true)
+  const simStateRef = useRef(null)
+
+  const lerpedRef = useRef({
+    sunIntensityMul: 1.0,
+    ambientTint: 1.0,
+    tempTint: 0,
+    fogDensity: 0,
+    plantScales: [],
+    waterFault: 0,
+    co2Tint: 0,
+  })
+
+  useEffect(() => { simStateRef.current = simState }, [simState])
+
+  useEffect(() => {
+    if (domeDefs) return
+    if (!simState) {
+      const fallbackTimer = setTimeout(() => {
+        setDomeDefs(prev => {
+          if (prev) return prev
+          DOME_DEFS = DOME_DEFS_BASE
+          return DOME_DEFS_BASE
+        })
+      }, 3000)
+      return () => clearTimeout(fallbackTimer)
+    }
+    const floor = simState?.resources?.floor_space_m2
+      ?? simState?.floor_space_m2
+      ?? simState?.greenhouse?.floor_space_m2
+    if (floor && floor > 0) {
+      DOME_DEFS = scaleDomeDefs(floor)
+      setDomeDefs(DOME_DEFS)
+    } else {
+      DOME_DEFS = DOME_DEFS_BASE
+      setDomeDefs(DOME_DEFS_BASE)
+    }
+  }, [simState, domeDefs])
 
   /* ── cleanup ── */
   const cleanup = useCallback(() => {
@@ -619,8 +724,9 @@ export default function GreenhouseScene({ onExit }) {
     stateRef.current = null
   }, [])
 
-  /* ── mount scene ── */
+  /* ── mount scene (waits for dome radii) ── */
   useEffect(() => {
+    if (!domeDefs) return
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -628,7 +734,7 @@ export default function GreenhouseScene({ onExit }) {
     const { renderer, scene, camera } = initScene(canvas, w, h)
     buildTerrain(scene)
     const greenhouses = buildColony(scene)
-    const sun = setupLighting(scene)
+    const { sun, ambient, fill } = setupLighting(scene)
 
     // raycaster for dome clicks
     const raycaster = new THREE.Raycaster()
@@ -647,7 +753,7 @@ export default function GreenhouseScene({ onExit }) {
       endX: 0, endZ: 0,
     }
 
-    stateRef.current = { renderer, scene, camera, sun, greenhouses, anim, raycaster, pointer }
+    stateRef.current = { renderer, scene, camera, sun, ambient, fill, greenhouses, anim, raycaster, pointer }
 
     /* ── click handler ── */
     const onClick = (e) => {
@@ -687,8 +793,18 @@ export default function GreenhouseScene({ onExit }) {
     window.addEventListener('resize', onResize)
 
     /* ── animation loop ── */
-    const SUN_RADIUS = 140, SUN_HEIGHT = 70, SUN_SPEED = 0.12
-    let sunAngle = 0, lastTime = performance.now()
+    const SUN_ORBIT_R = 140
+    const SUN_MAX_H   = 80
+    const SOL_DURATION = 10
+
+    const DAY_BG     = new THREE.Color('#28120a')
+    const NIGHT_BG   = new THREE.Color('#3a2530')
+    const DAWN_SUN   = new THREE.Color('#ff8844')
+    const NOON_SUN   = new THREE.Color('#ffe8cc')
+    const bgColor    = new THREE.Color()
+    const sunColor   = new THREE.Color()
+
+    let lastTime = performance.now()
     let frameCount = 0, fpsAccum = 0, lastFpsUpdate = performance.now()
 
     const animate = (now) => {
@@ -696,26 +812,171 @@ export default function GreenhouseScene({ onExit }) {
       const dt = (now - lastTime) / 1000
       lastTime = now
 
+      if (isPlayingRef.current) {
+        simDayFracRef.current += dt / SOL_DURATION
+        if (simDayFracRef.current >= 1) {
+          simDayFracRef.current = 0
+        }
+      }
+
+      const sunPhase = simDayFracRef.current
+      const sunAngle = sunPhase * Math.PI * 2
+      const sunY = Math.sin(sunAngle) * SUN_MAX_H
+      const sunX = Math.cos(sunAngle) * SUN_ORBIT_R
+      const sunZ = Math.sin(sunAngle + Math.PI / 3) * SUN_ORBIT_R * 0.6
+
+      sun.position.set(sunX, Math.max(sunY, -SUN_MAX_H * 0.5), sunZ)
+      sun.target.position.set(0, 0, 0)
+      sun.target.updateMatrixWorld()
+
+      const elevation = sunY / SUN_MAX_H
+      const dayFactor = Math.max(0, elevation)
+      const twilight  = Math.max(0, Math.min(1, (elevation + 0.15) / 0.3))
+
+      const ss = simStateRef.current
+      const env = ss?.environment || {}
+      const events = ss?.active_events || []
+      const lv = lerpedRef.current
+      const LERP_SPEED = 4
+
+      // ── targets from backend state ──
+      const tgtSunMul = typeof env.light_intensity === 'number' ? env.light_intensity : 1.0
+      const tgtAmbientTint = typeof env.light_hours === 'number' ? Math.min(1, env.light_hours / 16) : 1.0
+      const tgtTempTint = typeof env.temp_c === 'number'
+        ? (env.temp_c < 15 ? -(15 - env.temp_c) / 15 : env.temp_c > 30 ? (env.temp_c - 30) / 20 : 0)
+        : 0
+      const tgtFogDensity = events.includes('dust_storm') ? 0.008 : 0
+      const tgtWaterFault = events.includes('water_recycler_fault') ? 1 : 0
+      const tgtCo2Tint = events.includes('co2_spike') ? 1 : 0
+
+      lv.sunIntensityMul = lerp(lv.sunIntensityMul, tgtSunMul, Math.min(1, dt * LERP_SPEED))
+      lv.ambientTint = lerp(lv.ambientTint, tgtAmbientTint, Math.min(1, dt * LERP_SPEED))
+      lv.tempTint = lerp(lv.tempTint, tgtTempTint, Math.min(1, dt * LERP_SPEED))
+      lv.fogDensity = lerp(lv.fogDensity, tgtFogDensity, Math.min(1, dt * LERP_SPEED))
+      lv.waterFault = lerp(lv.waterFault, tgtWaterFault, Math.min(1, dt * LERP_SPEED))
+      lv.co2Tint = lerp(lv.co2Tint, tgtCo2Tint, Math.min(1, dt * LERP_SPEED))
+
+      // ── apply environment to lighting ──
+      const baseSunI = lerp(1.1, 2.75, dayFactor)
+      sun.intensity = baseSunI * lv.sunIntensityMul
+      sun.castShadow = elevation > -0.05
+      const baseAmbI = lerp(0.52, 0.6, twilight)
+      ambient.intensity = baseAmbI * lv.ambientTint
+      fill.intensity = lerp(0.44, 0.5, twilight)
+
+      sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor)
+      sun.color.copy(sunColor)
+
+      bgColor.copy(NIGHT_BG).lerp(DAY_BG, twilight)
+      if (Math.abs(lv.tempTint) > 0.01) {
+        const tintColor = lv.tempTint < 0
+          ? new THREE.Color('#2244ff')
+          : new THREE.Color('#ff3322')
+        bgColor.lerp(tintColor, Math.abs(lv.tempTint) * 0.15)
+      }
+      scene.background.copy(bgColor)
+
+      // ── dust storm fog ──
+      if (lv.fogDensity > 0.0001) {
+        if (!scene.fog) scene.fog = new THREE.FogExp2('#CC6633', lv.fogDensity)
+        else { scene.fog.color.set('#CC6633'); scene.fog.density = lv.fogDensity }
+      } else if (scene.fog) {
+        scene.fog = null
+      }
+
+      // ── update plants from backend crops ──
+      if (ss?.crops) {
+        const domeCrops = distributeCrops(ss.crops, DOME_DEFS)
+        for (let di = 0; di < greenhouses.length; di++) {
+          const gh = greenhouses[di]
+          const plants = gh.userData.plantMeshes || []
+          const crops = domeCrops[di] || []
+          for (let pi = 0; pi < plants.length; pi++) {
+            const mesh = plants[pi]
+            const mat = mesh.material
+            const base = mesh.userData.baseScale || 0.12
+            if (pi < crops.length) {
+              const crop = crops[pi]
+              const progress = crop.maturity_days > 0
+                ? Math.min(1, crop.age_days / crop.maturity_days) : 0
+              const tgtScale = base * lerp(0.3, 1.0, progress)
+
+              const isDead = crop.status === 'dead' || crop.status === 'wilted'
+              const isHarvest = crop.status === 'ready_to_harvest'
+              const colorHex = isDead ? CROP_DEAD_COLOR
+                : (CROP_COLORS[crop.name] || '#33cc55')
+              mat.color.set(colorHex)
+              if (isHarvest) {
+                mat.emissive.set(CROP_HARVEST_EMISSIVE)
+                mat.emissiveIntensity = 0.6
+              } else {
+                mat.emissive.set(isDead ? '#000000' : colorHex)
+                mat.emissiveIntensity = isDead ? 0 : 0.25
+              }
+
+              mesh.scale.set(
+                lerp(mesh.scale.x, tgtScale, Math.min(1, dt * LERP_SPEED)),
+                lerp(mesh.scale.y, tgtScale * 1.3, Math.min(1, dt * LERP_SPEED)),
+                lerp(mesh.scale.z, tgtScale, Math.min(1, dt * LERP_SPEED)),
+              )
+            } else {
+              mat.color.set(CROP_EMPTY_COLOR)
+              mat.emissive.set('#000000')
+              mat.emissiveIntensity = 0
+              const emptyScale = base * 0.15
+              mesh.scale.set(
+                lerp(mesh.scale.x, emptyScale, Math.min(1, dt * LERP_SPEED)),
+                lerp(mesh.scale.y, emptyScale, Math.min(1, dt * LERP_SPEED)),
+                lerp(mesh.scale.z, emptyScale, Math.min(1, dt * LERP_SPEED)),
+              )
+            }
+          }
+
+          // ── water pool fault effect ──
+          const wpMat = gh.userData.waterPoolMat
+          if (wpMat) {
+            if (lv.waterFault > 0.5) {
+              const pulse = Math.sin(now * 0.006) * 0.5 + 0.5
+              wpMat.color.lerpColors(new THREE.Color('#112244'), new THREE.Color('#cc2222'), lv.waterFault * pulse)
+              wpMat.emissive.lerpColors(new THREE.Color('#0055aa'), new THREE.Color('#ff0000'), lv.waterFault * pulse)
+            } else {
+              wpMat.color.set('#112244')
+              wpMat.emissive.set('#0055aa')
+            }
+          }
+
+          // ── co2 spike shell tint ──
+          const shellMat = gh.userData.shellMat
+          if (shellMat) {
+            if (lv.co2Tint > 0.05) {
+              shellMat.color.lerpColors(new THREE.Color('#88ccbb'), new THREE.Color('#aacc44'), lv.co2Tint)
+            } else {
+              shellMat.color.set('#88ccbb')
+            }
+          }
+        }
+      }
+
       // ── fps / hud ──
       frameCount++; fpsAccum += dt
+      const cropsArr = ss?.crops || []
       if (now - lastFpsUpdate > 500) {
         const fps = Math.round(frameCount / fpsAccum)
-        const angleDeg = radToDeg(sunAngle)
         setHud({
-          angle: angleDeg.toFixed(1),
-          dir: compassDir(angleDeg),
+          angle: (sunPhase * 360).toFixed(1),
+          dir: compassDir(sunPhase * 360),
           fps,
           dome: anim.dome ? anim.dome.userData.domeId : '—',
           zoom: camera.zoom.toFixed(2),
+          missionDay: ss?.mission_day || 0,
+          waterL: ss?.resources?.water_l ?? 0,
+          nutrientsKg: ss?.resources?.nutrients_kg ?? 0,
+          cropsGrowing: cropsArr.filter(c => c.status === 'growing').length,
+          cropsReady: cropsArr.filter(c => c.status === 'ready_to_harvest').length,
+          activeEvents: events,
         })
         frameCount = 0; fpsAccum = 0; lastFpsUpdate = now
       }
-
-      // ── sun orbit ──
-      sunAngle += SUN_SPEED * dt
-      sun.position.set(Math.cos(sunAngle) * SUN_RADIUS, SUN_HEIGHT, Math.sin(sunAngle) * SUN_RADIUS)
-      sun.target.position.set(0, 0, 0)
-      sun.target.updateMatrixWorld()
 
       // ── enter/exit animation ──
       if (anim.active) {
@@ -794,7 +1055,7 @@ export default function GreenhouseScene({ onExit }) {
       window.removeEventListener('resize', onResize)
       cleanup()
     }
-  }, [cleanup])
+  }, [cleanup, domeDefs])
 
   /* ── enter dome action (single) ── */
   const handleEnterDome = useCallback(() => {
@@ -872,6 +1133,15 @@ export default function GreenhouseScene({ onExit }) {
     anim.endZ = 0
   }, [insideDome])
 
+  /* ── main exit: leave selection first, then scene ── */
+  const handleExit = useCallback(() => {
+    if (insideDome) {
+      handleExitDome()
+      return
+    }
+    onExit()
+  }, [insideDome, handleExitDome, onExit])
+
   /* ── enter ALL domes at once ── */
   const handleEnterAll = useCallback(() => {
     const s = stateRef.current
@@ -900,35 +1170,65 @@ export default function GreenhouseScene({ onExit }) {
     setEnterLabel(null)
   }, [])
 
+  /* ── keep ref in sync so animation loop can read it ── */
+  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
+
+  /* ── timeline: advance day when day-night cycle completes ── */
+  useEffect(() => {
+    if (isPlaying) {
+      let lastFrac = simDayFracRef.current
+      playIntervalRef.current = setInterval(() => {
+        const curFrac = simDayFracRef.current
+        if (curFrac < lastFrac) {
+          setSimDay(prev => {
+            if (prev >= totalDays) {
+              setIsPlaying(false)
+              return prev
+            }
+            return prev + 1
+          })
+        }
+        lastFrac = curFrac
+      }, 100)
+    } else {
+      if (playIntervalRef.current) clearInterval(playIntervalRef.current)
+    }
+    return () => { if (playIntervalRef.current) clearInterval(playIntervalRef.current) }
+  }, [isPlaying, totalDays])
+
+  if (!domeDefs) {
+    return (
+      <div className="gh-overlay">
+        <div className="gh-loading">
+          <span className="gh-loading__spinner" />
+          <span className="gh-loading__text">Loading colony data…</span>
+        </div>
+      </div>
+    )
+  }
+
+  const waterPct = INITIAL_WATER > 0 ? hud.waterL / INITIAL_WATER : 1
+  const nutrientPct = 200 > 0 ? hud.nutrientsKg / 200 : 1
+  const barClass = (pct) => pct > 0.5 ? 'gh-bar--ok' : pct > 0.2 ? 'gh-bar--warn' : 'gh-bar--crit'
+
   return (
     <div className="gh-overlay">
       <canvas ref={canvasRef} className="gh-canvas" />
 
-      {/* ── HUD ── */}
-      <div className="gh-hud">
-        <span className="gh-hud-label">SUN</span>
-        <span className="gh-hud-value">{hud.angle}°</span>
-        <span className="gh-hud-label">DIR</span>
-        <span className="gh-hud-value">{hud.dir}</span>
-        <span className="gh-hud-label">DOME</span>
-        <span className="gh-hud-value">{hud.dome}</span>
-        <span className="gh-hud-label">ZOOM</span>
-        <span className="gh-hud-value">{hud.zoom}×</span>
-        <span className="gh-hud-label">FPS</span>
-        <span className="gh-hud-value">{hud.fps}</span>
-      </div>
+      <button className="gh-exit" onClick={handleExit}>
+        ← {insideDome ? `Exit ${insideDome === 'ALL' ? 'All Domes' : insideDome}` : 'Exit'}
+      </button>
 
-      {/* ── scene exit ── */}
-      <button className="gh-exit" onClick={onExit}>← Exit</button>
-
-      {/* ── enter ALL domes button ── */}
       {!insideDome && (
         <button className="gh-enter-all" onClick={handleEnterAll}>
           ⬡ Enter All Domes
         </button>
       )}
 
-      {/* ── enter single dome label ── */}
+      <div className="gh-date">
+        <span className="gh-date-day">Sol {hud.missionDay || simDay}</span>
+      </div>
+
       {enterLabel && !insideDome && (
         <button
           className="gh-enter-label"
@@ -939,12 +1239,64 @@ export default function GreenhouseScene({ onExit }) {
         </button>
       )}
 
-      {/* ── exit-dome button ── */}
-      {insideDome && (
-        <button className="gh-exit-dome" onClick={handleExitDome}>
-          ← Exit {insideDome === 'ALL' ? 'All Domes' : insideDome}
+      {/* ── resource HUD ── */}
+      <div className="gh-resources">
+        <div className="gh-resources__row">
+          <span className="gh-resources__label">Water</span>
+          <div className="gh-resources__bar-track">
+            <div
+              className={`gh-resources__bar-fill ${barClass(waterPct)}`}
+              style={{ width: `${Math.max(0, Math.min(100, waterPct * 100))}%` }}
+            />
+          </div>
+          <span className="gh-resources__value">{Math.round(hud.waterL)}L</span>
+        </div>
+        <div className="gh-resources__row">
+          <span className="gh-resources__label">Nutrients</span>
+          <div className="gh-resources__bar-track">
+            <div
+              className={`gh-resources__bar-fill ${barClass(nutrientPct)}`}
+              style={{ width: `${Math.max(0, Math.min(100, nutrientPct * 100))}%` }}
+            />
+          </div>
+          <span className="gh-resources__value">{Math.round(hud.nutrientsKg)}kg</span>
+        </div>
+        <div className="gh-resources__row">
+          <span className="gh-resources__label">Crops</span>
+          <span className="gh-resources__value gh-resources__value--wide">
+            {hud.cropsGrowing} growing / {hud.cropsReady} ready
+          </span>
+        </div>
+        {hud.activeEvents.length > 0 && (
+          <div className="gh-resources__events">
+            {hud.activeEvents.map(ev => (
+              <span key={ev} className="gh-resources__event-tag">{ev.replace(/_/g, ' ')}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="gh-timeline">
+        <button
+          className="gh-timeline-play"
+          onClick={() => setIsPlaying(p => !p)}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+        >
+          {isPlaying ? '❚❚' : '▶'}
         </button>
-      )}
+        <div className="gh-timeline-track">
+          <span className="gh-timeline-label">Sol 1</span>
+          <input
+            type="range"
+            className="gh-timeline-slider"
+            min={1}
+            max={totalDays}
+            value={simDay}
+            onChange={e => { setSimDay(Number(e.target.value)); simDayFracRef.current = 0 }}
+          />
+          <span className="gh-timeline-label">Sol {totalDays}</span>
+        </div>
+      </div>
     </div>
   )
 }

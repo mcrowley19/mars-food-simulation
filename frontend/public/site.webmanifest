@@ -1,0 +1,17 @@
+{
+  "name": "Mars Food Simulation",
+  "short_name": "MarsFoodSim",
+  "description": "Sustainable greenhouse planning and simulation for Mars missions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d1b",
+  "theme_color": "#11172b",
+  "icons": [
+    {
+      "src": "/favicon.svg?v=3",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -174,5 +174,9 @@ def reset_state():
 
 
 # Lambda handler for API Gateway deployment
-from mangum import Mangum
-lambda_handler = Mangum(app)
+try:
+    from mangum import Mangum
+    lambda_handler = Mangum(app)
+except ImportError:
+    # Local dev does not require Mangum; keep API importable for uvicorn.
+    lambda_handler = None

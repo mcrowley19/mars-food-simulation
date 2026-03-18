@@ -176,6 +176,7 @@
   line-height: 1;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
 }
 
 .keyboard-hints__chip:first-child {
@@ -205,12 +206,16 @@
 .keyboard-hints--landing {
   opacity: 1;
   transform: translateY(0);
+  top: clamp(14px, 2vw, 24px);
+  bottom: auto;
   animation: keyboardHintFloat 3.8s ease-in-out infinite;
 }
 
 .keyboard-hints--dashboard {
   opacity: 0.94;
   transform: translateY(-2px);
+  top: auto;
+  bottom: clamp(14px, 2vw, 24px);
 }
 
 @keyframes keyboardHintFloat {
@@ -324,5 +329,10 @@
     justify-content: center;
     flex-wrap: wrap;
     gap: 6px;
+  }
+
+  .keyboard-hints--landing {
+    top: 10px;
+    bottom: auto;
   }
 }

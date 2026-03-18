@@ -75,9 +75,9 @@ fi
 source "$ROOT_DIR/.venv/bin/activate"
 
 # ── Install Python deps if needed ──
-if ! python -c "import fastapi" 2>/dev/null; then
+if ! python -c "import fastapi,uvicorn,mangum" 2>/dev/null; then
   echo "==> Installing Python dependencies..."
-  pip install -q fastapi uvicorn strands-agents strands-agents-tools
+  pip install -q -r "$ROOT_DIR/backend/requirements.txt"
 fi
 
 # ── Install frontend deps if needed ──
@@ -103,6 +103,18 @@ cd "$ROOT_DIR"
 sleep 0.7
 if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
   echo "Error: backend failed to start on port $BACKEND_PORT."
+  exit 1
+fi
+
+for _ in {1..15}; do
+  if curl -fsS "http://127.0.0.1:$BACKEND_PORT/health" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.2
+done
+if ! curl -fsS "http://127.0.0.1:$BACKEND_PORT/health" >/dev/null 2>&1; then
+  echo "Error: backend process started, but health endpoint is not reachable."
+  kill "$BACKEND_PID" 2>/dev/null || true
   exit 1
 fi
 

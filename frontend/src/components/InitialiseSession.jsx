@@ -339,19 +339,17 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             <span className="is-ov__total-val">{(cfg.fertilizer + cfg.water + cfg.soil).toLocaleString()}</span>
             <span className="is-ov__total-unit">kg / L combined</span>
           </div>
-        </aside>
 
-        </div>{/* end is-body */}
-
-        {/* ── Footer ── */}
-        <div className="is-footer">
-          <div className="is-readiness">
-            <div className="is-readiness__bar">
-              <div className="is-readiness__fill" style={{ width: `${changedCount * 10}%` }} />
+          <div className="is-ov__customised">
+            <div className="is-readiness">
+              <div className="is-readiness__bar">
+                <div className="is-readiness__fill" style={{ width: `${changedCount * 10}%` }} />
+              </div>
+              <span className="is-readiness__label">{changedCount} of 10 parameters customised</span>
             </div>
-            <span className="is-readiness__label">{changedCount} of 10 parameters customised</span>
           </div>
-          <div className="is-footer__actions">
+
+          <div className="is-ov__actions">
             <button className="is-btn-reset" onClick={reset}>Reset Defaults</button>
             <button
               className={`is-btn-begin${launching ? ' is-btn-begin--loading' : ''}`}
@@ -361,7 +359,9 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
               {launching ? <><span className="is-spinner" />Initialising…</> : 'Begin Simulation'}
             </button>
           </div>
-        </div>
+        </aside>
+
+        </div>{/* end is-body */}
 
       </div>
     </div>
