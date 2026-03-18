@@ -79,7 +79,7 @@ export default function Mars({ dashboardActive = false }) {
       const t = transitionRef.current
       const eased = t * t * (3 - 2 * t)
 
-      const x = THREE.MathUtils.lerp(0, -1.15, eased)
+      const x = THREE.MathUtils.lerp(0, -1.25, eased)
       const scale = THREE.MathUtils.lerp(1, 0.6, eased)
 
       containerRef.current.position.x = x
