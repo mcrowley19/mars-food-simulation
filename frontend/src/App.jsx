@@ -1,11 +1,16 @@
-import { Suspense } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import Mars from './components/Mars'
-import Stars from './components/Stars'
-import './App.css'
+import { Suspense } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+import Mars from "./components/Mars";
+import Stars from "./components/Stars";
+import "./App.css";
 
-function App() {
+async function App() {
+  const response = await fetch("http://localhost:8000/invoke", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
+  });
   return (
     <div className="landing">
       <div className="canvas-container">
@@ -14,8 +19,16 @@ function App() {
           gl={{ antialias: true, alpha: true }}
         >
           <ambientLight intensity={0.08} />
-          <directionalLight position={[5, 2, 5]} intensity={2.2} color="#fff0dc" />
-          <directionalLight position={[-4, -1, 3]} intensity={0.15} color="#ff8050" />
+          <directionalLight
+            position={[5, 2, 5]}
+            intensity={2.2}
+            color="#fff0dc"
+          />
+          <directionalLight
+            position={[-4, -1, 3]}
+            intensity={0.15}
+            color="#ff8050"
+          />
           <pointLight position={[-6, 3, -4]} intensity={0.4} color="#ffd4b8" />
           <Suspense fallback={null}>
             <Mars />
@@ -33,10 +46,14 @@ function App() {
       <div className="overlay">
         <header className="hero-header">
           <span className="tagline">Simulation Platform</span>
-          <h1>Mars Food<br />Simulation</h1>
+          <h1>
+            Mars Food
+            <br />
+            Simulation
+          </h1>
           <p className="subtitle">
-            Modeling sustainable agriculture for humanity's
-            next frontier. Growing food on Mars starts here.
+            Modeling sustainable agriculture for humanity's next frontier.
+            Growing food on Mars starts here.
           </p>
           <div className="cta-group">
             <button className="cta-primary">Launch Simulation</button>
@@ -49,7 +66,7 @@ function App() {
         </footer>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
