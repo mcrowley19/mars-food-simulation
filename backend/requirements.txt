@@ -3,4 +3,6 @@ fastapi
 uvicorn
 strands-agents
 strands-agents-tools
+bedrock-agentcore
 pydantic
+mangum

@@ -28,7 +28,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -169,3 +169,8 @@ def reset_state():
     fresh = _blank_state()
     update_state(fresh)
     return fresh
+
+
+# Lambda handler for API Gateway deployment
+from mangum import Mangum
+lambda_handler = Mangum(app)

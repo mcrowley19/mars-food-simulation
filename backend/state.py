@@ -1,8 +1,9 @@
+import os
 import boto3
 from decimal import Decimal
 
-TABLE_NAME = "greenhouse-state"
-REGION = "us-west-2"
+TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "greenhouse-state")
+REGION = os.environ.get("DYNAMODB_REGION", "us-west-2")
 
 _table = boto3.resource("dynamodb", region_name=REGION).Table(TABLE_NAME)
 

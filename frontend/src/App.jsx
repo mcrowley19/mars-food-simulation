@@ -44,7 +44,8 @@ function App() {
       `Air composition: ${config?.airComp ?? "Hab Mix"}`,
     ].join(" ");
 
-    fetch("http://localhost:8000/invoke", {
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    fetch(`${API}/invoke`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt }),

@@ -1,0 +1,62 @@
+default_agent: mars_greenhouse
+agents:
+  mars_greenhouse:
+    name: mars_greenhouse
+    language: python
+    node_version: '20'
+    entrypoint: main.py
+    deployment_type: container
+    runtime_type: null
+    platform: linux/arm64
+    container_runtime: docker
+    source_path: /Users/michael/START/mars-food-simulation/backend
+    aws:
+      execution_role: arn:aws:iam::687472422928:role/AmazonBedrockAgentCoreSDKRuntime-us-west-2-6e55a8e389
+      execution_role_auto_create: false
+      account: '687472422928'
+      region: us-west-2
+      ecr_repository: 687472422928.dkr.ecr.us-west-2.amazonaws.com/bedrock-agentcore-mars_greenhouse
+      ecr_auto_create: false
+      s3_path: null
+      s3_auto_create: false
+      network_configuration:
+        network_mode: PUBLIC
+        network_mode_config: null
+      protocol_configuration:
+        server_protocol: HTTP
+      observability:
+        enabled: true
+      lifecycle_configuration:
+        idle_runtime_session_timeout: null
+        max_lifetime: null
+    bedrock_agentcore:
+      agent_id: mars_greenhouse-uPxhUhAg5c
+      agent_arn: arn:aws:bedrock-agentcore:us-west-2:687472422928:runtime/mars_greenhouse-uPxhUhAg5c
+      agent_session_id: 7f53c975-751f-48f7-a4c7-bf46eea3768f
+    codebuild:
+      project_name: bedrock-agentcore-mars_greenhouse-builder
+      execution_role: arn:aws:iam::687472422928:role/AmazonBedrockAgentCoreSDKCodeBuild-us-west-2-6e55a8e389
+      source_bucket: bedrock-agentcore-codebuild-sources-687472422928-us-west-2
+    memory:
+      mode: STM_ONLY
+      memory_id: mars_greenhouse_mem-Q1dB725Wjc
+      memory_arn: arn:aws:bedrock-agentcore:us-west-2:687472422928:memory/mars_greenhouse_mem-Q1dB725Wjc
+      memory_name: mars_greenhouse_mem
+      event_expiry_days: 30
+      first_invoke_memory_check_done: false
+      was_created_by_toolkit: false
+    identity:
+      credential_providers: []
+      workload: null
+    aws_jwt:
+      enabled: false
+      audiences: []
+      signing_algorithm: ES384
+      issuer_url: null
+      duration_seconds: 300
+    authorizer_configuration: null
+    request_header_configuration: null
+    oauth_configuration: null
+    api_key_env_var_name: null
+    api_key_credential_provider_name: null
+    is_generated_by_agentcore_create: false
