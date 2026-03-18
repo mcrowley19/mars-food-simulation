@@ -13,17 +13,18 @@
   height: 100%;
 }
 
-/* ── HUD panel ── */
+/* ── Date display (top right) ── */
 
-.gh-hud {
+.gh-date {
   position: fixed;
   top: 20px;
   right: 20px;
   z-index: 101;
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 4px 14px;
-  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 12px 18px;
   background: rgba(10, 5, 2, 0.82);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(232, 120, 64, 0.2);
@@ -31,18 +32,113 @@
   font-family: var(--mono, 'JetBrains Mono', monospace);
 }
 
-.gh-hud-label {
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: rgba(200, 160, 120, 0.55);
+.gh-date-day {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #f5e0cc;
 }
 
-.gh-hud-value {
+.gh-date-month {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(200, 160, 120, 0.65);
+}
+
+/* ── Timeline slider (bottom) ── */
+
+.gh-timeline {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 102;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: rgba(10, 5, 2, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 120, 64, 0.2);
+  border-radius: 10px;
+  width: min(600px, 80vw);
+}
+
+.gh-timeline-play {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(232, 120, 64, 0.4);
+  border-radius: 50%;
+  background: rgba(232, 120, 64, 0.1);
+  color: #f0a870;
   font-size: 14px;
-  font-weight: 600;
-  color: #f5e0cc;
-  text-align: right;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.gh-timeline-play:hover {
+  background: rgba(232, 120, 64, 0.25);
+  border-color: rgba(232, 120, 64, 0.7);
+}
+
+.gh-timeline-track {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-timeline-label {
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: rgba(200, 160, 120, 0.55);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.gh-timeline-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(200, 160, 120, 0.15);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.gh-timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e87840;
+  border: 2px solid rgba(232, 120, 64, 0.6);
+  box-shadow: 0 0 8px rgba(232, 120, 64, 0.4);
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.gh-timeline-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 16px rgba(232, 120, 64, 0.6);
+}
+
+.gh-timeline-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e87840;
+  border: 2px solid rgba(232, 120, 64, 0.6);
+  box-shadow: 0 0 8px rgba(232, 120, 64, 0.4);
+  cursor: pointer;
 }
 
 /* ── Exit scene button ── */
@@ -138,7 +234,7 @@
 
 .gh-enter-all {
   position: fixed;
-  bottom: 30px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 102;

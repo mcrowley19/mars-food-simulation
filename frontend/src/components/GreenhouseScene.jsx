@@ -570,7 +570,8 @@ function buildColony(scene) {
 /* ── lighting ─────────────────────────────────────────────── */
 
 function setupLighting(scene) {
-  scene.add(new THREE.AmbientLight('#441a00', 0.35))
+  const ambient = new THREE.AmbientLight('#441a00', 0.35)
+  scene.add(ambient)
 
   // warm fill light from below
   const fill = new THREE.DirectionalLight('#ff8844', 0.3)
@@ -588,12 +589,12 @@ function setupLighting(scene) {
   sun.shadow.camera.far = 300
   sun.shadow.bias = -0.0005
   scene.add(sun)
-  return sun
+  return { sun, ambient, fill }
 }
 
 /* ═════════════════ React component ════════════════════════ */
 
-export default function GreenhouseScene({ onExit }) {
+export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const canvasRef = useRef(null)
   const labelsRef = useRef(null)      // DOM container for dome labels
   const stateRef = useRef(null)
@@ -601,6 +602,11 @@ export default function GreenhouseScene({ onExit }) {
   const [hud, setHud] = useState({ angle: 0, dir: 'N', fps: 0, dome: '—', zoom: '1.0' })
   const [enterLabel, setEnterLabel] = useState(null)   // { id, x, y }
   const [insideDome, setInsideDome] = useState(null)
+  const [simDay, setSimDay] = useState(1)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const isPlayingRef = useRef(false)
+  const simDayFracRef = useRef(0)      // fractional progress within current sol (0..1)
+  const playIntervalRef = useRef(null)
 
   /* ── cleanup ── */
   const cleanup = useCallback(() => {
@@ -628,7 +634,7 @@ export default function GreenhouseScene({ onExit }) {
     const { renderer, scene, camera } = initScene(canvas, w, h)
     buildTerrain(scene)
     const greenhouses = buildColony(scene)
-    const sun = setupLighting(scene)
+    const { sun, ambient, fill } = setupLighting(scene)
 
     // raycaster for dome clicks
     const raycaster = new THREE.Raycaster()
@@ -647,7 +653,7 @@ export default function GreenhouseScene({ onExit }) {
       endX: 0, endZ: 0,
     }
 
-    stateRef.current = { renderer, scene, camera, sun, greenhouses, anim, raycaster, pointer }
+    stateRef.current = { renderer, scene, camera, sun, ambient, fill, greenhouses, anim, raycaster, pointer }
 
     /* ── click handler ── */
     const onClick = (e) => {
@@ -687,8 +693,19 @@ export default function GreenhouseScene({ onExit }) {
     window.addEventListener('resize', onResize)
 
     /* ── animation loop ── */
-    const SUN_RADIUS = 140, SUN_HEIGHT = 70, SUN_SPEED = 0.12
-    let sunAngle = 0, lastTime = performance.now()
+    const SUN_ORBIT_R = 140          // horizontal orbit radius
+    const SUN_MAX_H   = 80           // peak height at solar noon
+    const SOL_DURATION = 10          // real seconds per sol (one full day-night cycle)
+
+    // colour targets for day-night blending
+    const DAY_BG     = new THREE.Color('#28120a')
+    const NIGHT_BG   = new THREE.Color('#3a2530')
+    const DAWN_SUN   = new THREE.Color('#ff8844')
+    const NOON_SUN   = new THREE.Color('#ffe8cc')
+    const bgColor    = new THREE.Color()
+    const sunColor   = new THREE.Color()
+
+    let lastTime = performance.now()
     let frameCount = 0, fpsAccum = 0, lastFpsUpdate = performance.now()
 
     const animate = (now) => {
@@ -696,26 +713,58 @@ export default function GreenhouseScene({ onExit }) {
       const dt = (now - lastTime) / 1000
       lastTime = now
 
+      // ── advance fractional day when playing ──
+      if (isPlayingRef.current) {
+        simDayFracRef.current += dt / SOL_DURATION
+        if (simDayFracRef.current >= 1) {
+          simDayFracRef.current = 0
+        }
+      }
+
+      // ── sun position from day fraction ──
+      // sunPhase 0 = sunrise (east), 0.25 = noon, 0.5 = sunset (west), 0.75 = midnight
+      const sunPhase = simDayFracRef.current
+      const sunAngle = sunPhase * Math.PI * 2          // full orbit
+      const sunY = Math.sin(sunAngle) * SUN_MAX_H      // positive = above horizon
+      const sunX = Math.cos(sunAngle) * SUN_ORBIT_R
+      const sunZ = Math.sin(sunAngle + Math.PI / 3) * SUN_ORBIT_R * 0.6  // slight tilt for realism
+
+      sun.position.set(sunX, Math.max(sunY, -SUN_MAX_H * 0.5), sunZ)
+      sun.target.position.set(0, 0, 0)
+      sun.target.updateMatrixWorld()
+
+      // ── elevation factor: 1 = noon, 0 = horizon, negative = night ──
+      const elevation = sunY / SUN_MAX_H               // -1 to +1
+      const dayFactor = Math.max(0, elevation)          // 0 to 1 (0 when below horizon)
+      const twilight  = Math.max(0, Math.min(1, (elevation + 0.15) / 0.3))  // smooth horizon transition
+
+      // ── dynamic lighting (night stays visible, just noticeably dimmer) ──
+      sun.intensity = lerp(1.1, 2.75, dayFactor)
+      sun.castShadow = elevation > -0.05
+      ambient.intensity = lerp(0.52, 0.6, twilight)
+      fill.intensity = lerp(0.44, 0.5, twilight)
+
+      // sun colour: warm at horizon, white at noon
+      sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor)
+      sun.color.copy(sunColor)
+
+      // background: dark at night, Mars-red by day
+      bgColor.copy(NIGHT_BG).lerp(DAY_BG, twilight)
+      scene.background.copy(bgColor)
+
       // ── fps / hud ──
       frameCount++; fpsAccum += dt
       if (now - lastFpsUpdate > 500) {
         const fps = Math.round(frameCount / fpsAccum)
-        const angleDeg = radToDeg(sunAngle)
         setHud({
-          angle: angleDeg.toFixed(1),
-          dir: compassDir(angleDeg),
+          angle: (sunPhase * 360).toFixed(1),
+          dir: compassDir(sunPhase * 360),
           fps,
           dome: anim.dome ? anim.dome.userData.domeId : '—',
           zoom: camera.zoom.toFixed(2),
         })
         frameCount = 0; fpsAccum = 0; lastFpsUpdate = now
       }
-
-      // ── sun orbit ──
-      sunAngle += SUN_SPEED * dt
-      sun.position.set(Math.cos(sunAngle) * SUN_RADIUS, SUN_HEIGHT, Math.sin(sunAngle) * SUN_RADIUS)
-      sun.target.position.set(0, 0, 0)
-      sun.target.updateMatrixWorld()
 
       // ── enter/exit animation ──
       if (anim.active) {
@@ -872,6 +921,15 @@ export default function GreenhouseScene({ onExit }) {
     anim.endZ = 0
   }, [insideDome])
 
+  /* ── main exit: leave selection first, then scene ── */
+  const handleExit = useCallback(() => {
+    if (insideDome) {
+      handleExitDome()
+      return
+    }
+    onExit()
+  }, [insideDome, handleExitDome, onExit])
+
   /* ── enter ALL domes at once ── */
   const handleEnterAll = useCallback(() => {
     const s = stateRef.current
@@ -900,33 +958,53 @@ export default function GreenhouseScene({ onExit }) {
     setEnterLabel(null)
   }, [])
 
+  /* ── keep ref in sync so animation loop can read it ── */
+  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
+
+  /* ── timeline: advance day when day-night cycle completes ── */
+  useEffect(() => {
+    if (isPlaying) {
+      let lastFrac = simDayFracRef.current
+      playIntervalRef.current = setInterval(() => {
+        const curFrac = simDayFracRef.current
+        // detect wrap-around (frac went from high → low = cycle completed)
+        if (curFrac < lastFrac) {
+          setSimDay(prev => {
+            if (prev >= totalDays) {
+              setIsPlaying(false)
+              return prev
+            }
+            return prev + 1
+          })
+        }
+        lastFrac = curFrac
+      }, 100)
+    } else {
+      if (playIntervalRef.current) clearInterval(playIntervalRef.current)
+    }
+    return () => { if (playIntervalRef.current) clearInterval(playIntervalRef.current) }
+  }, [isPlaying, totalDays])
+
   return (
     <div className="gh-overlay">
       <canvas ref={canvasRef} className="gh-canvas" />
 
-      {/* ── HUD ── */}
-      <div className="gh-hud">
-        <span className="gh-hud-label">SUN</span>
-        <span className="gh-hud-value">{hud.angle}°</span>
-        <span className="gh-hud-label">DIR</span>
-        <span className="gh-hud-value">{hud.dir}</span>
-        <span className="gh-hud-label">DOME</span>
-        <span className="gh-hud-value">{hud.dome}</span>
-        <span className="gh-hud-label">ZOOM</span>
-        <span className="gh-hud-value">{hud.zoom}×</span>
-        <span className="gh-hud-label">FPS</span>
-        <span className="gh-hud-value">{hud.fps}</span>
-      </div>
+      {/* ── scene exit (or selection exit when inside a dome) ── */}
+      <button className="gh-exit" onClick={handleExit}>
+        ← {insideDome ? `Exit ${insideDome === 'ALL' ? 'All Domes' : insideDome}` : 'Exit'}
+      </button>
 
-      {/* ── scene exit ── */}
-      <button className="gh-exit" onClick={onExit}>← Exit</button>
-
-      {/* ── enter ALL domes button ── */}
+      {/* ── enter ALL domes button (top center) ── */}
       {!insideDome && (
         <button className="gh-enter-all" onClick={handleEnterAll}>
           ⬡ Enter All Domes
         </button>
       )}
+
+      {/* ── day display (top right) ── */}
+      <div className="gh-date">
+        <span className="gh-date-day">Sol {simDay}</span>
+      </div>
 
       {/* ── enter single dome label ── */}
       {enterLabel && !insideDome && (
@@ -939,12 +1017,28 @@ export default function GreenhouseScene({ onExit }) {
         </button>
       )}
 
-      {/* ── exit-dome button ── */}
-      {insideDome && (
-        <button className="gh-exit-dome" onClick={handleExitDome}>
-          ← Exit {insideDome === 'ALL' ? 'All Domes' : insideDome}
+      {/* ── timeline slider with play/pause ── */}
+      <div className="gh-timeline">
+        <button
+          className="gh-timeline-play"
+          onClick={() => setIsPlaying(p => !p)}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+        >
+          {isPlaying ? '❚❚' : '▶'}
         </button>
-      )}
+        <div className="gh-timeline-track">
+          <span className="gh-timeline-label">Sol 1</span>
+          <input
+            type="range"
+            className="gh-timeline-slider"
+            min={1}
+            max={totalDays}
+            value={simDay}
+            onChange={e => { setSimDay(Number(e.target.value)); simDayFracRef.current = 0 }}
+          />
+          <span className="gh-timeline-label">Sol {totalDays}</span>
+        </div>
+      </div>
     </div>
   )
 }

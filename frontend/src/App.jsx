@@ -11,6 +11,7 @@ import "./App.css";
 function App() {
   const [screen, setScreen] = useState("landing");
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [simConfig, setSimConfig] = useState(null);
 
   const isDashboard = screen === "dashboard";
   const isGreenhouse = screen === "greenhouse";
@@ -54,6 +55,7 @@ function App() {
       // Backend may be unavailable; UI should remain responsive.
     }
 
+    setSimConfig(config);
     setScreen("greenhouse");
   };
 
@@ -195,7 +197,7 @@ function App() {
       </div>
       {screen === "learn" && <LearnMore onClose={() => setScreen("landing")} />}
       {screen === "greenhouse" && (
-        <GreenhouseScene onExit={() => setScreen("landing")} />
+        <GreenhouseScene onExit={() => setScreen("landing")} totalDays={simConfig?.timeframe ?? 350} />
       )}
     </div>
   );
