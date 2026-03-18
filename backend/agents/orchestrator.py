@@ -16,6 +16,12 @@ fault_handler = create_fault_handler()
 
 
 @tool
+def delegate_to_crop_planner(task: str) -> str:
+    """Delegate a crop planning or scheduling task."""
+    return str(crop_planner(task))
+
+
+@tool
 def delegate_to_env_monitor(task: str) -> str:
     """Delegate an environment monitoring or adjustment task."""
     return str(env_monitor(task))
@@ -60,3 +66,8 @@ orchestrator = Agent(
         delegate_to_fault_handler,
     ]
 )
+
+
+def run_orchestrator(task: str) -> str:
+    """Unified orchestrator entrypoint used by the API layer."""
+    return str(orchestrator(task))

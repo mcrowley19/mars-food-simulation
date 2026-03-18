@@ -89,7 +89,7 @@ function ParamRow({ label, children }) {
 }
 
 /* ── Main component ── */
-export default function InitialiseSession({ onBack, disableBackdropClose = false }) {
+export default function InitialiseSession({ onBack, disableBackdropClose = false, onBeginSimulation }) {
   const [cfg, setCfg]             = useState(DEFAULTS)
   const [launching, setLaunching] = useState(false)
 
@@ -111,9 +111,17 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
     cfg.airComp    !== DEFAULTS.airComp,
   ].filter(Boolean).length
 
-  const handleBegin = () => {
+  const handleBegin = async () => {
     setLaunching(true)
-    setTimeout(() => setLaunching(false), 2000)
+    try {
+      if (onBeginSimulation) {
+        await onBeginSimulation(cfg)
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 1200))
+      }
+    } finally {
+      setLaunching(false)
+    }
   }
 
   return (

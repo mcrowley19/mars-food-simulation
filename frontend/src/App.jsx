@@ -11,16 +11,6 @@ function App() {
   const [screen, setScreen] = useState("landing");
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  useEffect(() => {
-    fetch("http://localhost:8000/invoke", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: "Plan the first 30 days of crops" }),
-    }).catch(() => {
-      // Backend may not be running yet; landing page should still render.
-    });
-  }, []);
-
   const isDashboard = screen === "dashboard";
 
   const handleLaunch = () => {
@@ -35,6 +25,62 @@ function App() {
   const handleBackToLanding = () => {
     setScreen("landing");
   };
+
+  const handleBeginSimulation = async (config) => {
+    const seedSummary = Array.isArray(config?.seedTypes) ? config.seedTypes.join(", ") : "mixed crops";
+    const prompt = [
+      "Create a Mars greenhouse startup plan.",
+      `Crew: ${config?.astronauts ?? 4}`,
+      `Mission days: ${config?.timeframe ?? 350}`,
+      `Water: ${config?.water ?? 2000}L`,
+      `Nutrients/Fertilizer: ${config?.fertilizer ?? 500}kg`,
+      `Soil: ${config?.soil ?? 1500}kg`,
+      `Selected crops: ${seedSummary}`,
+      `Weather profile: ${config?.weather ?? "Calm"}`,
+      `Air composition: ${config?.airComp ?? "Hab Mix"}`,
+    ].join(" ");
+
+    try {
+      await fetch("http://localhost:8000/invoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+    } catch {
+      // Backend may be unavailable; UI should remain responsive.
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const target = event.target;
+      const tag = target?.tagName?.toLowerCase?.();
+      const isTypingField =
+        target?.isContentEditable ||
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select";
+
+      if (event.code === "Space" && screen === "landing" && !isTransitioning && !isTypingField) {
+        event.preventDefault();
+        setIsTransitioning(true);
+        setTimeout(() => {
+          setScreen("dashboard");
+          setIsTransitioning(false);
+        }, 900);
+      }
+
+      if (event.key === "Escape" && (screen === "dashboard" || screen === "learn")) {
+        event.preventDefault();
+        setScreen("landing");
+        setIsTransitioning(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [screen, isTransitioning]);
+
   return (
     <div className="landing">
       <div
@@ -108,7 +154,30 @@ function App() {
         <InitialiseSession
           onBack={handleBackToLanding}
           disableBackdropClose={true}
+          onBeginSimulation={handleBeginSimulation}
         />
+      </div>
+
+      <div
+        className={`keyboard-hints ${
+          isDashboard ? "keyboard-hints--dashboard" : "keyboard-hints--landing"
+        }`}
+      >
+        <div className="keyboard-hints__chip">
+          <span className="keyboard-hints__label">Quick Nav</span>
+        </div>
+        {screen === "landing" && (
+          <div className="keyboard-hints__chip">
+            <kbd>Space</kbd>
+            <span>Launch Dashboard</span>
+          </div>
+        )}
+        {(screen === "dashboard" || screen === "learn") && (
+          <div className="keyboard-hints__chip">
+            <kbd>Esc</kbd>
+            <span>Back to Landing</span>
+          </div>
+        )}
       </div>
       {screen === "learn" && <LearnMore onClose={() => setScreen("landing")} />}
     </div>
