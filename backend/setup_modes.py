@@ -5,6 +5,18 @@ from agents.crop_planner import create_crop_planner
 VALID_SEEDS = {"potato", "wheat", "lettuce", "tomato", "soybean", "radish", "pea", "kale", "carrot"}
 SPACE_PER_PLANT_M2 = 0.25
 
+CROP_DEFAULTS = {
+    "potato":  {"maturity_days": 90,  "water_per_day_l": 0.5, "nutrient_per_day_kg": 0.02},
+    "wheat":   {"maturity_days": 120, "water_per_day_l": 0.3, "nutrient_per_day_kg": 0.015},
+    "lettuce": {"maturity_days": 30,  "water_per_day_l": 0.2, "nutrient_per_day_kg": 0.01},
+    "tomato":  {"maturity_days": 70,  "water_per_day_l": 0.6, "nutrient_per_day_kg": 0.025},
+    "soybean": {"maturity_days": 80,  "water_per_day_l": 0.4, "nutrient_per_day_kg": 0.02},
+    "radish":  {"maturity_days": 25,  "water_per_day_l": 0.15,"nutrient_per_day_kg": 0.008},
+    "pea":     {"maturity_days": 60,  "water_per_day_l": 0.3, "nutrient_per_day_kg": 0.015},
+    "kale":    {"maturity_days": 55,  "water_per_day_l": 0.25,"nutrient_per_day_kg": 0.012},
+    "carrot":  {"maturity_days": 75,  "water_per_day_l": 0.3, "nutrient_per_day_kg": 0.015},
+}
+
 
 def _blank_state():
     return {
@@ -80,6 +92,21 @@ def manual_setup(params: dict) -> dict:
     state["resources"]["water_l"] = water_l
     state["resources"]["nutrients_kg"] = fertilizer_kg
     state["setup_complete"] = True
+
+    # Populate crops array from seed_amounts
+    crops = []
+    for seed_type, count in seed_amounts.items():
+        defaults = CROP_DEFAULTS.get(seed_type, {})
+        for _ in range(count):
+            crops.append({
+                "name": seed_type,
+                "age_days": 0,
+                "maturity_days": defaults.get("maturity_days", 60),
+                "water_per_day_l": defaults.get("water_per_day_l", 0.3),
+                "nutrient_per_day_kg": defaults.get("nutrient_per_day_kg", 0.015),
+                "status": "growing",
+            })
+    state["crops"] = crops
 
     return state
 

@@ -13,14 +13,16 @@ _invoke_lock = threading.Lock()
 
 @asynccontextmanager
 async def lifespan(app):
-    # On startup: reset any leftover state so user always starts fresh
-    try:
-        state = get_state()
-        if state.get("setup_complete"):
-            from setup_modes import _blank_state
-            update_state(_blank_state())
-    except Exception:
-        pass  # Table may not exist yet
+    # On startup: only reset state in local dev, not in Lambda
+    import os
+    if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        try:
+            state = get_state()
+            if state.get("setup_complete"):
+                from setup_modes import _blank_state
+                update_state(_blank_state())
+        except Exception:
+            pass  # Table may not exist yet
     yield
 
 
