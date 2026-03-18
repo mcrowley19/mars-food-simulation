@@ -20,16 +20,29 @@ app.add_middleware(
 class PromptRequest(BaseModel):
     prompt: str
 
-<<<<<<< HEAD
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 
 @app.post("/invoke")
 def invoke_agent(req: PromptRequest):
-    client = boto3.client("bedrock-agentcore-runtime", region_name="us-west-2")
-    response = client.invoke_agent_runtime(
-        agentRuntimeArn="<your-arn>",
-        payload=json.dumps({"prompt": req.prompt})
-    )
-    return {"response": response["body"]}
+    try:
+        from agents.orchestrator import run_orchestrator
+
+        result = run_orchestrator(req.prompt)
+        return {"response": str(result)}
+    except Exception as e:
+        message = str(e)
+        if "AccessDeniedException" in message or "explicit deny" in message:
+            return {
+                "response": (
+                    "Agent invocation is currently blocked by AWS IAM policy "
+                    "(explicit deny on Bedrock model invocation)."
+                )
+            }
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=message)
 
 
 @app.get("/state")
@@ -63,8 +76,8 @@ def simulate_tick():
     )
 
     # Call orchestrator
-    from agents.orchestrator import orchestrator
-    result = orchestrator(context)
+    from agents.orchestrator import run_orchestrator
+    result = run_orchestrator(context)
     state["agent_last_actions"]["orchestrator"] = str(result)
 
     update_state(state)
@@ -77,26 +90,3 @@ def reset_state():
     fresh = copy.deepcopy(INITIAL_STATE)
     update_state(fresh)
     return fresh
-=======
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-@app.post("/invoke")
-def invoke_agent(req: PromptRequest):
-    try:
-        from agents.orchestrator import run_orchestrator
-        result = run_orchestrator(req.prompt)
-        return {"response": str(result)}
-    except Exception as e:
-        message = str(e)
-        if "AccessDeniedException" in message or "explicit deny" in message:
-            return {
-                "response": (
-                    "Agent invocation is currently blocked by AWS IAM policy "
-                    "(explicit deny on Bedrock model invocation)."
-                )
-            }
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=message)
->>>>>>> bfce8f0a282bdb54838a3630e78813159e9317fb
