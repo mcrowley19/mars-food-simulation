@@ -6,6 +6,7 @@ import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
 import LearnMore from "./components/LearnMore";
 import GreenhouseScene from "./components/GreenhouseScene";
+import DailyCheckup from "./components/DailyCheckup";
 import "./App.css";
 
 function App() {
@@ -83,7 +84,7 @@ function App() {
 
       if (
         event.key === "Escape" &&
-        (screen === "dashboard" || screen === "learn" || screen === "greenhouse")
+        (screen === "dashboard" || screen === "learn" || screen === "greenhouse" || screen === "checkup")
       ) {
         event.preventDefault();
         setScreen("landing");
@@ -151,6 +152,7 @@ function App() {
             <button className="cta-primary" onClick={handleLaunch}>
               Launch Simulation
             </button>
+            <button className="cta-secondary" onClick={() => setScreen("checkup")}>Daily Checkup</button>
             <button className="cta-secondary" onClick={() => setScreen("learn")}>Learn More</button>
           </div>
         </header>
@@ -186,13 +188,16 @@ function App() {
             <span>Launch Dashboard</span>
           </div>
         )}
-        {(screen === "dashboard" || screen === "learn" || screen === "greenhouse") && (
+        {(screen === "dashboard" || screen === "learn" || screen === "greenhouse" || screen === "checkup") && (
           <div className="keyboard-hints__chip">
             <kbd>Esc</kbd>
             <span>Back to Landing</span>
           </div>
         )}
       </div>
+      {screen === "checkup" && (
+        <DailyCheckup onBack={() => setScreen("landing")} />
+      )}
       {screen === "learn" && <LearnMore onClose={() => setScreen("landing")} />}
       {screen === "greenhouse" && (
         <GreenhouseScene onExit={() => setScreen("landing")} />
