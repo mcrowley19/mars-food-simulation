@@ -5,10 +5,12 @@ import Mars from "./components/Mars";
 import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
 import LearnMore from "./components/LearnMore";
+import GreenhouseScene from "./components/GreenhouseScene";
 import "./App.css";
 
 function App() {
   const [screen, setScreen] = useState("landing");
+  const isDev = import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev');
 
   useEffect(() => {
     fetch("http://localhost:8000/invoke", {
@@ -22,7 +24,13 @@ function App() {
       <div className="canvas-container">
         <Canvas
           camera={{ position: [0, 0, 5.5], fov: 45 }}
-          gl={{ antialias: true, alpha: true }}
+          dpr={[1, 2]}
+          gl={{
+            antialias: true,
+            alpha: true,
+            powerPreference: 'high-performance',
+            failIfMajorPerformanceCaveat: false,
+          }}
         >
           <ambientLight intensity={0.08} />
           <directionalLight
@@ -72,6 +80,12 @@ function App() {
         <footer className="landing-footer">
           <p>Built for the future of space colonization</p>
         </footer>
+
+        {isDev && (
+          <button className="dev-greenhouse-btn" onClick={() => setScreen('greenhouse')}>
+            [ DEV ] Preview Mars Greenhouse
+          </button>
+        )}
       </div>
 
       {screen === "init" && (
@@ -79,6 +93,9 @@ function App() {
       )}
       {screen === 'learn' && (
         <LearnMore onClose={() => setScreen('landing')} />
+      )}
+      {screen === 'greenhouse' && (
+        <GreenhouseScene onExit={() => setScreen('landing')} />
       )}
     </div>
   );
