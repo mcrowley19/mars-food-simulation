@@ -4,43 +4,24 @@ import { OrbitControls } from "@react-three/drei";
 import Mars from "./components/Mars";
 import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
-import SetupScreen from "./components/SetupScreen";
+import LearnMore from "./components/LearnMore";
+import GreenhouseScene from "./components/GreenhouseScene";
 import "./App.css";
-
-const API = "http://localhost:8000";
 
 function App() {
   const [screen, setScreen] = useState("landing");
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [setupComplete, setSetupComplete] = useState(false);
-  const [initialState, setInitialState] = useState(null);
-
-  // Check setup status on mount
-  useEffect(() => {
-    fetch(`${API}/setup-status`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.setup_complete) {
-          setSetupComplete(true);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const isDashboard = screen === "dashboard";
+  const isGreenhouse = screen === "greenhouse";
 
   const handleLaunch = () => {
-    if (isTransitioning || isDashboard) return;
+    if (isTransitioning || isDashboard || isGreenhouse) return;
     setIsTransitioning(true);
     setTimeout(() => {
       setScreen("dashboard");
       setIsTransitioning(false);
     }, 900);
-  };
-
-  const handleSetupComplete = (state) => {
-    setSetupComplete(true);
-    setInitialState(state);
   };
 
   const handleBackToLanding = () => {
@@ -72,6 +53,8 @@ function App() {
     } catch {
       // Backend may be unavailable; UI should remain responsive.
     }
+
+    setScreen("greenhouse");
   };
 
   useEffect(() => {
@@ -100,7 +83,7 @@ function App() {
 
       if (
         event.key === "Escape" &&
-        (screen === "dashboard" || screen === "learn")
+        (screen === "dashboard" || screen === "learn" || screen === "greenhouse")
       ) {
         event.preventDefault();
         setScreen("landing");
@@ -168,6 +151,7 @@ function App() {
             <button className="cta-primary" onClick={handleLaunch}>
               Launch Simulation
             </button>
+            <button className="cta-secondary" onClick={() => setScreen("learn")}>Learn More</button>
           </div>
         </header>
 
@@ -202,7 +186,7 @@ function App() {
             <span>Launch Dashboard</span>
           </div>
         )}
-        {(screen === "dashboard" || screen === "learn") && (
+        {(screen === "dashboard" || screen === "learn" || screen === "greenhouse") && (
           <div className="keyboard-hints__chip">
             <kbd>Esc</kbd>
             <span>Back to Landing</span>
@@ -210,6 +194,9 @@ function App() {
         )}
       </div>
       {screen === "learn" && <LearnMore onClose={() => setScreen("landing")} />}
+      {screen === "greenhouse" && (
+        <GreenhouseScene onExit={() => setScreen("landing")} />
+      )}
     </div>
   );
 }

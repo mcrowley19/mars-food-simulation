@@ -1,0 +1,297 @@
+/* ═══════════════════════════════════════════
+   LEARN MORE — glass overlay
+═══════════════════════════════════════════ */
+
+.lm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(5, 2, 8, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 48px 20px 60px;
+  animation: lm-fadeIn 0.3s ease forwards;
+}
+
+@keyframes lm-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Scrollable panel ── */
+.lm-panel {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  animation: lm-slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes lm-slideUp {
+  from { transform: translateY(28px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Header ── */
+.lm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 36px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.lm-header__text {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 680px;
+}
+
+.lm-mono {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #e87840;
+}
+
+.lm-h1 {
+  font-family: var(--heading);
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 600;
+  letter-spacing: -1.5px;
+  color: #f5f0eb;
+  margin: 0;
+  line-height: 1.05;
+}
+
+.lm-lead {
+  font-family: var(--sans);
+  font-size: clamp(15px, 1.8vw, 17px);
+  font-weight: 400;
+  line-height: 1.7;
+  color: rgba(210, 200, 190, 0.72);
+  margin: 0;
+  max-width: 580px;
+}
+
+.lm-close {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(200, 190, 180, 0.55);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  margin-top: 4px;
+}
+.lm-close:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #f5f0eb;
+}
+
+/* ── Sections ── */
+.lm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lm-section__label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.lm-section__label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lm-section__intro {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.65;
+  color: rgba(210, 200, 190, 0.65);
+  margin: 0;
+  max-width: 560px;
+}
+
+/* ── Sim features grid ── */
+.lm-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.lm-feature-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 18px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.25s, background 0.25s;
+}
+.lm-feature-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.lm-feature-card__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lm-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #e87840;
+  background: rgba(232, 120, 64, 0.1);
+  border: 1px solid rgba(232, 120, 64, 0.22);
+  border-radius: 4px;
+  padding: 3px 7px;
+  flex-shrink: 0;
+}
+
+.lm-feature-card__title {
+  font-family: var(--heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(245, 240, 235, 0.95);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.lm-feature-card__desc {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(200, 192, 183, 0.72);
+  margin: 0;
+}
+
+/* ── Daily checkup grid ── */
+.lm-daily-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.lm-daily-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 18px 18px 20px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.lm-daily-card:hover {
+  border-color: rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.lm-daily-card__icon {
+  font-size: 20px;
+  color: #e87840;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.85;
+}
+
+.lm-daily-card__title {
+  font-family: var(--heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(245, 240, 235, 0.92);
+  margin: 0 0 6px;
+}
+
+.lm-daily-card__desc {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(200, 192, 183, 0.70);
+  margin: 0;
+}
+
+/* ── Footer ── */
+.lm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.lm-footer__text {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(200, 192, 183, 0.5);
+  margin: 0;
+}
+
+.lm-footer__close {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #e87840, #c4502a);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  letter-spacing: 0.2px;
+}
+.lm-footer__close:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(232, 120, 64, 0.35);
+}
+
+/* ── Responsive ── */
+@media (max-width: 720px) {
+  .lm-features-grid {
+    grid-template-columns: 1fr;
+  }
+  .lm-daily-grid {
+    grid-template-columns: 1fr;
+  }
+  .lm-overlay {
+    padding: 24px 16px 48px;
+  }
+}
+@media (max-width: 500px) {
+  .lm-header {
+    flex-direction: column;
+  }
+  .lm-close {
+    align-self: flex-end;
+    margin-top: -8px;
+  }
+}
