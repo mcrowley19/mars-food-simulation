@@ -6,11 +6,11 @@ import './GreenhouseScene.css'
    MARS COLONY — bird's-eye multi-dome greenhouse scene
    ═══════════════════════════════════════════════════════════ */
 
-const FRUSTUM = 28
+const FRUSTUM = 80
 const DOME_OPACITY = 0.4
 const ZOOM_DEFAULT = 1.0
-const ZOOM_ENTERED = 2.8
-const ZOOM_ALL = 1.15
+const ZOOM_ENTERED = 2.0
+const ZOOM_ALL = 1.05
 const ANIM_DURATION = 1.2 // seconds
 
 /* ───────────────────── helpers ───────────────────────────── */
@@ -25,13 +25,13 @@ function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2)
 
 /* ── Colony layout — positions + radii for 7 domes ──────── */
 const DOME_DEFS = [
-  { id: 'DOME_01', x:  0,   z:  0,   r: 6   },
-  { id: 'DOME_02', x: -11,  z: -3,   r: 4.5 },
-  { id: 'DOME_03', x:  10,  z: -5,   r: 5   },
-  { id: 'DOME_04', x: -5,   z:  10,  r: 3.5 },
-  { id: 'DOME_05', x:  7,   z:  8,   r: 4   },
-  { id: 'DOME_06', x: -13,  z:  7,   r: 3   },
-  { id: 'DOME_07', x:  15,  z:  4,   r: 3.5 },
+  { id: 'DOME_01', x:  0,   z:  0,   r: 24  },
+  { id: 'DOME_02', x: -48,  z: -14,  r: 18  },
+  { id: 'DOME_03', x:  44,  z: -20,  r: 20  },
+  { id: 'DOME_04', x: -20,  z:  42,  r: 15  },
+  { id: 'DOME_05', x:  28,  z:  36,  r: 16  },
+  { id: 'DOME_06', x: -55,  z:  28,  r: 12  },
+  { id: 'DOME_07', x:  62,  z:  16,  r: 14  },
 ]
 
 // Pairs of domes to connect with tunnels
@@ -66,7 +66,7 @@ function initScene(canvas, w, h) {
     -FRUSTUM * aspect, FRUSTUM * aspect,
     FRUSTUM, -FRUSTUM, 0.1, 200
   )
-  camera.position.set(0, 60, 0)
+  camera.position.set(0, 160, 0)
   camera.lookAt(0, 0, 0)
   camera.zoom = ZOOM_DEFAULT
   camera.updateProjectionMatrix()
@@ -78,28 +78,12 @@ function initScene(canvas, w, h) {
 
 function buildTerrain(scene) {
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(120, 120),
+    new THREE.PlaneGeometry(400, 400),
     new THREE.MeshStandardMaterial({ color: '#c1440e', roughness: 0.95 })
   )
   ground.rotation.x = -Math.PI / 2
   ground.receiveShadow = true
   scene.add(ground)
-
-  // scattered rocks
-  const rockGeo = new THREE.DodecahedronGeometry(0.3, 0)
-  const rockMat = new THREE.MeshStandardMaterial({ color: '#8b3a0f', roughness: 1 })
-  const spots = [
-    [-18,0.15,-14],[16,0.12,12],[-9,0.1,17],[14,0.14,-16],
-    [-20,0.1,5],[6,0.13,-19],[22,0.1,-8],[-15,0.12,14],
-  ]
-  for (const [x,y,z] of spots) {
-    const r = new THREE.Mesh(rockGeo, rockMat)
-    r.position.set(x, y, z)
-    r.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0)
-    r.scale.setScalar(0.5 + Math.random() * 1.8)
-    r.castShadow = true
-    scene.add(r)
-  }
 }
 
 /* ── single dome builder ─────────────────────────────────── */
@@ -120,45 +104,61 @@ function buildSingleDome(def) {
     side: THREE.DoubleSide, depthWrite: false,
   })
   const shell = new THREE.Mesh(
-    new THREE.SphereGeometry(r, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.SphereGeometry(r, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2),
     domeMat
   )
   shell.castShadow = true
   shell.name = 'shell'
   group.add(shell)
 
-  // ── horizontal ribs ──
-  for (const deg of [15, 35, 55, 75]) {
+  // ── structural ribs (in a named group for toggling) ──
+  const ribs = new THREE.Group()
+  ribs.name = 'ribs'
+
+  // horizontal ribs
+  for (const deg of [12, 28, 44, 60, 76]) {
     const a = (deg * Math.PI) / 180
     const rib = new THREE.Mesh(
-      new THREE.TorusGeometry(r * Math.sin(a), 0.05, 8, 48),
+      new THREE.TorusGeometry(r * Math.sin(a), 0.06, 8, 64),
       ribMat
     )
     rib.position.y = r * Math.cos(a)
     rib.rotation.x = Math.PI / 2
     rib.castShadow = true
-    group.add(rib)
+    ribs.add(rib)
   }
 
-  // ── vertical meridian ribs ──
-  for (let i = 0; i < 8; i++) {
+  // vertical meridian ribs
+  for (let i = 0; i < 12; i++) {
     const rib = new THREE.Mesh(
-      new THREE.TorusGeometry(r, 0.05, 8, 48, Math.PI / 2),
+      new THREE.TorusGeometry(r, 0.06, 8, 64, Math.PI / 2),
       ribMat
     )
-    rib.rotation.set(0, (i / 8) * Math.PI * 2, 0)
+    rib.rotation.set(0, (i / 12) * Math.PI * 2, 0)
     rib.castShadow = true
-    group.add(rib)
+    ribs.add(rib)
   }
 
-  // ── base ring ──
+  // base ring
   const baseRing = new THREE.Mesh(
-    new THREE.TorusGeometry(r, 0.1, 12, 48), ribMat
+    new THREE.TorusGeometry(r, 0.14, 12, 64), ribMat
   )
   baseRing.rotation.x = Math.PI / 2
   baseRing.position.y = 0.01
   baseRing.castShadow = true
-  group.add(baseRing)
+  ribs.add(baseRing)
+
+  group.add(ribs)
+
+  // ── foundation ring (stays visible) ──
+  const foundMat = new THREE.MeshStandardMaterial({ color: '#666666', roughness: 0.5, metalness: 0.4 })
+  const foundation = new THREE.Mesh(
+    new THREE.TorusGeometry(r + 0.3, 0.3, 8, 64), foundMat
+  )
+  foundation.rotation.x = Math.PI / 2
+  foundation.position.y = -0.05
+  foundation.receiveShadow = true
+  group.add(foundation)
 
   // ── airlock ──
   const alockMat = new THREE.MeshPhysicalMaterial({
@@ -166,13 +166,26 @@ function buildSingleDome(def) {
     roughness: 0.15, side: THREE.DoubleSide, depthWrite: false,
   })
   const airlock = new THREE.Mesh(
-    new THREE.CylinderGeometry(r * 0.18, r * 0.18, r * 0.4, 16, 1, false, 0, Math.PI),
+    new THREE.CylinderGeometry(r * 0.16, r * 0.16, r * 0.35, 16, 1, false, 0, Math.PI),
     alockMat
   )
-  airlock.position.set(0, r * 0.2, r + r * 0.12)
+  airlock.position.set(0, r * 0.18, r + r * 0.1)
   airlock.rotation.y = Math.PI / 2
   airlock.castShadow = true
   group.add(airlock)
+
+  // ── exterior lights at base ──
+  const lightMat = new THREE.MeshStandardMaterial({
+    color: '#ffcc66', emissive: '#ffaa33', emissiveIntensity: 0.8,
+  })
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2
+    const light = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15, 6, 4), lightMat
+    )
+    light.position.set(Math.cos(a) * (r + 0.5), 0.4, Math.sin(a) * (r + 0.5))
+    group.add(light)
+  }
 
   // ── interior (hidden by default) ──
   const interior = buildDomeInterior(r)
@@ -188,178 +201,323 @@ function buildSingleDome(def) {
 function buildDomeInterior(radius) {
   const g = new THREE.Group()
 
-  // ── floor slab ──
-  const floorMat = new THREE.MeshStandardMaterial({ color: '#3a2a1a', roughness: 0.9 })
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(radius * 0.92, 48), floorMat
-  )
+  /* ── shared materials — clean space-station palette ────── */
+  const floorMat = new THREE.MeshStandardMaterial({ color: '#2a2a30', roughness: 0.4, metalness: 0.3 })
+  const panelMat = new THREE.MeshStandardMaterial({ color: '#3a3a42', roughness: 0.3, metalness: 0.5 })
+  const accentMat = new THREE.MeshStandardMaterial({
+    color: '#00ccff', emissive: '#0088cc', emissiveIntensity: 0.5,
+  })
+  const warmAccent = new THREE.MeshStandardMaterial({
+    color: '#ff8844', emissive: '#cc5522', emissiveIntensity: 0.4,
+  })
+  const metalMat = new THREE.MeshStandardMaterial({ color: '#888890', metalness: 0.7, roughness: 0.25 })
+  const darkMat = new THREE.MeshStandardMaterial({ color: '#1a1a1e', roughness: 0.5, metalness: 0.4 })
+
+  /* ── floor: clean circular platform with grid lines ───── */
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.95, 64), floorMat)
   floor.rotation.x = -Math.PI / 2
   floor.position.y = 0.01
   floor.receiveShadow = true
   g.add(floor)
 
-  // ── crop bed material ──
-  const bedMat = new THREE.MeshStandardMaterial({
-    color: '#1a3d1a', emissive: '#00ff66', emissiveIntensity: 0.3, roughness: 0.8,
+  // concentric floor guide rings (glowing cyan)
+  const ringLineMat = new THREE.MeshStandardMaterial({
+    color: '#004466', emissive: '#003355', emissiveIntensity: 0.4,
   })
-  const soilMat = new THREE.MeshStandardMaterial({
-    color: '#2d1a0a', roughness: 1,
-  })
+  for (let ri = 1; ri <= 4; ri++) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * (ri * 0.2), 0.03, 4, 96), ringLineMat
+    )
+    ring.rotation.x = Math.PI / 2
+    ring.position.y = 0.02
+    g.add(ring)
+  }
+
+  // radial floor lines (8 spokes)
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2
+    const line = new THREE.Mesh(new THREE.BoxGeometry(radius * 1.8, 0.02, 0.04), ringLineMat)
+    line.position.y = 0.02
+    line.rotation.y = a
+    g.add(line)
+  }
+
+  /* ── uniform hydroponics bays (wedge sectors) ─────────── */
+  const bayCount = 8
+  const bedMat = new THREE.MeshStandardMaterial({ color: '#1e2e1e', roughness: 0.6, metalness: 0.3 })
+  const soilMat = new THREE.MeshStandardMaterial({ color: '#1a1a10', roughness: 0.8 })
   const plantMat = new THREE.MeshStandardMaterial({
-    color: '#22aa44', emissive: '#00ff44', emissiveIntensity: 0.25, roughness: 0.7,
+    color: '#33cc55', emissive: '#22aa44', emissiveIntensity: 0.35, roughness: 0.6,
   })
 
-  // ── radial crop bed rows ──
-  const bedH = 0.18
-  const ringCount = radius > 4 ? 3 : 2
-  for (let ring = 1; ring <= ringCount; ring++) {
-    const ringR = radius * (0.25 + ring * 0.2)
-    const bedCount = Math.floor(ring * 4 + 2)
-    for (let i = 0; i < bedCount; i++) {
-      const angle = (i / bedCount) * Math.PI * 2
-      // skip beds near airlock zone (positive z)
-      if (Math.abs(angle - Math.PI / 2) < 0.4) continue
-      const bx = Math.cos(angle) * ringR
-      const bz = Math.sin(angle) * ringR
-      if (Math.sqrt(bx * bx + bz * bz) > radius * 0.82) continue
+  for (let bay = 0; bay < bayCount; bay++) {
+    const angle = (bay / bayCount) * Math.PI * 2
+    // skip bay near airlock (positive z)
+    if (Math.abs(angle - Math.PI / 2) < 0.5) continue
 
-      const bedW = radius * 0.12
-      const bedD = radius * 0.18
+    // each bay has 2 rows at different radii
+    for (let row = 0; row < 2; row++) {
+      const rowR = radius * (0.35 + row * 0.28)
+      const bx = Math.cos(angle) * rowR
+      const bz = Math.sin(angle) * rowR
+      if (Math.sqrt(bx * bx + bz * bz) > radius * 0.88) continue
 
-      // raised bed container
-      const bed = new THREE.Mesh(
-        new THREE.BoxGeometry(bedW, bedH, bedD), bedMat
-      )
-      bed.position.set(bx, bedH / 2 + 0.02, bz)
-      bed.rotation.y = angle
-      bed.receiveShadow = true
-      bed.castShadow = true
-      g.add(bed)
+      const bedW = radius * 0.14
+      const bedD = radius * 0.08
+      const bedH = 0.35
 
-      // soil top
-      const soil = new THREE.Mesh(
-        new THREE.BoxGeometry(bedW * 0.9, 0.04, bedD * 0.9), soilMat
-      )
+      // raised bed — uniform white containers
+      const container = new THREE.Mesh(new THREE.BoxGeometry(bedW, bedH, bedD), panelMat)
+      container.position.set(bx, bedH / 2 + 0.02, bz)
+      container.rotation.y = angle
+      container.receiveShadow = true
+      container.castShadow = true
+      g.add(container)
+
+      // soil strip
+      const soil = new THREE.Mesh(new THREE.BoxGeometry(bedW * 0.88, 0.04, bedD * 0.88), soilMat)
       soil.position.set(bx, bedH + 0.04, bz)
       soil.rotation.y = angle
       g.add(soil)
 
-      // small plant clusters on each bed
-      const plantCount = 2 + Math.floor(Math.random() * 2)
-      for (let p = 0; p < plantCount; p++) {
-        const px = (Math.random() - 0.5) * bedW * 0.5
-        const pz = (Math.random() - 0.5) * bedD * 0.5
-        const ph = 0.08 + Math.random() * 0.15
-        const plant = new THREE.Mesh(
-          new THREE.SphereGeometry(ph, 6, 5), plantMat
-        )
-        const ca = Math.cos(angle), sa = Math.sin(angle)
+      // uniform plant row (cylindrical clusters in a line)
+      const ca = Math.cos(angle), sa = Math.sin(angle)
+      const plantSpacing = bedW / 5
+      for (let p = -2; p <= 2; p++) {
+        const ox = p * plantSpacing * 0.8
+        const ph = 0.12 + (row * 0.05)
+        const plant = new THREE.Mesh(new THREE.SphereGeometry(ph, 8, 6), plantMat)
         plant.position.set(
-          bx + px * ca - pz * sa,
+          bx + ox * ca,
           bedH + 0.04 + ph,
-          bz + px * sa + pz * ca
+          bz + ox * sa
         )
         plant.scale.y = 1.3
         g.add(plant)
       }
+
+      // LED strip above each bed
+      const ledMat = new THREE.MeshStandardMaterial({
+        color: '#cc88ff', emissive: '#aa44ee', emissiveIntensity: 0.8,
+        transparent: true, opacity: 0.7,
+      })
+      const led = new THREE.Mesh(new THREE.BoxGeometry(bedW, 0.04, 0.06), ledMat)
+      led.position.set(bx, radius * 0.28, bz)
+      led.rotation.y = angle
+      g.add(led)
+      // support strut
+      const strut = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.02, radius * 0.27, 4), metalMat
+      )
+      strut.position.set(bx, radius * 0.14, bz)
+      g.add(strut)
     }
   }
 
-  // ── central water/nutrient hub ──
-  const hubMat = new THREE.MeshStandardMaterial({
-    color: '#4488aa', emissive: '#225577', emissiveIntensity: 0.25, metalness: 0.6, roughness: 0.3,
+  /* ── central command hub ──────────────────────────────── */
+  // base platform (octagonal feel)
+  const hubR = radius * 0.15
+  const hubBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(hubR, hubR * 1.1, 0.15, 8), panelMat
+  )
+  hubBase.position.y = 0.08
+  hubBase.castShadow = true
+  g.add(hubBase)
+
+  // holographic table
+  const tableMat = new THREE.MeshStandardMaterial({
+    color: '#222228', metalness: 0.6, roughness: 0.2,
   })
-  const hub = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius * 0.1, radius * 0.12, 0.6, 16), hubMat
+  const table = new THREE.Mesh(
+    new THREE.CylinderGeometry(hubR * 0.7, hubR * 0.7, 0.08, 16), tableMat
   )
-  hub.position.y = 0.3
-  hub.castShadow = true
-  g.add(hub)
-
-  // hub ring glow
-  const hubRing = new THREE.Mesh(
-    new THREE.TorusGeometry(radius * 0.13, 0.03, 8, 32),
-    new THREE.MeshStandardMaterial({ color: '#66ddff', emissive: '#00aaff', emissiveIntensity: 0.5 })
+  table.position.y = 0.5
+  table.castShadow = true
+  g.add(table)
+  // table pedestal
+  const pedestal = new THREE.Mesh(
+    new THREE.CylinderGeometry(hubR * 0.15, hubR * 0.2, 0.4, 8), metalMat
   )
-  hubRing.rotation.x = Math.PI / 2
-  hubRing.position.y = 0.55
-  g.add(hubRing)
+  pedestal.position.y = 0.35
+  g.add(pedestal)
 
-  // ── water pipes radiating from hub ──
-  const pipeMat = new THREE.MeshStandardMaterial({ color: '#5599bb', metalness: 0.5, roughness: 0.3 })
+  // hologram glow disc
+  const holoMat = new THREE.MeshStandardMaterial({
+    color: '#00ffcc', emissive: '#00ddaa', emissiveIntensity: 0.9,
+    transparent: true, opacity: 0.3,
+  })
+  const holo = new THREE.Mesh(
+    new THREE.CylinderGeometry(hubR * 0.5, hubR * 0.5, 0.02, 32), holoMat
+  )
+  holo.position.y = 0.56
+  g.add(holo)
+
+  // ring of status screens around hub
+  const screenMat = new THREE.MeshStandardMaterial({
+    color: '#0a0a12', emissive: '#0088ff', emissiveIntensity: 0.7,
+  })
   for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2
-    const pipeLen = radius * 0.65
+    const sa = (i / 6) * Math.PI * 2
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.04), screenMat)
+    screen.position.set(Math.cos(sa) * hubR * 1.2, 0.45, Math.sin(sa) * hubR * 1.2)
+    screen.rotation.y = sa + Math.PI
+    g.add(screen)
+  }
+
+  /* ── perimeter walkway (raised ring) ──────────────────── */
+  const walkR = radius * 0.82
+  const walkway = new THREE.Mesh(
+    new THREE.TorusGeometry(walkR, 0.2, 6, 96), panelMat
+  )
+  walkway.rotation.x = Math.PI / 2
+  walkway.position.y = 0.03
+  g.add(walkway)
+
+  // inner walkway ring
+  const innerWalk = new THREE.Mesh(
+    new THREE.TorusGeometry(radius * 0.48, 0.15, 6, 64), panelMat
+  )
+  innerWalk.rotation.x = Math.PI / 2
+  innerWalk.position.y = 0.03
+  g.add(innerWalk)
+
+  /* ── connecting pathways (4 main corridors) ───────────── */
+  const pathMat = new THREE.MeshStandardMaterial({ color: '#333338', roughness: 0.35, metalness: 0.3 })
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2
+    const path = new THREE.Mesh(new THREE.BoxGeometry(radius * 1.6, 0.05, 0.5), pathMat)
+    path.position.y = 0.025
+    path.rotation.y = a
+    path.receiveShadow = true
+    g.add(path)
+  }
+
+  // path edge lighting strips
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2
+    for (const offset of [-0.28, 0.28]) {
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(radius * 1.5, 0.02, 0.05), accentMat
+      )
+      strip.position.y = 0.035
+      strip.rotation.y = a
+      // offset perpendicular to path direction
+      strip.position.x = Math.sin(a) * offset
+      strip.position.z = -Math.cos(a) * offset
+      g.add(strip)
+    }
+  }
+
+  /* ── equipment stations (evenly spaced around perimeter) ─ */
+  const stationCount = 6
+  for (let i = 0; i < stationCount; i++) {
+    const a = (i / stationCount) * Math.PI * 2
+    if (Math.abs(a - Math.PI / 2) < 0.4) continue // skip airlock side
+    const sx = Math.cos(a) * (radius * 0.75)
+    const sz = Math.sin(a) * (radius * 0.75)
+
+    // console unit
+    const console = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.7, 0.5), darkMat)
+    console.position.set(sx, 0.35, sz)
+    console.rotation.y = a + Math.PI
+    console.castShadow = true
+    g.add(console)
+    // screen
+    const scr = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.35, 0.03), screenMat)
+    scr.position.set(sx, 0.65, sz)
+    scr.rotation.y = a + Math.PI
+    g.add(scr)
+    // status indicator
+    const indicator = new THREE.Mesh(
+      new THREE.SphereGeometry(0.06, 6, 4),
+      i % 2 === 0 ? accentMat : warmAccent
+    )
+    indicator.position.set(sx + Math.cos(a + Math.PI) * 0.4, 0.75, sz + Math.sin(a + Math.PI) * 0.4)
+    g.add(indicator)
+  }
+
+  /* ── life support columns (4 pillars) ─────────────────── */
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 8
+    const px = Math.cos(a) * radius * 0.6
+    const pz = Math.sin(a) * radius * 0.6
+
+    // main column
+    const col = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.25, radius * 0.4, 8), metalMat
+    )
+    col.position.set(px, radius * 0.2, pz)
+    col.castShadow = true
+    g.add(col)
+
+    // glowing ring at top
+    const colRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.3, 0.04, 6, 16), accentMat
+    )
+    colRing.rotation.x = Math.PI / 2
+    colRing.position.set(px, radius * 0.4, pz)
+    g.add(colRing)
+
+    // glowing ring at base
+    const baseRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.35, 0.04, 6, 16), accentMat
+    )
+    baseRing.rotation.x = Math.PI / 2
+    baseRing.position.set(px, 0.05, pz)
+    g.add(baseRing)
+  }
+
+  /* ── storage bays along back edge ─────────────────────── */
+  const tankCount = Math.max(8, Math.floor(radius * 0.5))
+  for (let i = 0; i < tankCount; i++) {
+    const a = Math.PI + ((i - (tankCount - 1) / 2) / tankCount) * Math.PI * 1.2
+    const tx = Math.cos(a) * radius * 0.82
+    const tz = Math.sin(a) * radius * 0.82
+
+    const tank = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.3, 1.0, 8), metalMat
+    )
+    tank.position.set(tx, 0.5, tz)
+    tank.castShadow = true
+    g.add(tank)
+    // accent band
+    const band = new THREE.Mesh(
+      new THREE.TorusGeometry(0.32, 0.03, 4, 12), warmAccent
+    )
+    band.rotation.x = Math.PI / 2
+    band.position.set(tx, 0.7, tz)
+    g.add(band)
+  }
+
+  /* ── water reclamation unit (near centre) ─────────────── */
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: '#112244', emissive: '#0055aa', emissiveIntensity: 0.3,
+    transparent: true, opacity: 0.5,
+  })
+  const pool = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 0.12, radius * 0.13, 0.12, 24), waterMat
+  )
+  pool.position.set(radius * 0.28, 0.06, -radius * 0.22)
+  g.add(pool)
+  const poolRim = new THREE.Mesh(
+    new THREE.TorusGeometry(radius * 0.125, 0.05, 6, 24), metalMat
+  )
+  poolRim.rotation.x = Math.PI / 2
+  poolRim.position.set(radius * 0.28, 0.12, -radius * 0.22)
+  g.add(poolRim)
+
+  /* ── radial utility conduits ──────────────────────────── */
+  const conduitMat = new THREE.MeshStandardMaterial({ color: '#556675', metalness: 0.5, roughness: 0.3 })
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2
+    const pipeLen = radius * 0.7
     const pipe = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.03, pipeLen, 6), pipeMat
+      new THREE.CylinderGeometry(0.05, 0.05, pipeLen, 6), conduitMat
     )
-    pipe.position.set(
-      Math.cos(a) * pipeLen * 0.5,
-      0.06,
-      Math.sin(a) * pipeLen * 0.5
-    )
+    pipe.position.set(Math.cos(a) * pipeLen * 0.5, 0.1, Math.sin(a) * pipeLen * 0.5)
     pipe.rotation.set(0, 0, Math.PI / 2)
     pipe.rotation.y = -a
     g.add(pipe)
-  }
-
-  // ── walking paths (cross + ring) ──
-  const pathMat = new THREE.MeshStandardMaterial({ color: '#7a5533', roughness: 1 })
-  const pathH = 0.03
-  const cross1 = new THREE.Mesh(
-    new THREE.BoxGeometry(radius * 1.5, pathH, 0.22), pathMat
-  )
-  cross1.position.y = pathH / 2 + 0.01
-  cross1.receiveShadow = true
-  g.add(cross1)
-  const cross2 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.22, pathH, radius * 1.5), pathMat
-  )
-  cross2.position.y = pathH / 2 + 0.01
-  cross2.receiveShadow = true
-  g.add(cross2)
-
-  // ring path around hub
-  const ringPath = new THREE.Mesh(
-    new THREE.TorusGeometry(radius * 0.3, 0.1, 4, 32),
-    pathMat
-  )
-  ringPath.rotation.x = Math.PI / 2
-  ringPath.position.y = 0.02
-  ringPath.receiveShadow = true
-  g.add(ringPath)
-
-  // ── workstation benches (2 small tables near hub) ──
-  const benchMat = new THREE.MeshStandardMaterial({ color: '#888888', metalness: 0.4, roughness: 0.4 })
-  for (const side of [-1, 1]) {
-    const bench = new THREE.Mesh(
-      new THREE.BoxGeometry(radius * 0.15, 0.25, radius * 0.08), benchMat
-    )
-    bench.position.set(side * radius * 0.25, 0.13, radius * 0.25)
-    bench.castShadow = true
-    g.add(bench)
-
-    // small monitor on bench
-    const monitor = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.12, 0.02),
-      new THREE.MeshStandardMaterial({ color: '#111111', emissive: '#00bbff', emissiveIntensity: 0.6 })
-    )
-    monitor.position.set(side * radius * 0.25, 0.31, radius * 0.25)
-    g.add(monitor)
-  }
-
-  // ── storage tanks along the edge ──
-  const tankMat = new THREE.MeshStandardMaterial({ color: '#666666', metalness: 0.5, roughness: 0.3 })
-  for (let i = 0; i < 4; i++) {
-    const a = Math.PI + (i - 1.5) * 0.35
-    const tx = Math.cos(a) * radius * 0.75
-    const tz = Math.sin(a) * radius * 0.75
-    const tank = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.18, 0.6, 8), tankMat
-    )
-    tank.position.set(tx, 0.3, tz)
-    tank.castShadow = true
-    g.add(tank)
   }
 
   return g
@@ -395,10 +553,10 @@ function buildColony(scene) {
     const cx = ax + dx * 0.5
     const cz = az + dz * 0.5
     const tunnel = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.4, 0.4, tunnelLen, 12),
+      new THREE.CylinderGeometry(1.6, 1.6, tunnelLen, 16),
       tunnelMat
     )
-    tunnel.position.set(cx, 0.4, cz)
+    tunnel.position.set(cx, 1.6, cz)
     tunnel.rotation.set(0, 0, Math.PI / 2)
     // align cylinder axis along the line between domes
     tunnel.rotation.set(0, angle, Math.PI / 2)
@@ -412,18 +570,23 @@ function buildColony(scene) {
 /* ── lighting ─────────────────────────────────────────────── */
 
 function setupLighting(scene) {
-  scene.add(new THREE.AmbientLight('#441a00', 0.3))
+  scene.add(new THREE.AmbientLight('#441a00', 0.35))
 
-  const sun = new THREE.DirectionalLight('#ffe8cc', 2.0)
+  // warm fill light from below
+  const fill = new THREE.DirectionalLight('#ff8844', 0.3)
+  fill.position.set(0, -10, 0)
+  scene.add(fill)
+
+  const sun = new THREE.DirectionalLight('#ffe8cc', 2.2)
   sun.castShadow = true
-  sun.shadow.mapSize.set(2048, 2048)
-  sun.shadow.camera.left = -40
-  sun.shadow.camera.right = 40
-  sun.shadow.camera.top = 40
-  sun.shadow.camera.bottom = -40
+  sun.shadow.mapSize.set(4096, 4096)
+  sun.shadow.camera.left = -120
+  sun.shadow.camera.right = 120
+  sun.shadow.camera.top = 120
+  sun.shadow.camera.bottom = -120
   sun.shadow.camera.near = 0.5
-  sun.shadow.camera.far = 120
-  sun.shadow.bias = -0.001
+  sun.shadow.camera.far = 300
+  sun.shadow.bias = -0.0005
   scene.add(sun)
   return sun
 }
@@ -524,7 +687,7 @@ export default function GreenhouseScene({ onExit }) {
     window.addEventListener('resize', onResize)
 
     /* ── animation loop ── */
-    const SUN_RADIUS = 45, SUN_HEIGHT = 25, SUN_SPEED = 0.15
+    const SUN_RADIUS = 140, SUN_HEIGHT = 70, SUN_SPEED = 0.12
     let sunAngle = 0, lastTime = performance.now()
     let frameCount = 0, fpsAccum = 0, lastFpsUpdate = performance.now()
 
@@ -571,17 +734,22 @@ export default function GreenhouseScene({ onExit }) {
           // fade ALL domes simultaneously
           for (const gh of greenhouses) {
             const shell = gh.getObjectByName('shell')
+            const ribs = gh.getObjectByName('ribs')
             if (!shell) continue
             if (anim.entering) {
               shell.material.opacity = lerp(DOME_OPACITY, 0, t)
+              if (ribs) ribs.visible = t < 0.3
               if (anim.progress >= 1) {
                 shell.visible = false
+                if (ribs) ribs.visible = false
                 const interior = gh.getObjectByName('interior')
                 if (interior) interior.visible = true
               }
             } else {
               shell.material.opacity = lerp(0, DOME_OPACITY, t)
+              if (ribs) ribs.visible = t > 0.7
               if (anim.progress >= 1) {
+                if (ribs) ribs.visible = true
                 const interior = gh.getObjectByName('interior')
                 if (interior) interior.visible = false
               }
@@ -593,18 +761,23 @@ export default function GreenhouseScene({ onExit }) {
         } else {
           // single dome
           const shell = anim.dome?.getObjectByName('shell')
+          const ribs = anim.dome?.getObjectByName('ribs')
           if (shell) {
             if (anim.entering) {
               shell.material.opacity = lerp(DOME_OPACITY, 0, t)
+              if (ribs) ribs.visible = t < 0.3
               if (anim.progress >= 1) {
                 shell.visible = false
+                if (ribs) ribs.visible = false
                 const interior = anim.dome.getObjectByName('interior')
                 if (interior) interior.visible = true
                 setInsideDome(anim.dome.userData.domeId)
               }
             } else {
               shell.material.opacity = lerp(0, DOME_OPACITY, t)
+              if (ribs) ribs.visible = t > 0.7
               if (anim.progress >= 1) {
+                if (ribs) ribs.visible = true
                 setInsideDome(null)
               }
             }
@@ -643,6 +816,8 @@ export default function GreenhouseScene({ onExit }) {
 
     const shell = domeGroup.getObjectByName('shell')
     if (shell) { shell.visible = true; shell.material.opacity = DOME_OPACITY }
+    const ribs = domeGroup.getObjectByName('ribs')
+    if (ribs) ribs.visible = true
 
     setEnterLabel(null)
   }, [enterLabel])
@@ -660,6 +835,8 @@ export default function GreenhouseScene({ onExit }) {
         if (interior) interior.visible = false
         const shell = gh.getObjectByName('shell')
         if (shell) { shell.visible = true; shell.material.opacity = 0 }
+        const ribs = gh.getObjectByName('ribs')
+        if (ribs) ribs.visible = false
       }
       anim.active = true
       anim.entering = false
@@ -680,6 +857,8 @@ export default function GreenhouseScene({ onExit }) {
     if (interior) interior.visible = false
     const shell = anim.dome.getObjectByName('shell')
     if (shell) { shell.visible = true; shell.material.opacity = 0 }
+    const ribs = anim.dome.getObjectByName('ribs')
+    if (ribs) ribs.visible = false
 
     anim.active = true
     anim.entering = false
