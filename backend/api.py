@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import threading
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -6,6 +7,8 @@ import traceback
 
 from state import get_state, update_state
 from simulation import apply_mars_rules
+
+_invoke_lock = threading.Lock()
 
 
 @asynccontextmanager
@@ -65,6 +68,8 @@ def setup_status():
 
 @app.post("/invoke")
 def invoke_agent(req: PromptRequest):
+    if not _invoke_lock.acquire(blocking=False):
+        return {"response": "Agent is already running — skipping duplicate invocation."}
     try:
         from agents.orchestrator import get_orchestrator
         orchestrator = get_orchestrator()
@@ -81,6 +86,8 @@ def invoke_agent(req: PromptRequest):
             }
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=message)
+    finally:
+        _invoke_lock.release()
 
 
 @app.get("/state")
@@ -115,40 +122,45 @@ def setup_ai_optimised():
 
 @app.post("/simulate-tick")
 def simulate_tick():
-    state = get_state()
+    if not _invoke_lock.acquire(blocking=False):
+        return {"error": "Agent is already running — try again shortly."}
 
-    if not state.get("setup_complete"):
-        raise HTTPException(status_code=400, detail="Setup not complete")
+    try:
+        state = get_state()
 
-    state = apply_mars_rules(state)
+        if not state.get("setup_complete"):
+            raise HTTPException(status_code=400, detail="Setup not complete")
 
-    # Build context summary for the orchestrator
-    env = state["environment"]
-    res = state["resources"]
-    events = state["active_events"]
-    crop_summary = ", ".join(
-        f"{c['name']} (day {c.get('age_days', '?')}/{c.get('maturity_days', '?')}, {c.get('status', 'growing')})"
-        for c in state["crops"]
-    ) or "No crops planted"
+        state = apply_mars_rules(state)
 
-    context = (
-        f"Mission day {state['mission_day']}. "
-        f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
-        f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
-        f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
-        f"Crops: {crop_summary}. "
-        f"Active events: {', '.join(events) if events else 'none'}. "
-        f"Alerts: {len(state['alerts'])} total. "
-        "Assess the situation. Take any necessary actions."
-    )
+        env = state["environment"]
+        res = state["resources"]
+        events = state["active_events"]
+        crop_summary = ", ".join(
+            f"{c['name']} (day {c.get('age_days', '?')}/{c.get('maturity_days', '?')}, {c.get('status', 'growing')})"
+            for c in state["crops"]
+        ) or "No crops planted"
 
-    from agents.orchestrator import get_orchestrator
-    orchestrator = get_orchestrator()
-    result = orchestrator(context)
-    state["agent_last_actions"]["orchestrator"] = str(result)
+        context = (
+            f"Mission day {state['mission_day']}. "
+            f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
+            f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
+            f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
+            f"Crops: {crop_summary}. "
+            f"Active events: {', '.join(events) if events else 'none'}. "
+            f"Alerts: {len(state['alerts'])} total. "
+            "Assess the situation. Take any necessary actions."
+        )
 
-    update_state(state)
-    return state
+        from agents.orchestrator import get_orchestrator
+        orchestrator = get_orchestrator()
+        result = orchestrator(context)
+        state["agent_last_actions"]["orchestrator"] = str(result)
+
+        update_state(state)
+        return state
+    finally:
+        _invoke_lock.release()
 
 
 @app.post("/reset")

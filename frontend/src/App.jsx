@@ -28,7 +28,7 @@ function App() {
     setScreen("landing");
   };
 
-  const handleBeginSimulation = async (config) => {
+  const handleBeginSimulation = (config) => {
     const seedSummary = Array.isArray(config?.seedTypes)
       ? config.seedTypes.join(", ")
       : "mixed crops";
@@ -44,15 +44,11 @@ function App() {
       `Air composition: ${config?.airComp ?? "Hab Mix"}`,
     ].join(" ");
 
-    try {
-      await fetch("http://localhost:8000/invoke", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-    } catch {
-      // Backend may be unavailable; UI should remain responsive.
-    }
+    fetch("http://localhost:8000/invoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    }).catch(() => {});
 
     setScreen("greenhouse");
   };
