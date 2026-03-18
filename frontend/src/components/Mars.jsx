@@ -64,13 +64,14 @@ export default function Mars() {
   })
 
   return (
-    <group ref={groupRef} rotation={[0.4, 0, 0.08]}>
-      <mesh>
+    <group ref={groupRef} rotation={[0.4, 0, 0.08]} position={[0, 0, 0]}>
+      <mesh castShadow receiveShadow>
         <sphereGeometry args={[1.6, 128, 128]} />
         <meshStandardMaterial
           map={marsTexture}
           roughness={0.9}
           metalness={0.05}
+          toneMapped={true}
         />
       </mesh>
 
