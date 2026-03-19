@@ -1013,3 +1013,72 @@
   gap: 10px;
   color: rgba(220, 205, 190, 0.9);
 }
+
+/* ── Crop Health Tab ─────────────────────────────────────────────────────── */
+.gh-resources__crop-health {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0 4px;
+}
+
+.gh-resources__health-crop {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(232,120,64,0.12);
+  border-radius: 6px;
+  padding: 7px 8px 5px;
+}
+
+.gh-resources__health-crop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.gh-resources__health-crop-name {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: capitalize;
+  color: #e87840;
+  letter-spacing: 0.5px;
+}
+
+.gh-resources__health-crop-meta {
+  font-size: 9px;
+  color: rgba(200,190,180,0.5);
+}
+
+.gh-resources__health-overall-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.gh-resources__health-stress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.gh-resources__health-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(220,205,190,0.8);
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.gh-resources__health-stress-label {
+  font-size: 9px;
+  color: rgba(200,190,180,0.55);
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.gh-resources__value--small {
+  font-size: 9px;
+  min-width: 28px;
+}

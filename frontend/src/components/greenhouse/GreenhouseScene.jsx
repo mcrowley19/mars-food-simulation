@@ -212,6 +212,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     caloriesConsumedToday: 0,
     seedReserve: {},
     vitaminLevels: {},
+    cropHealthByType: {},
   });
   const [enterLabel, setEnterLabel] = useState(null);
   const [plantHover, setPlantHover] = useState(null);
@@ -1517,7 +1518,14 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                 className={`gh-resources__tab ${resourcesTab === "vitamins" ? "is-active" : ""}`}
                 onClick={() => setResourcesTab("vitamins")}
               >
-                Essential Vitamins
+                Vitamins
+              </button>
+              <button
+                type="button"
+                className={`gh-resources__tab ${resourcesTab === "health" ? "is-active" : ""}`}
+                onClick={() => setResourcesTab("health")}
+              >
+                Crop Health
               </button>
             </div>
             {resourcesTab === "overview" ? (
@@ -1576,7 +1584,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </span>
             </div>
               </>
-            ) : (
+            ) : resourcesTab === "vitamins" ? (
               <div className="gh-resources__vitamins">
                 <div className="gh-resources__vitamins-title">
                   Essential Vitamins (from consumed food)
@@ -1600,6 +1608,51 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                         />
                       </div>
                       <span className="gh-resources__value">{Math.round(pct)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="gh-resources__crop-health">
+                {Object.keys(hud.cropHealthByType).length === 0 ? (
+                  <div className="gh-resources__subtle">No crops growing yet.</div>
+                ) : Object.entries(hud.cropHealthByType).map(([name, h]) => {
+                  const overall = Math.round((h.health ?? 0) * 100);
+                  const cumulative = Math.round((h.cumulative ?? 0) * 100);
+                  const stresses = [
+                    { label: "Water",    val: h.waterStress },
+                    { label: "Nutrient", val: h.nutrientStress },
+                    { label: "Light",    val: h.lightStress },
+                    { label: "Env",      val: h.envStress },
+                  ];
+                  const healthBarCls = overall >= 75 ? "gh-bar--ok" : overall >= 45 ? "gh-bar--warn" : "gh-bar--crit";
+                  return (
+                    <div key={name} className="gh-resources__health-crop">
+                      <div className="gh-resources__health-crop-header">
+                        <span className="gh-resources__health-crop-name">{name}</span>
+                        <span className="gh-resources__health-crop-meta">{h.count} plants · cumulative {cumulative}%</span>
+                      </div>
+                      <div className="gh-resources__health-overall-row">
+                        <span className="gh-resources__health-label">Overall</span>
+                        <div className="gh-resources__bar-track">
+                          <div className={`gh-resources__bar-fill ${healthBarCls}`} style={{ width: `${overall}%` }} />
+                        </div>
+                        <span className="gh-resources__value">{overall}%</span>
+                      </div>
+                      {stresses.map(({ label, val }) => {
+                        if (val == null) return null;
+                        const pct = Math.round(val * 100);
+                        const cls = pct >= 75 ? "gh-bar--ok" : pct >= 45 ? "gh-bar--warn" : "gh-bar--crit";
+                        return (
+                          <div key={label} className="gh-resources__health-stress-row">
+                            <span className="gh-resources__health-stress-label">{label}</span>
+                            <div className="gh-resources__bar-track">
+                              <div className={`gh-resources__bar-fill ${cls}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="gh-resources__value gh-resources__value--small">{pct}%</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}

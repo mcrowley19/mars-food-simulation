@@ -139,11 +139,42 @@ function computeVitaminLevels(ss) {
   return blendedCoverage
 }
 
+function computeCropHealth(cropsArr) {
+  // Aggregate per-crop-type health metrics from individual crop instances
+  const byType = {}
+  cropsArr.forEach(c => {
+    if (c.status !== 'growing') return
+    const name = c.name
+    if (!byType[name]) byType[name] = { waterStress: [], nutrientStress: [], lightStress: [], envStress: [], health: [], cumulative: [] }
+    if (c.water_stress != null)    byType[name].waterStress.push(c.water_stress)
+    if (c.nutrient_stress != null) byType[name].nutrientStress.push(c.nutrient_stress)
+    if (c.light_stress != null)    byType[name].lightStress.push(c.light_stress)
+    if (c.env_stress != null)      byType[name].envStress.push(c.env_stress)
+    if (c.health != null)          byType[name].health.push(c.health)
+    if (c.cumulative_health != null) byType[name].cumulative.push(c.cumulative_health)
+  })
+  const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null
+  const result = {}
+  Object.entries(byType).forEach(([name, d]) => {
+    result[name] = {
+      health:         avg(d.health),
+      cumulative:     avg(d.cumulative),
+      waterStress:    avg(d.waterStress),
+      nutrientStress: avg(d.nutrientStress),
+      lightStress:    avg(d.lightStress),
+      envStress:      avg(d.envStress),
+      count:          d.health.length,
+    }
+  })
+  return result
+}
+
 export function computeHud(sunPhase, fps, anim, camera, ss, events) {
   const cropsArr = ss?.crops || []
   const breakdown = {}
   cropsArr.forEach(c => { breakdown[c.name] = (breakdown[c.name] || 0) + 1 })
   const vitaminLevels = computeVitaminLevels(ss)
+  const cropHealthByType = computeCropHealth(cropsArr)
   return {
     angle: (sunPhase * 360).toFixed(1),
     dir: compassDir(sunPhase * 360),
@@ -171,5 +202,6 @@ export function computeHud(sunPhase, fps, anim, camera, ss, events) {
     fuelKg: ss?.resources?.fuel_kg ?? 0,
     energyKwhToday: ss?.energy_kwh_today ?? 0,
     fuelUsedToday: ss?.fuel_used_today ?? 0,
+    cropHealthByType,
   }
 }
