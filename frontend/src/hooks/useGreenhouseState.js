@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getSessionId } from '../utils/session'
 import { API_BASE_URL } from '../utils/api'
 
-export default function useGreenhouseState(setupComplete) {
+export default function useGreenhouseState(setupComplete, pollMs = 1000) {
   const [state, setState] = useState(null)
   const intervalRef = useRef(null)
   const retryTimeoutRef = useRef(null)
@@ -43,7 +43,8 @@ export default function useGreenhouseState(setupComplete) {
     }
 
     fetchState()
-    intervalRef.current = setInterval(fetchState, 1000)
+    const safePollMs = Math.max(250, Number(pollMs) || 1000)
+    intervalRef.current = setInterval(fetchState, safePollMs)
 
     return () => {
       if (intervalRef.current) {
@@ -55,7 +56,7 @@ export default function useGreenhouseState(setupComplete) {
         retryTimeoutRef.current = null
       }
     }
-  }, [setupComplete])
+  }, [setupComplete, pollMs])
 
   return state
 }
