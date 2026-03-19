@@ -19,6 +19,7 @@ import {
   INITIAL_WATER,
   DOME_DEFS_BASE,
   CROP_COLORS,
+  SPACE_PER_PLANT_M2,
   lerp,
   easeInOut,
   scaleDomeDefs,
@@ -385,16 +386,19 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
       h = window.innerHeight;
     const { renderer, scene, camera } = initScene(canvas, w, h);
     buildTerrain(scene);
-    // Distribute crop count per dome so bed slots match actual crop count
-    const totalCrops = simStateRef.current?.crops?.length ?? 60;
+    // Build bed slots for the maximum plant capacity of the floor space
+    const ss = simStateRef.current;
+    const floorM2 =
+      ss?.resources?.floor_space_m2 ?? ss?.floor_space_m2 ?? ss?.greenhouse?.floor_space_m2 ?? 20;
+    const maxPlants = Math.floor(floorM2 / SPACE_PER_PLANT_M2);
     const areas = DOME_DEFS.map(d => Math.PI * d.r * d.r);
     const totalArea = areas.reduce((a, b) => a + b, 0);
     const cropCounts = {};
     let assigned = 0;
     DOME_DEFS.forEach((d, i) => {
       const c = i < DOME_DEFS.length - 1
-        ? Math.round(totalCrops * (areas[i] / totalArea))
-        : totalCrops - assigned;
+        ? Math.round(maxPlants * (areas[i] / totalArea))
+        : maxPlants - assigned;
       cropCounts[d.id] = Math.max(4, c);
       assigned += c;
     });

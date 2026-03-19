@@ -39,9 +39,9 @@ function buildDomeInterior(radius, targetPlantCount = 60) {
   const targetSlots = Math.max(0, Math.round(Number(targetPlantCount) || 0));
 
   // Work out columns, then distribute slots by planter length so total slots === target.
-  const estCols = Math.max(2, Math.round(Math.sqrt(Math.max(targetSlots, 1) * 0.7)));
-  const colSpacing = Math.max(1.4, (usableRadius * 2) / estCols);
-  const colWidth = colSpacing * 0.7;
+  const estCols = Math.max(2, Math.round(Math.sqrt(Math.max(targetSlots, 1) * 1.1)));
+  const colSpacing = Math.max(0.9, (usableRadius * 2) / estCols);
+  const colWidth = colSpacing * 0.55;
   const boxH = colSpacing * 0.22;
   const soilH = 0.03;
 
@@ -94,6 +94,14 @@ function buildDomeInterior(radius, targetPlantCount = 60) {
       remainder -= 1;
       ri += 1;
     }
+  }
+
+  // Cap slots per column so plants never overlap — enforce a minimum spacing.
+  const minSlotSpacing = Math.max(0.7, colWidth * 0.75);
+  for (let colIndex = 0; colIndex < candidateCols.length; colIndex++) {
+    const { colLen } = candidateCols[colIndex];
+    const maxFit = Math.max(1, Math.floor(colLen / minSlotSpacing));
+    if (slotsByCol[colIndex] > maxFit) slotsByCol[colIndex] = maxFit;
   }
 
   for (let colIndex = 0; colIndex < candidateCols.length; colIndex++) {

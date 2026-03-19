@@ -430,9 +430,8 @@ export function distributeCrops(crops, domeDefsArr) {
 
 export function updateCropsAndBeds(greenhouses, domeDefs, ss, lv, dt) {
   const LERP_SPEED = 4
-  if (!ss?.crops) return
 
-  const domeCrops = distributeCrops(ss.crops, domeDefs)
+  const domeCrops = distributeCrops(ss?.crops || [], domeDefs)
   for (let di = 0; di < greenhouses.length; di++) {
     const gh       = greenhouses[di]
     const plants   = gh.userData.plantMeshes  || []
