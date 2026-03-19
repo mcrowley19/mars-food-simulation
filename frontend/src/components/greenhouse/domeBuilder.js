@@ -12,42 +12,68 @@ function buildDomeInterior(radius) {
   const soilMeshes = []
   const planterMeshes = []
 
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.93, 48), floorMat)
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), floorMat)
   floor.rotation.x = -Math.PI / 2
   floor.position.y = FLOOR_Y
   floor.receiveShadow = true
   g.add(floor)
 
-  const step = Math.max(1.7, radius * 0.15)
-  const boxW = step * 0.78
-  const boxH = step * 0.22
+  const colSpacing = Math.max(1.7, radius * 0.15)
+  const colWidth = colSpacing * 0.7
+  const boxH = colSpacing * 0.22
   const soilH = 0.03
-  const gridMin = -radius * 0.78
-  const gridMax = radius * 0.78
+  const usableRadius = radius * 0.78
   const MAX_PLANTERS = 240
+  const plantsPerCol = Math.max(2, Math.floor(radius * 1.2))
 
-  for (let x = gridMin; x <= gridMax; x += step) {
-    for (let z = gridMin; z <= gridMax; z += step) {
-      if (x * x + z * z > (radius * 0.8) * (radius * 0.8)) continue
-      if (plantMeshes.length >= MAX_PLANTERS) break
+  for (let x = -usableRadius; x <= usableRadius; x += colSpacing) {
+    if (plantMeshes.length >= MAX_PLANTERS) break
 
-      const planter = new THREE.Mesh(new THREE.BoxGeometry(boxW, boxH, boxW), planterMat)
-      planter.position.set(x, FLOOR_Y + boxH / 2 + 0.02, z)
-      planter.castShadow = true
-      planter.receiveShadow = true
-      g.add(planter)
-      planterMeshes.push(planter)
+    // Calculate the length of this column based on the circular dome footprint
+    const halfLen = Math.sqrt(Math.max(0, (usableRadius * usableRadius) - (x * x)))
+    if (halfLen < colWidth) continue
+    const colLen = halfLen * 2
 
-      const soilMat = new THREE.MeshStandardMaterial({
-        color: '#3f2a1d', emissive: '#000000', emissiveIntensity: 0, roughness: 0.9,
-      })
-      const soil = new THREE.Mesh(new THREE.BoxGeometry(boxW * 0.84, soilH, boxW * 0.84), soilMat)
-      soil.position.set(x, FLOOR_Y + boxH + soilH / 2 + 0.02, z)
-      g.add(soil)
+    // Wooden border/rim around the planter
+    const rimThickness = 0.08
+    const rimHeight = boxH + soilH
+    const rimMat = new THREE.MeshStandardMaterial({ color: '#6a4429', roughness: 0.7, metalness: 0.12 })
+    const rimY = FLOOR_Y + rimHeight / 2 + 0.02
+    // Long sides (along Z)
+    const sideL = new THREE.Mesh(new THREE.BoxGeometry(rimThickness, rimHeight, colLen), rimMat)
+    sideL.position.set(x - colWidth / 2, rimY, 0)
+    g.add(sideL)
+    const sideR = new THREE.Mesh(new THREE.BoxGeometry(rimThickness, rimHeight, colLen), rimMat)
+    sideR.position.set(x + colWidth / 2, rimY, 0)
+    g.add(sideR)
+    // Short ends (along X)
+    const endF = new THREE.Mesh(new THREE.BoxGeometry(colWidth + rimThickness, rimHeight, rimThickness), rimMat)
+    endF.position.set(x, rimY, -halfLen)
+    g.add(endF)
+    const endB = new THREE.Mesh(new THREE.BoxGeometry(colWidth + rimThickness, rimHeight, rimThickness), rimMat)
+    endB.position.set(x, rimY, halfLen)
+    g.add(endB)
+
+    // Single continuous soil bed filling the planter
+    const soilInnerW = colWidth - rimThickness
+    const soilMat = new THREE.MeshStandardMaterial({
+      color: '#3f2a1d', emissive: '#000000', emissiveIntensity: 0, roughness: 0.9,
+    })
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(soilInnerW, boxH + soilH, colLen - rimThickness), soilMat)
+    soil.position.set(x, FLOOR_Y + (boxH + soilH) / 2 + 0.02, 0)
+    g.add(soil)
+
+    // Distribute individual plant slots along this column
+    const slotsInCol = Math.min(plantsPerCol, MAX_PLANTERS - plantMeshes.length)
+    const slotSpacing = colLen / (slotsInCol + 1)
+
+    for (let si = 0; si < slotsInCol; si++) {
+      const z = -halfLen + slotSpacing * (si + 1)
+      planterMeshes.push(soil)
       soilMats.push(soilMat)
       soilMeshes.push(soil)
 
-      const pBase = Math.max(0.08, boxW * 0.16)
+      const pBase = Math.max(0.08, colWidth * 0.16)
       const plantMat = new THREE.MeshStandardMaterial({
         color: CROP_EMPTY_COLOR, emissive: '#000000', emissiveIntensity: 0, roughness: 0.55,
       })
@@ -59,7 +85,6 @@ function buildDomeInterior(radius) {
       g.add(plant)
       plantMeshes.push(plant)
     }
-    if (plantMeshes.length >= MAX_PLANTERS) break
   }
 
   return { group: g, plantMeshes, soilMats, soilMeshes, planterMeshes }

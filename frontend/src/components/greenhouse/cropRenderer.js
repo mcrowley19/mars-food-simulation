@@ -41,8 +41,8 @@ export function updateCropsAndBeds(greenhouses, domeDefs, ss, lv, dt) {
     const crops = domeCrops[di] || []
     for (let pi = 0; pi < plants.length; pi++) {
       const hasCrop = pi < crops.length
-      if (planters[pi]) planters[pi].visible = hasCrop
-      if (soilMeshes[pi]) soilMeshes[pi].visible = hasCrop
+      if (planters[pi]) planters[pi].visible = true
+      if (soilMeshes[pi]) soilMeshes[pi].visible = true
       const mesh = plants[pi]
       mesh.visible = hasCrop
       if (!hasCrop) continue
