@@ -479,34 +479,37 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
     session_key = normalize_session_key(x_session_id)
     lock = _get_invoke_lock(session_key)
     if not lock.acquire(blocking=False):
-        msg = "Agent is already running — skipping duplicate invocation."
-        _append_state_agent_log(session_key, "orchestrator", req.prompt, msg)
-        return {"response": msg}
-    try:
-        with _session_context(session_key):
-            from agents.orchestrator import get_orchestrator
-            orchestrator = get_orchestrator()
-            with _orchestrator_call_lock:
-                result = orchestrator(req.prompt)
-            _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
-            s = get_state(session_key=session_key)
-            s["agents_initialised"] = True
-            update_state(s, session_key=session_key)
-            return {"response": str(result)}
-    except Exception as e:
-        message = str(e)
-        if "AccessDeniedException" in message or "explicit deny" in message:
-            blocked_msg = (
-                "Agent invocation is currently blocked by AWS IAM policy "
-                "(explicit deny on Bedrock model invocation)."
-            )
-            _append_state_agent_log(session_key, "orchestrator", req.prompt, blocked_msg)
-            return {"response": blocked_msg}
-        _append_state_agent_log(session_key, "orchestrator", req.prompt, f"Invocation error: {message}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=message)
-    finally:
-        lock.release()
+        return {"response": "Agent is already running — skipping duplicate invocation."}
+
+    def _run():
+        try:
+            with _session_context(session_key):
+                from agents.orchestrator import get_orchestrator
+                orchestrator = get_orchestrator()
+                with _orchestrator_call_lock:
+                    result = orchestrator(req.prompt)
+                _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
+                s = get_state(session_key=session_key)
+                s["agents_initialised"] = True
+                update_state(s, session_key=session_key)
+        except Exception as e:
+            message = str(e)
+            if "AccessDeniedException" in message or "explicit deny" in message:
+                message = "Agent invocation blocked by AWS IAM policy."
+            _append_state_agent_log(session_key, "orchestrator", req.prompt, f"Invocation error: {message}")
+            traceback.print_exc()
+            # Still mark initialised so the loading screen doesn't hang forever
+            try:
+                s = get_state(session_key=session_key)
+                s["agents_initialised"] = True
+                update_state(s, session_key=session_key)
+            except Exception:
+                pass
+        finally:
+            lock.release()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"response": "Agent invocation started."}
 
 
 @app.get("/state")
