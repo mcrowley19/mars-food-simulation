@@ -79,6 +79,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     cropBreakdown: {},
     caloriesAvailable: 0,
     caloriesNeededPerDay: 0,
+    seedReserve: {},
   });
   const [enterLabel, setEnterLabel] = useState(null);
   const [plantHover, setPlantHover] = useState(null);
@@ -1031,7 +1032,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </div>
             )}
 
-            {Object.keys(hud.seedReserve).length > 0 && (
+            {hud.seedReserve && Object.keys(hud.seedReserve).length > 0 && (
               <div className="gh-resources__crop-breakdown">
                 <span className="gh-resources__label" style={{ width: '100%', marginBottom: 2 }}>Seed Reserve</span>
                 {Object.entries(hud.seedReserve).map(([name, count]) => (
