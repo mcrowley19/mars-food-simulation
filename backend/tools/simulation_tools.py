@@ -53,21 +53,30 @@ def harvest_crop(crop_index: int) -> str:
     base_yield_kg = {"potato": 0.3, "wheat": 0.15, "lettuce": 0.25, "tomato": 0.2,
                      "soybean": 0.12, "radish": 0.1, "pea": 0.08, "kale": 0.2, "carrot": 0.15}
     yield_kg = round(base_yield_kg.get(crop["name"], 0.1) * min(progress, 1.0), 3)
+    from setup_modes import estimate_seed_return
+    seeds_gained = estimate_seed_return(crop["name"], yield_kg)
 
     harvested_entry = {
         "name": crop["name"],
         "yield_kg": yield_kg,
         "harvested_on_day": state.get("mission_day", 0),
         "age_at_harvest": crop["age_days"],
+        "seeds_gained": seeds_gained,
     }
 
     if "harvested" not in state:
         state["harvested"] = []
     state["harvested"].append(harvested_entry)
+    reserve = state.get("seed_reserve", {})
+    reserve[crop["name"]] = reserve.get(crop["name"], 0) + seeds_gained
+    state["seed_reserve"] = reserve
     crops.pop(crop_index)
     state["crops"] = crops
     update_state(state, session_key=_session_key())
-    return f"Harvested {crop['name']} (index {crop_index}): {yield_kg}kg yield on day {state.get('mission_day', '?')}"
+    return (
+        f"Harvested {crop['name']} (index {crop_index}): {yield_kg}kg yield, "
+        f"+{seeds_gained} seeds on day {state.get('mission_day', '?')}"
+    )
 
 
 @tool
