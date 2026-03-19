@@ -31,6 +31,8 @@ const MAX_VISIBLE_AGENT_LOGS = 12;
 const MAX_VISIBLE_RESPONSE_LINES = 5;
 const MAX_VISIBLE_TASK_LINES = 1;
 const RESOURCE_HISTORY_LIMIT = 72;
+const RESOURCE_TREND_CHART_HEIGHT = 68;
+const RESOURCE_TREND_CHART_WIDTH = 320;
 
 function cropChipStyle(cropName) {
   const colorHex = CROP_COLORS[cropName?.toLowerCase()] || "#6ea07d";
@@ -57,20 +59,60 @@ function cropChipStyle(cropName) {
 function sparklinePath(points, width, height, key) {
   if (!Array.isArray(points) || points.length === 0) return "";
   const vals = points.map((p) => Number(p?.[key]) || 0);
-  const min = Math.min(...vals);
   const max = Math.max(...vals);
-  const range = Math.max(1, max - min);
+  // Keep chart origin pinned at 0 on Y axis.
+  const range = Math.max(1, max);
   if (points.length === 1) {
-    const y = height - ((vals[0] - min) / range) * height;
+    const y = height - (vals[0] / range) * height;
     return `M 0 ${y.toFixed(2)} L ${width.toFixed(2)} ${y.toFixed(2)}`;
   }
   return vals
     .map((val, idx) => {
       const x = (idx / (vals.length - 1)) * width;
-      const y = height - ((val - min) / range) * height;
+      const y = height - (val / range) * height;
       return `${idx === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     })
     .join(" ");
+}
+
+function buildXTicks(points, width, step = 10) {
+  if (!Array.isArray(points) || points.length === 0) return [];
+  const days = points
+    .map((p) => Number(p?.day))
+    .filter((d) => Number.isFinite(d))
+    .sort((a, b) => a - b);
+  if (!days.length) return [];
+  const minDay = Math.floor(days[0]);
+  const maxDay = Math.floor(days[days.length - 1]);
+  if (maxDay <= minDay) return [{ day: minDay, x: 0 }];
+
+  const firstTick = Math.ceil(minDay / step) * step;
+  const ticks = [];
+  if (firstTick > minDay) ticks.push({ day: minDay });
+  for (let d = firstTick; d <= maxDay; d += step) ticks.push({ day: d });
+  if (ticks[ticks.length - 1]?.day !== maxDay) ticks.push({ day: maxDay });
+
+  const range = Math.max(1, maxDay - minDay);
+  return ticks.map((t) => ({
+    day: t.day,
+    x: ((t.day - minDay) / range) * width,
+  }));
+}
+
+function nearestPointValueForDay(points, key, day) {
+  if (!Array.isArray(points) || points.length === 0) return 0;
+  let best = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const point of points) {
+    const d = Number(point?.day);
+    if (!Number.isFinite(d)) continue;
+    const dist = Math.abs(d - day);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = point;
+    }
+  }
+  return Number(best?.[key]) || 0;
 }
 
 export default function GreenhouseScene({ onExit, totalDays = 350 }) {
@@ -153,20 +195,33 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   }, [insideDome]);
 
   useEffect(() => {
-    if (!simState?.setup_complete) return;
-    const water = Number(hud.waterL);
-    const nutrients = Number(hud.nutrientsKg);
+    if (!simState?.setup_complete) {
+      setResourceHistory([]);
+      return;
+    }
+
+    // Seed from backend state first so charts never start at HUD default zeroes.
+    const water = Number(simState?.resources?.water_l ?? hud.waterL);
+    const nutrients = Number(simState?.resources?.nutrients_kg ?? hud.nutrientsKg);
     if (!Number.isFinite(water) || !Number.isFinite(nutrients)) return;
-    const day = Number(hud.missionDay || simState?.mission_day || 0);
+    const day = Number(simState?.mission_day ?? hud.missionDay ?? 1);
+    const safeDay = Number.isFinite(day) ? day : 1;
+
     setResourceHistory((prev) => {
-      const next = [
-        ...prev,
-        {
-          water,
-          nutrients,
-          day: Number.isFinite(day) ? day : 0,
-        },
-      ];
+      const point = { water, nutrients, day: safeDay };
+      if (prev.length === 0) return [point];
+
+      const last = prev[prev.length - 1];
+      if (safeDay < (last.day ?? 0)) return [point];
+      if (
+        last.day === point.day &&
+        Math.abs((last.water ?? 0) - point.water) < 0.001 &&
+        Math.abs((last.nutrients ?? 0) - point.nutrients) < 0.001
+      ) {
+        return prev;
+      }
+
+      const next = [...prev, point];
       return next.length > RESOURCE_HISTORY_LIMIT
         ? next.slice(next.length - RESOURCE_HISTORY_LIMIT)
         : next;
@@ -175,8 +230,10 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     hud.waterL,
     hud.nutrientsKg,
     hud.missionDay,
-    simState?.mission_day,
     simState?.setup_complete,
+    simState?.mission_day,
+    simState?.resources?.water_l,
+    simState?.resources?.nutrients_kg,
   ]);
 
   const simulateTick = useCallback(async () => {
@@ -834,8 +891,41 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const currentSol = hud.missionDay || simState?.mission_day || 1;
   const prettyAgentName = (name) => String(name || "").replace(/_/g, " ");
   const trendLast = resourceHistory[resourceHistory.length - 1] || null;
-  const trendWaterPath = sparklinePath(resourceHistory, 220, 46, "water");
-  const trendNutrientPath = sparklinePath(resourceHistory, 220, 46, "nutrients");
+  const trendWaterPath = sparklinePath(
+    resourceHistory,
+    RESOURCE_TREND_CHART_WIDTH,
+    RESOURCE_TREND_CHART_HEIGHT,
+    "water",
+  );
+  const trendNutrientPath = sparklinePath(
+    resourceHistory,
+    RESOURCE_TREND_CHART_WIDTH,
+    RESOURCE_TREND_CHART_HEIGHT,
+    "nutrients",
+  );
+  const xTicks = buildXTicks(resourceHistory, RESOURCE_TREND_CHART_WIDTH, 5);
+  const maxWater = Math.max(
+    1,
+    ...resourceHistory.map((p) => Number(p?.water) || 0),
+  );
+  const maxNutrients = Math.max(
+    1,
+    ...resourceHistory.map((p) => Number(p?.nutrients) || 0),
+  );
+  const waterValueTicks = xTicks.map((tick) => {
+    const value = nearestPointValueForDay(resourceHistory, "water", tick.day);
+    const y =
+      RESOURCE_TREND_CHART_HEIGHT -
+      (Math.max(0, value) / maxWater) * RESOURCE_TREND_CHART_HEIGHT;
+    return { ...tick, value, y };
+  });
+  const nutrientValueTicks = xTicks.map((tick) => {
+    const value = nearestPointValueForDay(resourceHistory, "nutrients", tick.day);
+    const y =
+      RESOURCE_TREND_CHART_HEIGHT -
+      (Math.max(0, value) / maxNutrients) * RESOURCE_TREND_CHART_HEIGHT;
+    return { ...tick, value, y };
+  });
   const trendWindow =
     resourceHistory.length > 1
       ? `Sol ${resourceHistory[0].day} to ${resourceHistory[resourceHistory.length - 1].day}`
@@ -915,10 +1005,49 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           </div>
           <svg
             className="gh-resource-trends__chart gh-resource-trends__chart--water"
-            viewBox="0 0 220 46"
+            viewBox={`0 0 ${RESOURCE_TREND_CHART_WIDTH} ${RESOURCE_TREND_CHART_HEIGHT}`}
             preserveAspectRatio="none"
             aria-label="Water availability over time"
           >
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1={RESOURCE_TREND_CHART_HEIGHT}
+              x2={RESOURCE_TREND_CHART_WIDTH}
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            {xTicks.map((tick) => (
+              <g key={`water-x-${tick.day}`}>
+                <line
+                  className="gh-resource-trends__tick"
+                  x1={tick.x}
+                  y1="0"
+                  x2={tick.x}
+                  y2={RESOURCE_TREND_CHART_HEIGHT}
+                />
+              </g>
+            ))}
+            {waterValueTicks.map((tick) => (
+              <text
+                key={`water-v-${tick.day}`}
+                className="gh-resource-trends__value-label gh-resource-trends__value-label--water"
+                x={Math.max(2, Math.min(RESOURCE_TREND_CHART_WIDTH - 2, tick.x + 2))}
+                y={Math.max(8, Math.min(RESOURCE_TREND_CHART_HEIGHT - 8, tick.y - 2))}
+                textAnchor="start"
+              >
+                {Math.round(tick.value)}
+              </text>
+            ))}
+            <text className="gh-resource-trends__y-label" x="3" y="9">
+              {Math.round(maxWater)}
+            </text>
             <polyline
               className="gh-resource-trends__line"
               points={trendWaterPath.replace(/M|L/g, "").trim()}
@@ -932,10 +1061,49 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           </div>
           <svg
             className="gh-resource-trends__chart gh-resource-trends__chart--nutrients"
-            viewBox="0 0 220 46"
+            viewBox={`0 0 ${RESOURCE_TREND_CHART_WIDTH} ${RESOURCE_TREND_CHART_HEIGHT}`}
             preserveAspectRatio="none"
             aria-label="Nutrient availability over time"
           >
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1={RESOURCE_TREND_CHART_HEIGHT}
+              x2={RESOURCE_TREND_CHART_WIDTH}
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            {xTicks.map((tick) => (
+              <g key={`nutrient-x-${tick.day}`}>
+                <line
+                  className="gh-resource-trends__tick"
+                  x1={tick.x}
+                  y1="0"
+                  x2={tick.x}
+                  y2={RESOURCE_TREND_CHART_HEIGHT}
+                />
+              </g>
+            ))}
+            {nutrientValueTicks.map((tick) => (
+              <text
+                key={`nutrient-v-${tick.day}`}
+                className="gh-resource-trends__value-label gh-resource-trends__value-label--nutrients"
+                x={Math.max(2, Math.min(RESOURCE_TREND_CHART_WIDTH - 2, tick.x + 2))}
+                y={Math.max(8, Math.min(RESOURCE_TREND_CHART_HEIGHT - 8, tick.y - 2))}
+                textAnchor="start"
+              >
+                {Math.round(tick.value)}
+              </text>
+            ))}
+            <text className="gh-resource-trends__y-label" x="3" y="9">
+              {Math.round(maxNutrients)}
+            </text>
             <polyline
               className="gh-resource-trends__line"
               points={trendNutrientPath.replace(/M|L/g, "").trim()}
