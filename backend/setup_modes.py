@@ -303,16 +303,32 @@ You must return ONLY a JSON object (no markdown, no explanation outside the JSON
   "reasoning": "explanation of choices"
 }}
 
+PRIORITY ORDER (allocate cargo in this order — water first):
+1. WATER (highest priority — without water everyone dies within days):
+   Each crop consumes water daily: radish 0.15L, lettuce 0.2L, kale 0.25L, wheat/pea/carrot 0.3L, soybean 0.4L, potato 0.5L, tomato 0.6L.
+   Crew uses 10L/day but 85% is recycled (net 1.5L/day crew draw).
+   Calculate minimum water: sum(crop_water_per_day × count) × {mission_days} + 1.5 × {mission_days}.
+   Add 20% safety margin. This is the MINIMUM water_l. Do NOT reduce water to fit other supplies.
+   If cargo is tight, reduce seeds or food — never cut water.
+
+2. FUEL (second priority — no fuel means no lights, crops die):
+   Grow lights use 0.3 kW/m² running ~12h/day. Life support uses 3 kW constant (24h).
+   Generator yields 3.5 kWh/kg fuel. Calculate: daily_kwh = (0.3 × floor_space_m2 × 12) + (3.0 × 24).
+   fuel_kg = ceil((daily_kwh × {mission_days}) / 3.5 × 1.15). Never reduce below this.
+
+3. FOOD SUPPLIES (third priority):
+   {astronaut_count} astronauts consume {crew_kcal_day} kcal/day. Bring at least {safe_food_kcal} kcal.
+   Food rots (lettuce 7d, wheat 180d). If cargo is tight, reduce food before water.
+
+4. SEEDS & FLOOR SPACE (lowest priority — fit within remaining cargo):
+   Prioritize low-water crops: wheat (0.3L/day, 3390 kcal/kg), kale (0.25L/day), radish (0.15L/day, fast 25d).
+   Avoid water-hungry crops if cargo is tight: tomato (0.6L/day), potato (0.5L/day).
+   floor_space_m2 must be ≥ total_plants × 0.25. More floor space = more fuel needed.
+
 Rules:
 - seed_amounts must only contain seeds from the valid list above
 - All numeric values must be greater than 0
-- floor_space_m2 must be enough for all plants (0.25 m² per plant)
-- water_l, fertilizer_kg, soil_kg must be enough for the full {mission_days}-day mission
-- food_supplies_kcal is pre-packed food (kcal). {astronaut_count} astronauts consume {crew_kcal_day} kcal/day total. Crops take 25-120 days to mature and early harvests are small. Food rots (shelf life varies: lettuce 7d, wheat 180d). Bring at least {safe_food_kcal} kcal. If the crew runs out of calories they die.
-- Optimize for nutritional completeness for {astronaut_count} astronauts
-- Bring LOTS of seeds (100+ total). Prioritize calorie-dense crops with long shelf life: wheat (3390 kcal/kg, 180d shelf), soybean (1470 kcal/kg, 120d shelf), potato (770 kcal/kg, 60d shelf). Include some fast-growing crops (radish 25d, lettuce 30d) for early harvests.
-- fuel_kg is generator fuel. Grow lights use 0.3 kW/m² running ~12h/day. Life support uses 3 kW constant (24h). Generator yields 3.5 kWh/kg fuel. Calculate: daily_kwh = (0.3 × floor_space_m2 × 12) + (3.0 × 24). fuel_kg = ceil((daily_kwh × {mission_days}) / 3.5 × 1.15). Fuel is HEAVY — balance floor space against fuel cost.
-- TOTAL CARGO MUST NOT EXCEED {max_cargo_kg} kg. Add up: water_l (1 kg/L) + fertilizer_kg + soil_kg + fuel_kg + (food_supplies_kcal / 1500) + (total_seeds × 0.05). If it exceeds {max_cargo_kg}, reduce quantities.
+- TOTAL CARGO MUST NOT EXCEED {max_cargo_kg} kg. Add up: water_l (1 kg/L) + fertilizer_kg + soil_kg + fuel_kg + (food_supplies_kcal / 1500) + (total_seeds × 0.05). If it exceeds {max_cargo_kg}, cut seeds or food first, never water or fuel.
 - Do NOT wrap the JSON in markdown code fences"""
 
     result = str(agent(prompt))
@@ -345,8 +361,18 @@ Rules:
     if not valid_seeds:
         raise ValueError(f"AI returned no valid seeds. Got: {seeds}")
 
-    # Auto-correct floor space and fuel so the AI's plan doesn't fail validation
+    # Auto-correct all values so the AI's plan never fails validation
     import math as _math
+
+    # Water: must cover all crop draw + crew net draw for the full mission
+    crop_water_day = sum(
+        CROP_DEFAULTS.get(k, {}).get("water_per_day_l", 0.3) * v
+        for k, v in valid_seeds.items()
+    )
+    crew_water_net = 10 * (1 - 0.85)  # 85% recycling
+    min_water = _math.ceil((crop_water_day + crew_water_net) * mission_days * 1.2)
+    water_l = max(float(parsed["water_l"]), min_water)
+
     total_plants = sum(valid_seeds.values())
     min_floor = total_plants * SPACE_PER_PLANT_M2
     floor_space = max(float(parsed["floor_space_m2"]), min_floor)
@@ -360,7 +386,7 @@ Rules:
 
     # Run through manual_setup for validation
     params = {
-        "water_l": float(parsed["water_l"]),
+        "water_l": water_l,
         "fertilizer_kg": float(parsed["fertilizer_kg"]),
         "soil_kg": float(parsed["soil_kg"]),
         "floor_space_m2": floor_space,
