@@ -33,6 +33,7 @@ def apply_mars_rules(state: dict) -> dict:
         "potato": 0.3, "wheat": 0.15, "lettuce": 0.25, "tomato": 0.2,
         "soybean": 0.12, "radish": 0.1, "pea": 0.08, "kale": 0.2, "carrot": 0.15,
     }
+    from setup_modes import estimate_seed_return
     if "harvested" not in state:
         state["harvested"] = []
     reserve = state.get("seed_reserve", {})
@@ -41,14 +42,16 @@ def apply_mars_rules(state: dict) -> dict:
         if crop["status"] == "ready_to_harvest":
             progress = crop["age_days"] / crop["maturity_days"] if crop.get("maturity_days", 0) > 0 else 0
             yield_kg = round(base_yield_kg.get(crop["name"], 0.1) * min(progress, 1.0), 3)
+            seeds_gained = estimate_seed_return(crop["name"], yield_kg)
             state["harvested"].append({
                 "name": crop["name"],
                 "yield_kg": yield_kg,
                 "harvested_on_day": day,
                 "age_at_harvest": crop["age_days"],
+                "seeds_gained": seeds_gained,
             })
-            # Return a seed to the reserve for future planting
-            reserve[crop["name"]] = reserve.get(crop["name"], 0) + 1
+            # Return crop-specific seed counts based on harvested output.
+            reserve[crop["name"]] = reserve.get(crop["name"], 0) + seeds_gained
         else:
             remaining.append(crop)
     crops = remaining

@@ -45,6 +45,34 @@ SHELF_LIFE_DAYS = {
 }
 
 
+SEED_RETURN_PER_KG = {
+    # Approximate viable-seed return rates by crop for simulation pacing.
+    "potato": 12,
+    "wheat": 120,
+    "lettuce": 90,
+    "tomato": 220,
+    "soybean": 95,
+    "radish": 140,
+    "pea": 110,
+    "kale": 160,
+    "carrot": 180,
+}
+
+
+def estimate_seed_return(crop_name: str, yield_kg: float) -> int:
+    """
+    Estimate how many viable seeds are produced from a harvested crop yield.
+    Returns an integer count suitable for seed_reserve accounting.
+    """
+    name = str(crop_name or "").lower().strip()
+    kg = max(0.0, float(yield_kg or 0.0))
+    if kg <= 0:
+        return 0
+    rate = SEED_RETURN_PER_KG.get(name, 60)
+    # Ensure non-zero harvests still contribute at least one seed.
+    return max(1, int(round(kg * rate)))
+
+
 def min_food_supplies_kcal(astronaut_count: int, seed_amounts: dict) -> int:
     """Minimum kcal of food supplies needed to survive until the first harvest."""
     if not seed_amounts:
