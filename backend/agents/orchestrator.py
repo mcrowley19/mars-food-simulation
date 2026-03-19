@@ -109,7 +109,7 @@ def get_orchestrator():
     global _orchestrator
     if _orchestrator is None:
         _orchestrator = Agent(
-            model=BedrockModel(model_id="anthropic.claude-3-5-sonnet-20241022-v2:0", region_name="us-east-1"),
+            model=BedrockModel(model_id="us.anthropic.claude-3-5-sonnet-20241022-v2:0", region_name="us-east-1"),
             system_prompt="""You are the Mission Orchestrator for a Martian greenhouse.
     Coordinate specialist agents to manage a 450-day crop mission for 4 astronauts.
     Delegate tasks to the right specialist and synthesize their outputs into
