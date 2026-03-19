@@ -182,12 +182,12 @@ def manual_setup(params: dict) -> dict:
     state["resources"]["nutrients_kg"] = fertilizer_kg
     state["setup_complete"] = True
 
-    # Plant an initial batch (1/3 of seeds) and reserve the rest for staggered planting
+    # Plant an initial batch (2/3 of seeds) and reserve the rest for staggered planting
     import math as _math
     crops = []
     reserve = {}
     for seed_type, count in seed_amounts.items():
-        initial = max(1, _math.ceil(count / 3))
+        initial = max(1, _math.ceil(count * 2 / 3))
         to_reserve = count - initial
         defaults = CROP_DEFAULTS.get(seed_type, {})
         for _ in range(initial):
@@ -260,7 +260,7 @@ You must return ONLY a JSON object (no markdown, no explanation outside the JSON
   "fertilizer_kg": 200,
   "soil_kg": 1000,
   "floor_space_m2": 50,
-  "food_supplies_kcal": 250000,
+  "food_supplies_kcal": 1500000,
   "reasoning": "explanation of choices"
 }
 
@@ -269,8 +269,9 @@ Rules:
 - All numeric values must be greater than 0
 - floor_space_m2 must be enough for all plants (0.25 m² per plant)
 - water_l, fertilizer_kg, soil_kg must be enough for the full 450-day mission
-- food_supplies_kcal is the amount of pre-packed food (in kcal) the crew brings along. The HARD MINIMUM is enough to feed 4 astronauts (2500 kcal/day each) until the fastest crop matures. For example if the fastest crop takes 25 days: 4 × 2500 × 25 = 250000 kcal minimum. However you MUST include substantial surplus beyond this minimum — crops can fail, harvests can be delayed by dust storms, and early yields are small. Aim for at least 1.5× to 2× the minimum so the crew has a realistic safety buffer. A value of 400000-500000 kcal is a sensible default for 4 astronauts.
+- food_supplies_kcal is the amount of pre-packed food (in kcal) the crew brings along. 4 astronauts consume 10000 kcal/day total. Crops take 25-120 days to mature and early harvests are small — it takes multiple harvest cycles before crop production can fully sustain the crew. Food also rots (shelf life varies: lettuce 7 days, wheat 180 days). You MUST bring enough food to last well beyond the first harvest. Calculate: 10000 kcal/day × at least 120 days = 1200000 kcal minimum. Bring at least 1500000 kcal (1.5 million) to be safe. This is critical — if the crew runs out of calories they die.
 - Optimize for nutritional completeness for 4 astronauts
+- Bring LOTS of seeds (100+ total across types). Prioritize calorie-dense crops with long shelf life: wheat (3390 kcal/kg, 180d shelf), soybean (1470 kcal/kg, 120d shelf), potato (770 kcal/kg, 60d shelf). These are the backbone of crew survival. Include some fast-growing crops (radish 25d, lettuce 30d) for early harvests but in smaller quantities since they rot quickly.
 - Do NOT wrap the JSON in markdown code fences"""
 
     result = str(agent(prompt))

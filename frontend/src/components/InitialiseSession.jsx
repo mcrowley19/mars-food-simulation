@@ -34,7 +34,7 @@ const DEFAULTS = {
   bugs:        20,
   astronauts:  4,
   timeframe:   350,
-  foodSupplies: 300000,
+  foodSupplies: 1500000,
 }
 
 /* ── Stepper ── */

@@ -104,8 +104,8 @@ def apply_mars_rules(state: dict) -> dict:
             slots_available = max_plants - len(crops)
             if slots_available <= 0:
                 break
-            # Plant 1-3 seeds per batch depending on availability and space
-            batch = min(reserve[crop_name], slots_available, 3)
+            # Plant a meaningful batch to sustain calorie production
+            batch = min(reserve[crop_name], slots_available, 8)
             defaults = CROP_DEFAULTS.get(crop_name, {})
             for _ in range(batch):
                 crops.append({
