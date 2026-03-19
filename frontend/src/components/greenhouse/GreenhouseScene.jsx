@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -184,6 +184,8 @@ function PanelChevron({ collapsed }) {
 export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const SOL_TICK_MS = 8000;
   const canvasRef = useRef(null);
+  const exitButtonRef = useRef(null);
+  const leftPanelsRef = useRef(null);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
   const [hud, setHud] = useState({
@@ -207,7 +209,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     cropBreakdown: {},
     caloriesAvailable: 0,
     caloriesNeededPerDay: 0,
+    caloriesConsumedToday: 0,
     seedReserve: {},
+    vitaminLevels: {},
   });
   const [enterLabel, setEnterLabel] = useState(null);
   const [plantHover, setPlantHover] = useState(null);
@@ -232,6 +236,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     logs: false,
     resources: false,
   });
+  const [resourcesTab, setResourcesTab] = useState("overview");
 
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(1);
@@ -274,13 +279,13 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
     // Seed from backend state first so charts never start at HUD default zeroes.
     const water = Number(simState?.resources?.water_l ?? hud.waterL);
-    const nutrients = Number(simState?.resources?.nutrients_kg ?? hud.nutrientsKg);
-    if (!Number.isFinite(water) || !Number.isFinite(nutrients)) return;
+    const calories = Number(simState?.calories_available ?? hud.caloriesAvailable);
+    if (!Number.isFinite(water) || !Number.isFinite(calories)) return;
     const day = Number(simState?.mission_day ?? hud.missionDay ?? 1);
     const safeDay = Number.isFinite(day) ? day : 1;
 
     setResourceHistory((prev) => {
-      const point = { water, nutrients, day: safeDay };
+      const point = { water, calories, day: safeDay };
       if (prev.length === 0) return [point];
 
       const last = prev[prev.length - 1];
@@ -288,7 +293,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       if (
         last.day === point.day &&
         Math.abs((last.water ?? 0) - point.water) < 0.001 &&
-        Math.abs((last.nutrients ?? 0) - point.nutrients) < 0.001
+        Math.abs((last.calories ?? 0) - point.calories) < 0.001
       ) {
         return prev;
       }
@@ -300,12 +305,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     });
   }, [
     hud.waterL,
-    hud.nutrientsKg,
+    hud.caloriesAvailable,
     hud.missionDay,
     simState?.setup_complete,
     simState?.mission_day,
     simState?.resources?.water_l,
-    simState?.resources?.nutrients_kg,
+    simState?.calories_available,
   ]);
 
   const simulateTick = useCallback(async () => {
@@ -944,6 +949,39 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     logsListRef.current.scrollTop = logsListRef.current.scrollHeight;
   }, [activeTab, activeTabEntries.length]);
 
+  useLayoutEffect(() => {
+    const maybeAutoCollapseForExitClearance = () => {
+      const exitEl = exitButtonRef.current;
+      const panelsEl = leftPanelsRef.current;
+      if (!exitEl || !panelsEl) return;
+      const exitRect = exitEl.getBoundingClientRect();
+      const panelsRect = panelsEl.getBoundingClientRect();
+      const intersects =
+        exitRect.left < panelsRect.right &&
+        exitRect.right > panelsRect.left &&
+        exitRect.top < panelsRect.bottom &&
+        exitRect.bottom > panelsRect.top;
+      if (!intersects) return;
+      setCollapsedPanels((prev) => {
+        if (prev.trends && prev.logs && prev.resources) return prev;
+        return { trends: true, logs: true, resources: true };
+      });
+    };
+
+    maybeAutoCollapseForExitClearance();
+    window.addEventListener("resize", maybeAutoCollapseForExitClearance);
+    return () => {
+      window.removeEventListener("resize", maybeAutoCollapseForExitClearance);
+    };
+  }, [
+    collapsedPanels.trends,
+    collapsedPanels.logs,
+    collapsedPanels.resources,
+    visibleAgentEntries.length,
+    resourceHistory.length,
+    insideDome,
+  ]);
+
   if (!domeDefs) {
     return (
       <div className="gh-overlay">
@@ -956,9 +994,11 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   }
 
   const waterPct = INITIAL_WATER > 0 ? hud.waterL / INITIAL_WATER : 1;
-  const nutrientPct = 200 > 0 ? hud.nutrientsKg / 200 : 1;
   const barClass = (pct) =>
     pct > 0.5 ? "gh-bar--ok" : pct > 0.2 ? "gh-bar--warn" : "gh-bar--crit";
+  const vitaminBarClass = (pct) =>
+    pct >= 100 ? "gh-bar--ok" : pct >= 70 ? "gh-bar--warn" : "gh-bar--crit";
+  const vitaminOrder = ["A", "C", "D", "E", "K", "B9", "B12"];
   const hasLiveState = Boolean(simState && simState.setup_complete);
   const currentSol = hud.missionDay || simState?.mission_day || 1;
   const prettyAgentName = (name) => String(name || "").replace(/_/g, " ");
@@ -969,20 +1009,20 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     RESOURCE_TREND_CHART_HEIGHT,
     "water",
   );
-  const trendNutrientPath = sparklinePath(
+  const trendCaloriesPath = sparklinePath(
     resourceHistory,
     RESOURCE_TREND_CHART_WIDTH,
     RESOURCE_TREND_CHART_HEIGHT,
-    "nutrients",
+    "calories",
   );
   const xTicks = buildXTicks(resourceHistory, RESOURCE_TREND_CHART_WIDTH, 5);
   const maxWater = Math.max(
     1,
     ...resourceHistory.map((p) => Number(p?.water) || 0),
   );
-  const maxNutrients = Math.max(
+  const maxCalories = Math.max(
     1,
-    ...resourceHistory.map((p) => Number(p?.nutrients) || 0),
+    ...resourceHistory.map((p) => Number(p?.calories) || 0),
   );
   const dayValues = resourceHistory
     .map((p) => Number(p?.day))
@@ -997,11 +1037,11 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       (Math.max(0, value) / maxWater) * RESOURCE_TREND_CHART_HEIGHT;
     return { ...tick, value, y };
   });
-  const nutrientValueTicks = xTicks.map((tick) => {
-    const value = nearestPointValueForDay(resourceHistory, "nutrients", tick.day);
+  const calorieValueTicks = xTicks.map((tick) => {
+    const value = nearestPointValueForDay(resourceHistory, "calories", tick.day);
     const y =
       RESOURCE_TREND_CHART_HEIGHT -
-      (Math.max(0, value) / maxNutrients) * RESOURCE_TREND_CHART_HEIGHT;
+      (Math.max(0, value) / maxCalories) * RESOURCE_TREND_CHART_HEIGHT;
     return { ...tick, value, y };
   });
   const trendWindow =
@@ -1049,7 +1089,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     <div className="gh-overlay">
       <canvas ref={canvasRef} className="gh-canvas" />
 
-      <button className="gh-exit" onClick={handleExit}>
+      <button className="gh-exit" onClick={handleExit} ref={exitButtonRef}>
         ←{" "}
         {insideDome
           ? `Exit ${insideDome === "ALL" ? "All Domes" : insideDome}`
@@ -1106,7 +1146,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         </div>
       )}
 
-      <div className="gh-left-panels">
+      <div className="gh-left-panels" ref={leftPanelsRef}>
       <div className="gh-resource-trends">
         <button
           className="gh-resource-trends__header gh-panel-header-btn"
@@ -1236,16 +1276,16 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         </div>
         <div className="gh-resource-trends__chart-wrap">
           <div className="gh-resource-trends__label-row">
-            <span>Nutrients over time</span>
-            <span>{trendLast ? `${Math.round(trendLast.nutrients)}kg` : "..."}</span>
+            <span>Calories over time</span>
+            <span>{trendLast ? `${Math.round(trendLast.calories)} kcal` : "..."}</span>
           </div>
           <svg
-            className="gh-resource-trends__chart gh-resource-trends__chart--nutrients"
+            className="gh-resource-trends__chart gh-resource-trends__chart--calories"
             viewBox={`0 0 ${RESOURCE_TREND_CHART_WIDTH} ${RESOURCE_TREND_CHART_HEIGHT}`}
             preserveAspectRatio="none"
-            aria-label="Nutrient availability over time"
+            aria-label="Calories available over time"
             onMouseMove={(e) =>
-              handleTrendMouseMove(e, "nutrients", "nutrients", "kg", maxNutrients)
+              handleTrendMouseMove(e, "calories", "calories", "kcal", maxCalories)
             }
             onMouseLeave={handleTrendMouseLeave}
           >
@@ -1264,7 +1304,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               y2={RESOURCE_TREND_CHART_HEIGHT}
             />
             {xTicks.map((tick) => (
-              <g key={`nutrient-x-${tick.day}`}>
+              <g key={`calorie-x-${tick.day}`}>
                 <line
                   className="gh-resource-trends__tick"
                   x1={tick.x}
@@ -1274,7 +1314,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                 />
               </g>
             ))}
-            {nutrientValueTicks.map((tick) => {
+            {calorieValueTicks.map((tick) => {
               const label = layoutValueLabel(
                 tick,
                 tick.value,
@@ -1282,9 +1322,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                 RESOURCE_TREND_CHART_HEIGHT,
               );
               return (
-                <g key={`nutrient-v-${tick.day}`}>
+                <g key={`calorie-v-${tick.day}`}>
                   <rect
-                    className="gh-resource-trends__value-bg gh-resource-trends__value-bg--nutrients"
+                    className="gh-resource-trends__value-bg gh-resource-trends__value-bg--calories"
                     x={label.boxX}
                     y={label.boxY}
                     width={label.boxWidth}
@@ -1293,7 +1333,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                     ry="2"
                   />
                   <text
-                    className="gh-resource-trends__value-label gh-resource-trends__value-label--nutrients"
+                    className="gh-resource-trends__value-label gh-resource-trends__value-label--calories"
                     x={label.textX}
                     y={label.textY}
                     textAnchor="start"
@@ -1304,13 +1344,13 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               );
             })}
             <text className="gh-resource-trends__y-label" x="3" y="9">
-              {Math.round(maxNutrients)}
+              {Math.round(maxCalories)}
             </text>
             <polyline
               className="gh-resource-trends__line"
-              points={trendNutrientPath.replace(/M|L/g, "").trim()}
+              points={trendCaloriesPath.replace(/M|L/g, "").trim()}
             />
-            {trendHover?.chart === "nutrients" && (
+            {trendHover?.chart === "calories" && (
               <>
                 <line
                   className="gh-resource-trends__hover-line"
@@ -1320,7 +1360,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                   y2={RESOURCE_TREND_CHART_HEIGHT}
                 />
                 <circle
-                  className="gh-resource-trends__hover-dot gh-resource-trends__hover-dot--nutrients"
+                  className="gh-resource-trends__hover-dot gh-resource-trends__hover-dot--calories"
                   cx={trendHover.xSvg}
                   cy={trendHover.ySvg}
                   r="2.5"
@@ -1328,7 +1368,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </>
             )}
           </svg>
-          {trendHover?.chart === "nutrients" && (
+          {trendHover?.chart === "calories" && (
             <div
               className={`gh-resource-trends__hover-tip${trendHover.placeBelow ? " is-below" : ""}`}
               style={{ left: trendHover.xPx, top: trendHover.yPx }}
@@ -1458,6 +1498,24 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           </div>
         ) : (
           <>
+            <div className="gh-resources__tabs">
+              <button
+                type="button"
+                className={`gh-resources__tab ${resourcesTab === "overview" ? "is-active" : ""}`}
+                onClick={() => setResourcesTab("overview")}
+              >
+                Overview
+              </button>
+              <button
+                type="button"
+                className={`gh-resources__tab ${resourcesTab === "vitamins" ? "is-active" : ""}`}
+                onClick={() => setResourcesTab("vitamins")}
+              >
+                Essential Vitamins
+              </button>
+            </div>
+            {resourcesTab === "overview" ? (
+              <>
             <div className="gh-resources__row">
               <span className="gh-resources__label">Water</span>
               <div className="gh-resources__bar-track">
@@ -1470,20 +1528,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </div>
               <span className="gh-resources__value">
                 {Math.round(hud.waterL)}L
-              </span>
-            </div>
-            <div className="gh-resources__row">
-              <span className="gh-resources__label">Nutrients</span>
-              <div className="gh-resources__bar-track">
-                <div
-                  className={`gh-resources__bar-fill ${barClass(nutrientPct)}`}
-                  style={{
-                    width: `${Math.max(0, Math.min(100, nutrientPct * 100))}%`,
-                  }}
-                />
-              </div>
-              <span className="gh-resources__value">
-                {Math.round(hud.nutrientsKg)}kg
               </span>
             </div>
             <div className="gh-resources__row">
@@ -1525,7 +1569,38 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                 {Math.round(hud.caloriesAvailable).toLocaleString()} kcal
               </span>
             </div>
-
+              </>
+            ) : (
+              <div className="gh-resources__vitamins">
+                <div className="gh-resources__vitamins-title">
+                  Essential Vitamins (from consumed food)
+                </div>
+                {hud.caloriesConsumedToday > 0 && (
+                  <div className="gh-resources__subtle">
+                    Consumed today: {Math.round(hud.caloriesConsumedToday).toLocaleString()} kcal
+                  </div>
+                )}
+                {vitaminOrder.map((vit) => {
+                  const pct = Math.max(0, Number(hud.vitaminLevels?.[vit]) || 0);
+                  return (
+                    <div key={vit} className="gh-resources__vitamin-row">
+                      <span className="gh-resources__vitamin-label">{vit}</span>
+                      <div className="gh-resources__bar-track">
+                        <div
+                          className={`gh-resources__bar-fill ${vitaminBarClass(pct)}`}
+                          style={{
+                            width: `${Math.max(0, Math.min(100, pct))}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="gh-resources__value">{Math.round(pct)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {resourcesTab === "overview" && (
+              <>
             <div className="gh-resources__env">
               <span className="gh-resources__env-item">{hud.tempC}°C</span>
               <span className="gh-resources__env-sep">·</span>
@@ -1577,6 +1652,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                   </span>
                 ))}
               </div>
+            )}
+              </>
             )}
           </>
         )}

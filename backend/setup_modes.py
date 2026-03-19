@@ -127,6 +127,8 @@ def _blank_state():
         "seed_reserve": {},
         "food_supplies_kcal": 0,
         "fuel_kg": 0,
+        "calories_consumed_today": 0,
+        "calorie_deficit_today": 0,
         "setup_complete": False,
         "setup_mode": None,
         "ai_setup_reasoning": None,

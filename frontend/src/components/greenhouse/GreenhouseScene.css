@@ -429,6 +429,10 @@
   fill: rgba(141, 230, 111, 0.95);
 }
 
+.gh-resource-trends__value-label--calories {
+  fill: rgba(247, 190, 103, 0.98);
+}
+
 .gh-resource-trends__value-bg {
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
@@ -442,6 +446,11 @@
 .gh-resource-trends__value-bg--nutrients {
   fill: rgba(20, 36, 18, 0.88);
   stroke: rgba(141, 230, 111, 0.55);
+}
+
+.gh-resource-trends__value-bg--calories {
+  fill: rgba(48, 28, 10, 0.88);
+  stroke: rgba(247, 190, 103, 0.58);
 }
 
 .gh-resource-trends__hover-line {
@@ -463,6 +472,11 @@
 .gh-resource-trends__hover-dot--nutrients {
   fill: #b4f59c;
   stroke: rgba(31, 66, 27, 0.95);
+}
+
+.gh-resource-trends__hover-dot--calories {
+  fill: #f7be67;
+  stroke: rgba(86, 50, 14, 0.95);
 }
 
 .gh-resource-trends__hover-tip {
@@ -495,6 +509,10 @@
 
 .gh-resource-trends__chart--nutrients .gh-resource-trends__line {
   stroke: #8de66f;
+}
+
+.gh-resource-trends__chart--calories .gh-resource-trends__line {
+  stroke: #f7be67;
 }
 
 .gh-agent-logs {
@@ -743,6 +761,38 @@
   gap: 8px;
 }
 
+.gh-resources__tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.gh-resources__tab {
+  border: 1px solid rgba(232, 120, 64, 0.22);
+  border-radius: 999px;
+  background: rgba(232, 120, 64, 0.06);
+  color: rgba(245, 224, 204, 0.72);
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.gh-resources__tab:hover {
+  border-color: rgba(232, 120, 64, 0.5);
+  color: #ffe4cc;
+}
+
+.gh-resources__tab.is-active {
+  border-color: rgba(232, 120, 64, 0.68);
+  background: rgba(232, 120, 64, 0.2);
+  color: #ffe4cc;
+}
+
 .gh-resources__label {
   font-size: 10px;
   font-weight: 600;
@@ -794,6 +844,41 @@
   color: rgba(150, 220, 190, 0.9);
   text-transform: uppercase;
   padding: 8px 0;
+}
+
+.gh-resources__subtle {
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  color: rgba(245, 224, 204, 0.72);
+}
+
+.gh-resources__vitamins {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 3px;
+}
+
+.gh-resources__vitamins-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: rgba(232, 163, 106, 0.9);
+}
+
+.gh-resources__vitamin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh-resources__vitamin-label {
+  min-width: 32px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(245, 224, 204, 0.82);
 }
 
 .gh-resources__events {

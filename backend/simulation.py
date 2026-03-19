@@ -177,9 +177,17 @@ def apply_mars_rules(state: dict) -> dict:
                 h.get("yield_kg", 0) * KCAL_PER_KG.get(h.get("name", ""), 0)
             )
 
-    # Crew eats every day
+    # Crew eats every day (track actual intake and deficit for downstream nutrition HUD).
+    calories_before_meal = max(0, float(state.get("calories_available", 0)))
+    calories_consumed_today = min(calories_before_meal, calories_needed_per_day)
+    state["calories_consumed_today"] = round(calories_consumed_today, 1)
+    state["calorie_deficit_today"] = round(
+        max(0.0, calories_needed_per_day - calories_consumed_today),
+        1,
+    )
     state["calories_available"] = round(
-        max(0, state.get("calories_available", 0) - calories_needed_per_day), 1
+        max(0, calories_before_meal - calories_consumed_today),
+        1,
     )
 
     # --- Advance mission day ---
