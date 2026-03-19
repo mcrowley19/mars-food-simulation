@@ -219,7 +219,7 @@ Rules:
 - All numeric values must be greater than 0
 - floor_space_m2 must be enough for all plants (0.25 m² per plant)
 - water_l, fertilizer_kg, soil_kg must be enough for the full 450-day mission
-- food_supplies_kcal is the amount of pre-packed food (in kcal) the crew brings along. It must be enough to feed 4 astronauts (2500 kcal/day each) until the fastest crop matures. For example if the fastest crop takes 25 days: 4 × 2500 × 25 = 250000 kcal minimum. Include a safety margin.
+- food_supplies_kcal is the amount of pre-packed food (in kcal) the crew brings along. The HARD MINIMUM is enough to feed 4 astronauts (2500 kcal/day each) until the fastest crop matures. For example if the fastest crop takes 25 days: 4 × 2500 × 25 = 250000 kcal minimum. However you MUST include substantial surplus beyond this minimum — crops can fail, harvests can be delayed by dust storms, and early yields are small. Aim for at least 1.5× to 2× the minimum so the crew has a realistic safety buffer. A value of 400000-500000 kcal is a sensible default for 4 astronauts.
 - Optimize for nutritional completeness for 4 astronauts
 - Do NOT wrap the JSON in markdown code fences"""
 

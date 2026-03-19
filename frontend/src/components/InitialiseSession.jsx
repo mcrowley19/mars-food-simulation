@@ -42,7 +42,7 @@ const DEFAULTS = {
 }
 
 /* ── Stepper ── */
-function Stepper({ value, onChange, min = 0, max = 99999, step = 1, unit }) {
+function Stepper({ value, onChange, min = 0, max = Infinity, step = 1, unit }) {
   return (
     <div className="is-stepper">
       <button
