@@ -434,7 +434,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
       const baseSunI = lerp(1.1, 2.75, dayFactor);
       sun.intensity = baseSunI * lv.sunIntensityMul;
-      sun.castShadow = elevation > -0.05;
+      sun.castShadow = false;
       const baseAmbI = lerp(0.52, 0.6, twilight);
       ambient.intensity = baseAmbI * lv.ambientTint;
       fill.intensity = lerp(0.44, 0.5, twilight);
@@ -519,12 +519,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             }
           }
           if (anim.progress >= 1) {
-            const entering = anim.entering;
-            for (const gh of greenhouses) {
-              const al = gh.getObjectByName("airlock");
-              if (al) al.castShadow = !entering;
-            }
-            setInsideDome(entering ? "ALL" : null);
+            setInsideDome(anim.entering ? "ALL" : null);
           }
         } else {
           const shell = anim.dome?.getObjectByName("shell");
@@ -538,8 +533,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                 if (ribs) ribs.visible = false;
                 const interior = anim.dome.getObjectByName("interior");
                 if (interior) interior.visible = true;
-                const al = anim.dome.getObjectByName("airlock");
-                if (al) al.castShadow = false;
                 setInsideDome(anim.dome.userData.domeId);
               }
             } else {
@@ -547,8 +540,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               if (ribs) ribs.visible = t > 0.7;
               if (anim.progress >= 1) {
                 if (ribs) ribs.visible = true;
-                const al = anim.dome.getObjectByName("airlock");
-                if (al) al.castShadow = true;
                 setInsideDome(null);
               }
             }

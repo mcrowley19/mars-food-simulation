@@ -126,6 +126,44 @@ def manual_setup(params: dict) -> dict:
     return state
 
 
+def _extract_json(text: str) -> dict:
+    """Extract a JSON object from agent text, trying multiple strategies."""
+    # Strategy 1: find all top-level { ... } blocks and pick the one with expected keys
+    candidates = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(text):
+        if ch == '{':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0 and start >= 0:
+                candidates.append(text[start:i + 1])
+                start = -1
+
+    required = {"seed_amounts", "water_l", "fertilizer_kg", "soil_kg", "floor_space_m2"}
+    for candidate in candidates:
+        try:
+            obj = json.loads(candidate)
+            if isinstance(obj, dict) and required.issubset(obj.keys()):
+                return obj
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    # Strategy 2: try any candidate that parses as a dict
+    for candidate in candidates:
+        try:
+            obj = json.loads(candidate)
+            if isinstance(obj, dict):
+                return obj
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    raise ValueError(f"No valid JSON object found in agent response. Response: {text[:500]}")
+
+
 def ai_optimised_setup() -> dict:
     agent = create_crop_planner()
 
@@ -146,25 +184,41 @@ You must return ONLY a JSON object (no markdown, no explanation outside the JSON
 
 Rules:
 - seed_amounts must only contain seeds from the valid list above
+- All numeric values must be greater than 0
 - floor_space_m2 must be enough for all plants (0.25 m² per plant)
 - water_l, fertilizer_kg, soil_kg must be enough for the full 450-day mission
-- Optimize for nutritional completeness for 4 astronauts"""
+- Optimize for nutritional completeness for 4 astronauts
+- Do NOT wrap the JSON in markdown code fences"""
 
     result = str(agent(prompt))
+    print(f"[AI Setup] Raw agent response (first 1000 chars): {result[:1000]}")
 
-    # Extract JSON from response
-    json_match = re.search(r'\{[\s\S]*\}', result)
-    if not json_match:
-        raise ValueError(f"AI agent did not return valid JSON. Response: {result[:500]}")
+    parsed = _extract_json(result)
 
-    parsed = json.loads(json_match.group())
-
-    required_keys = {"seed_amounts", "water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "reasoning"}
+    required_keys = {"seed_amounts", "water_l", "fertilizer_kg", "soil_kg", "floor_space_m2"}
     missing = required_keys - set(parsed.keys())
     if missing:
         raise ValueError(f"AI response missing keys: {missing}")
 
-    reasoning = parsed.pop("reasoning")
+    reasoning = parsed.get("reasoning", "No reasoning provided.")
+    if "reasoning" in parsed:
+        parsed.pop("reasoning")
+
+    # Validate that numeric fields are non-zero
+    for field in ["water_l", "fertilizer_kg", "soil_kg", "floor_space_m2"]:
+        val = float(parsed[field])
+        if val <= 0:
+            raise ValueError(f"AI returned {field}={val}, expected a positive number")
+
+    # Validate seed_amounts is a non-empty dict with positive values
+    seeds = parsed.get("seed_amounts", {})
+    if not seeds or not isinstance(seeds, dict):
+        raise ValueError(f"AI returned empty or invalid seed_amounts: {seeds}")
+
+    # Filter to only valid seed types
+    valid_seeds = {k: int(v) for k, v in seeds.items() if k in VALID_SEEDS and int(v) > 0}
+    if not valid_seeds:
+        raise ValueError(f"AI returned no valid seeds. Got: {seeds}")
 
     # Run through manual_setup for validation
     params = {
@@ -174,7 +228,7 @@ Rules:
         "floor_space_m2": float(parsed["floor_space_m2"]),
         "mission_days": 450,
         "astronaut_count": 4,
-        "seed_amounts": {k: int(v) for k, v in parsed["seed_amounts"].items()},
+        "seed_amounts": valid_seeds,
     }
 
     state = manual_setup(params)

@@ -9,8 +9,7 @@ export function initScene(canvas, w, h) {
   })
   renderer.setSize(w, h)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.shadowMap.enabled = false
   renderer.outputColorSpace = THREE.SRGBColorSpace
 
   const scene = new THREE.Scene()
@@ -50,7 +49,7 @@ export function buildTerrain(scene) {
   )
   ground.rotation.x = -Math.PI / 2
   ground.position.y = 0.08
-  ground.receiveShadow = true
+  ground.receiveShadow = false
   scene.add(ground)
 }
 
@@ -63,15 +62,7 @@ export function setupLighting(scene) {
   scene.add(fill)
 
   const sun = new THREE.DirectionalLight('#ffe8cc', 2.2)
-  sun.castShadow = true
-  sun.shadow.mapSize.set(4096, 4096)
-  sun.shadow.camera.left = -200
-  sun.shadow.camera.right = 200
-  sun.shadow.camera.top = 200
-  sun.shadow.camera.bottom = -200
-  sun.shadow.camera.near = 0.5
-  sun.shadow.camera.far = 500
-  sun.shadow.bias = -0.0005
+  sun.castShadow = false
   scene.add(sun)
   return { sun, ambient, fill }
 }

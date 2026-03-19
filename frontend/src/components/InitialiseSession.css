@@ -996,18 +996,9 @@
   line-height: 1.55;
 }
 
-.is-ai-terminal__line--done .is-ai-terminal__prefix {
-  color: #28c840;
-}
-.is-ai-terminal__line--done .is-ai-terminal__text {
-  color: #28c840;
-}
-
-.is-ai-terminal__line--error .is-ai-terminal__prefix {
-  color: #ff5f57;
-}
+.is-ai-terminal__line--done .is-ai-terminal__text,
 .is-ai-terminal__line--error .is-ai-terminal__text {
-  color: #ff5f57;
+  color: rgba(200, 210, 220, 0.7);
 }
 
 .is-ai-terminal__line--active {

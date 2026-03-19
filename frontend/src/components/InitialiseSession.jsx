@@ -236,9 +236,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
                   key={i}
                   className={`is-ai-terminal__line${log.done ? ' is-ai-terminal__line--done' : ''}${log.error ? ' is-ai-terminal__line--error' : ''}`}
                 >
-                  <span className="is-ai-terminal__prefix">
-                    {log.done ? '✓' : log.error ? '✗' : '›'}
-                  </span>
+                  <span className="is-ai-terminal__prefix">›</span>
                   <span className="is-ai-terminal__text">{log.text}</span>
                 </div>
               ))}
