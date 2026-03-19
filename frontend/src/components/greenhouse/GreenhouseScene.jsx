@@ -989,12 +989,17 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     insideDome,
   ]);
 
-  if (!domeDefs) {
+  const agentReady = Boolean(simState?.agent_last_actions?.orchestrator);
+
+  if (!domeDefs || !agentReady) {
+    const loadingText = !domeDefs
+      ? "Loading colony data…"
+      : "Initialising AI agents…";
     return (
       <div className="gh-overlay">
         <div className="gh-loading">
           <span className="gh-loading__spinner" />
-          <span className="gh-loading__text">Loading colony data…</span>
+          <span className="gh-loading__text">{loadingText}</span>
         </div>
       </div>
     );
