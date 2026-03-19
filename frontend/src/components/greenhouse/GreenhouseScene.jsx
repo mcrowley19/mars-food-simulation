@@ -115,6 +115,52 @@ function nearestPointValueForDay(points, key, day) {
   return Number(best?.[key]) || 0;
 }
 
+function interpolatedValueForDay(points, key, day) {
+  if (!Array.isArray(points) || points.length === 0) return 0;
+  const sorted = points
+    .map((p) => ({
+      day: Number(p?.day),
+      value: Number(p?.[key]) || 0,
+    }))
+    .filter((p) => Number.isFinite(p.day))
+    .sort((a, b) => a.day - b.day);
+  if (!sorted.length) return 0;
+  if (day <= sorted[0].day) return sorted[0].value;
+  if (day >= sorted[sorted.length - 1].day) return sorted[sorted.length - 1].value;
+
+  for (let i = 1; i < sorted.length; i += 1) {
+    const left = sorted[i - 1];
+    const right = sorted[i];
+    if (day <= right.day) {
+      const span = Math.max(0.0001, right.day - left.day);
+      const t = Math.max(0, Math.min(1, (day - left.day) / span));
+      return left.value + (right.value - left.value) * t;
+    }
+  }
+  return sorted[sorted.length - 1].value;
+}
+
+function layoutValueLabel(tick, value, chartWidth, chartHeight) {
+  const text = String(Math.round(value));
+  const approxWidth = Math.max(14, text.length * 5.8 + 6);
+  const boxHeight = 10;
+  const placeAbove = tick.y > 18;
+  const rawBoxX = tick.x + 3;
+  const boxX = Math.max(0, Math.min(chartWidth - approxWidth, rawBoxX));
+  const boxY = placeAbove
+    ? Math.max(0, tick.y - (boxHeight + 4))
+    : Math.min(chartHeight - boxHeight, tick.y + 4);
+  return {
+    text,
+    boxX,
+    boxY,
+    textX: boxX + 3,
+    textY: boxY + 7.2,
+    boxWidth: approxWidth,
+    boxHeight,
+  };
+}
+
 export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const SOL_TICK_MS = 8000;
   const canvasRef = useRef(null);
@@ -142,9 +188,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     caloriesAvailable: 0,
     caloriesNeededPerDay: 0,
     seedReserve: {},
-    fuelKg: 0,
-    energyKwhToday: 0,
-    fuelUsedToday: 0,
   });
   const [enterLabel, setEnterLabel] = useState(null);
   const [plantHover, setPlantHover] = useState(null);
@@ -163,6 +206,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const [activeAgentTab, setActiveAgentTab] = useState("");
   const logsListRef = useRef(null);
   const [resourceHistory, setResourceHistory] = useState([]);
+  const [trendHover, setTrendHover] = useState(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(1);
@@ -198,23 +242,33 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   }, [insideDome]);
 
   useEffect(() => {
-    if (!simState?.setup_complete) return;
-    const water = Number(hud.waterL);
-    const nutrients = Number(hud.nutrientsKg);
+    if (!simState?.setup_complete) {
+      setResourceHistory([]);
+      return;
+    }
+
+    // Seed from backend state first so charts never start at HUD default zeroes.
+    const water = Number(simState?.resources?.water_l ?? hud.waterL);
+    const nutrients = Number(simState?.resources?.nutrients_kg ?? hud.nutrientsKg);
     if (!Number.isFinite(water) || !Number.isFinite(nutrients)) return;
     const day = Number(simState?.mission_day ?? hud.missionDay ?? 1);
     const safeDay = Number.isFinite(day) ? day : 1;
 
     setResourceHistory((prev) => {
-      const next = [
-        ...prev,
-        {
-          water,
-          nutrients,
-          fuel: Number(hud.fuelKg) || 0,
-          day: Number.isFinite(day) ? day : 0,
-        },
-      ];
+      const point = { water, nutrients, day: safeDay };
+      if (prev.length === 0) return [point];
+
+      const last = prev[prev.length - 1];
+      if (safeDay < (last.day ?? 0)) return [point];
+      if (
+        last.day === point.day &&
+        Math.abs((last.water ?? 0) - point.water) < 0.001 &&
+        Math.abs((last.nutrients ?? 0) - point.nutrients) < 0.001
+      ) {
+        return prev;
+      }
+
+      const next = [...prev, point];
       return next.length > RESOURCE_HISTORY_LIMIT
         ? next.slice(next.length - RESOURCE_HISTORY_LIMIT)
         : next;
@@ -884,17 +938,81 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const currentSol = hud.missionDay || simState?.mission_day || 1;
   const prettyAgentName = (name) => String(name || "").replace(/_/g, " ");
   const trendLast = resourceHistory[resourceHistory.length - 1] || null;
-  const trendWaterPath = sparklinePath(resourceHistory, 220, 46, "water");
+  const trendWaterPath = sparklinePath(
+    resourceHistory,
+    RESOURCE_TREND_CHART_WIDTH,
+    RESOURCE_TREND_CHART_HEIGHT,
+    "water",
+  );
   const trendNutrientPath = sparklinePath(
     resourceHistory,
-    220,
-    46,
+    RESOURCE_TREND_CHART_WIDTH,
+    RESOURCE_TREND_CHART_HEIGHT,
     "nutrients",
   );
+  const xTicks = buildXTicks(resourceHistory, RESOURCE_TREND_CHART_WIDTH, 5);
+  const maxWater = Math.max(
+    1,
+    ...resourceHistory.map((p) => Number(p?.water) || 0),
+  );
+  const maxNutrients = Math.max(
+    1,
+    ...resourceHistory.map((p) => Number(p?.nutrients) || 0),
+  );
+  const dayValues = resourceHistory
+    .map((p) => Number(p?.day))
+    .filter((d) => Number.isFinite(d));
+  const minTrendDay = dayValues.length ? Math.min(...dayValues) : 0;
+  const maxTrendDay = dayValues.length ? Math.max(...dayValues) : 0;
+  const trendDayRange = Math.max(1, maxTrendDay - minTrendDay);
+  const waterValueTicks = xTicks.map((tick) => {
+    const value = nearestPointValueForDay(resourceHistory, "water", tick.day);
+    const y =
+      RESOURCE_TREND_CHART_HEIGHT -
+      (Math.max(0, value) / maxWater) * RESOURCE_TREND_CHART_HEIGHT;
+    return { ...tick, value, y };
+  });
+  const nutrientValueTicks = xTicks.map((tick) => {
+    const value = nearestPointValueForDay(resourceHistory, "nutrients", tick.day);
+    const y =
+      RESOURCE_TREND_CHART_HEIGHT -
+      (Math.max(0, value) / maxNutrients) * RESOURCE_TREND_CHART_HEIGHT;
+    return { ...tick, value, y };
+  });
   const trendWindow =
     resourceHistory.length > 1
       ? `Sol ${resourceHistory[0].day} to ${resourceHistory[resourceHistory.length - 1].day}`
       : `Sol ${currentSol}`;
+  const handleTrendMouseLeave = () => {
+    setTrendHover(null);
+  };
+  const handleTrendMouseMove = (event, chart, key, unit, maxValue) => {
+    if (!resourceHistory.length) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const pointerX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+    const ratioX = pointerX / rect.width;
+    const targetDay = minTrendDay + ratioX * trendDayRange;
+    const value = interpolatedValueForDay(resourceHistory, key, targetDay);
+    const xSvg = ratioX * RESOURCE_TREND_CHART_WIDTH;
+    const ySvg =
+      RESOURCE_TREND_CHART_HEIGHT -
+      (Math.max(0, value) / Math.max(1, maxValue)) * RESOURCE_TREND_CHART_HEIGHT;
+    const xPx = pointerX;
+    const yPx = (ySvg / RESOURCE_TREND_CHART_HEIGHT) * rect.height;
+
+    setTrendHover({
+      chart,
+      sol: Math.round(targetDay * 10) / 10,
+      value: Math.round(value * 10) / 10,
+      unit,
+      xSvg,
+      ySvg,
+      xPx,
+      yPx,
+      placeBelow: yPx < 18,
+    });
+  };
 
   return (
     <div className="gh-overlay">
@@ -958,283 +1076,432 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       )}
 
       <div className="gh-left-panels">
-        <div className="gh-resource-trends">
-          <div className="gh-resource-trends__header">
-            <span>Resource Trends</span>
-            <span className="gh-resource-trends__window">{trendWindow}</span>
-          </div>
-          <div className="gh-resource-trends__chart-wrap">
-            <div className="gh-resource-trends__label-row">
-              <span>Water over time</span>
-              <span>
-                {trendLast ? `${Math.round(trendLast.water)}L` : "..."}
-              </span>
-            </div>
-            <svg
-              className="gh-resource-trends__chart gh-resource-trends__chart--water"
-              viewBox="0 0 220 46"
-              preserveAspectRatio="none"
-              aria-label="Water availability over time"
-            >
-              <polyline
-                className="gh-resource-trends__line"
-                points={trendWaterPath.replace(/M|L/g, "").trim()}
-              />
-            </svg>
-          </div>
-          <div className="gh-resource-trends__chart-wrap">
-            <div className="gh-resource-trends__label-row">
-              <span>Nutrients over time</span>
-              <span>
-                {trendLast ? `${Math.round(trendLast.nutrients)}kg` : "..."}
-              </span>
-            </div>
-            <svg
-              className="gh-resource-trends__chart gh-resource-trends__chart--nutrients"
-              viewBox="0 0 220 46"
-              preserveAspectRatio="none"
-              aria-label="Nutrient availability over time"
-            >
-              <polyline
-                className="gh-resource-trends__line"
-                points={trendNutrientPath.replace(/M|L/g, "").trim()}
-              />
-            </svg>
-          </div>
+      <div className="gh-resource-trends">
+        <div className="gh-resource-trends__header">
+          <span>Resource Trends</span>
+          <span className="gh-resource-trends__window">{trendWindow}</span>
         </div>
-        <div className="gh-agent-logs">
-          <div className="gh-agent-logs__header">Agent Logs</div>
-          {!hasLiveState ? (
-            <div className="gh-agent-logs__empty">
-              Waiting for simulation state…
-            </div>
-          ) : !agentTabs.length ? (
-            <div className="gh-agent-logs__empty">
-              No logs yet. Agents will appear here as they run.
-            </div>
-          ) : (
-            <>
-              <div className="gh-agent-logs__tabs">
-                {agentTabs.map((name) => (
-                  <button
-                    key={name}
-                    className={`gh-agent-logs__tab ${name === activeTab ? "is-active" : ""}`}
-                    onClick={() => setActiveAgentTab(name)}
-                    type="button"
+        <div className="gh-resource-trends__chart-wrap">
+          <div className="gh-resource-trends__label-row">
+            <span>Water over time</span>
+            <span>{trendLast ? `${Math.round(trendLast.water)}L` : "..."}</span>
+          </div>
+          <svg
+            className="gh-resource-trends__chart gh-resource-trends__chart--water"
+            viewBox={`0 0 ${RESOURCE_TREND_CHART_WIDTH} ${RESOURCE_TREND_CHART_HEIGHT}`}
+            preserveAspectRatio="none"
+            aria-label="Water availability over time"
+            onMouseMove={(e) =>
+              handleTrendMouseMove(e, "water", "water", "L", maxWater)
+            }
+            onMouseLeave={handleTrendMouseLeave}
+          >
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1={RESOURCE_TREND_CHART_HEIGHT}
+              x2={RESOURCE_TREND_CHART_WIDTH}
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            {xTicks.map((tick) => (
+              <g key={`water-x-${tick.day}`}>
+                <line
+                  className="gh-resource-trends__tick"
+                  x1={tick.x}
+                  y1="0"
+                  x2={tick.x}
+                  y2={RESOURCE_TREND_CHART_HEIGHT}
+                />
+              </g>
+            ))}
+            {waterValueTicks.map((tick) => {
+              const label = layoutValueLabel(
+                tick,
+                tick.value,
+                RESOURCE_TREND_CHART_WIDTH,
+                RESOURCE_TREND_CHART_HEIGHT,
+              );
+              return (
+                <g key={`water-v-${tick.day}`}>
+                  <rect
+                    className="gh-resource-trends__value-bg gh-resource-trends__value-bg--water"
+                    x={label.boxX}
+                    y={label.boxY}
+                    width={label.boxWidth}
+                    height={label.boxHeight}
+                    rx="2"
+                    ry="2"
+                  />
+                  <text
+                    className="gh-resource-trends__value-label gh-resource-trends__value-label--water"
+                    x={label.textX}
+                    y={label.textY}
+                    textAnchor="start"
                   >
-                    {prettyAgentName(name)}
-                  </button>
+                    {label.text}
+                  </text>
+                </g>
+              );
+            })}
+            <text className="gh-resource-trends__y-label" x="3" y="9">
+              {Math.round(maxWater)}
+            </text>
+            <polyline
+              className="gh-resource-trends__line"
+              points={trendWaterPath.replace(/M|L/g, "").trim()}
+            />
+            {trendHover?.chart === "water" && (
+              <>
+                <line
+                  className="gh-resource-trends__hover-line"
+                  x1={trendHover.xSvg}
+                  y1="0"
+                  x2={trendHover.xSvg}
+                  y2={RESOURCE_TREND_CHART_HEIGHT}
+                />
+                <circle
+                  className="gh-resource-trends__hover-dot gh-resource-trends__hover-dot--water"
+                  cx={trendHover.xSvg}
+                  cy={trendHover.ySvg}
+                  r="2.5"
+                />
+              </>
+            )}
+          </svg>
+          {trendHover?.chart === "water" && (
+            <div
+              className={`gh-resource-trends__hover-tip${trendHover.placeBelow ? " is-below" : ""}`}
+              style={{ left: trendHover.xPx, top: trendHover.yPx }}
+            >
+              <span>Sol {trendHover.sol}</span>
+              <span>
+                {trendHover.value}
+                {trendHover.unit}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="gh-resource-trends__chart-wrap">
+          <div className="gh-resource-trends__label-row">
+            <span>Nutrients over time</span>
+            <span>{trendLast ? `${Math.round(trendLast.nutrients)}kg` : "..."}</span>
+          </div>
+          <svg
+            className="gh-resource-trends__chart gh-resource-trends__chart--nutrients"
+            viewBox={`0 0 ${RESOURCE_TREND_CHART_WIDTH} ${RESOURCE_TREND_CHART_HEIGHT}`}
+            preserveAspectRatio="none"
+            aria-label="Nutrient availability over time"
+            onMouseMove={(e) =>
+              handleTrendMouseMove(e, "nutrients", "nutrients", "kg", maxNutrients)
+            }
+            onMouseLeave={handleTrendMouseLeave}
+          >
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            <line
+              className="gh-resource-trends__axis"
+              x1="0"
+              y1={RESOURCE_TREND_CHART_HEIGHT}
+              x2={RESOURCE_TREND_CHART_WIDTH}
+              y2={RESOURCE_TREND_CHART_HEIGHT}
+            />
+            {xTicks.map((tick) => (
+              <g key={`nutrient-x-${tick.day}`}>
+                <line
+                  className="gh-resource-trends__tick"
+                  x1={tick.x}
+                  y1="0"
+                  x2={tick.x}
+                  y2={RESOURCE_TREND_CHART_HEIGHT}
+                />
+              </g>
+            ))}
+            {nutrientValueTicks.map((tick) => {
+              const label = layoutValueLabel(
+                tick,
+                tick.value,
+                RESOURCE_TREND_CHART_WIDTH,
+                RESOURCE_TREND_CHART_HEIGHT,
+              );
+              return (
+                <g key={`nutrient-v-${tick.day}`}>
+                  <rect
+                    className="gh-resource-trends__value-bg gh-resource-trends__value-bg--nutrients"
+                    x={label.boxX}
+                    y={label.boxY}
+                    width={label.boxWidth}
+                    height={label.boxHeight}
+                    rx="2"
+                    ry="2"
+                  />
+                  <text
+                    className="gh-resource-trends__value-label gh-resource-trends__value-label--nutrients"
+                    x={label.textX}
+                    y={label.textY}
+                    textAnchor="start"
+                  >
+                    {label.text}
+                  </text>
+                </g>
+              );
+            })}
+            <text className="gh-resource-trends__y-label" x="3" y="9">
+              {Math.round(maxNutrients)}
+            </text>
+            <polyline
+              className="gh-resource-trends__line"
+              points={trendNutrientPath.replace(/M|L/g, "").trim()}
+            />
+            {trendHover?.chart === "nutrients" && (
+              <>
+                <line
+                  className="gh-resource-trends__hover-line"
+                  x1={trendHover.xSvg}
+                  y1="0"
+                  x2={trendHover.xSvg}
+                  y2={RESOURCE_TREND_CHART_HEIGHT}
+                />
+                <circle
+                  className="gh-resource-trends__hover-dot gh-resource-trends__hover-dot--nutrients"
+                  cx={trendHover.xSvg}
+                  cy={trendHover.ySvg}
+                  r="2.5"
+                />
+              </>
+            )}
+          </svg>
+          {trendHover?.chart === "nutrients" && (
+            <div
+              className={`gh-resource-trends__hover-tip${trendHover.placeBelow ? " is-below" : ""}`}
+              style={{ left: trendHover.xPx, top: trendHover.yPx }}
+            >
+              <span>Sol {trendHover.sol}</span>
+              <span>
+                {trendHover.value}
+                {trendHover.unit}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="gh-agent-logs">
+        <div className="gh-agent-logs__header">Agent Logs</div>
+        {!hasLiveState ? (
+          <div className="gh-agent-logs__empty">
+            Waiting for simulation state…
+          </div>
+        ) : !agentTabs.length ? (
+          <div className="gh-agent-logs__empty">
+            No logs yet. Agents will appear here as they run.
+          </div>
+        ) : (
+          <>
+            <div className="gh-agent-logs__tabs">
+              {agentTabs.map((name) => (
+                <button
+                  key={name}
+                  className={`gh-agent-logs__tab ${name === activeTab ? "is-active" : ""}`}
+                  onClick={() => setActiveAgentTab(name)}
+                  type="button"
+                >
+                  {prettyAgentName(name)}
+                </button>
+              ))}
+            </div>
+            <div className="gh-agent-logs__list" ref={logsListRef}>
+              {visibleAgentEntries.length === 0 ? (
+                <div className="gh-agent-logs__empty">
+                  No entries for this agent yet.
+                </div>
+              ) : (
+                visibleAgentEntries.map((entry, idx) => (
+                  <div
+                    key={`${activeTab}-${idx}`}
+                    className="gh-agent-logs__entry"
+                  >
+                    <div className="gh-agent-logs__meta">
+                      Sol {entry?.day ?? "?"}
+                    </div>
+                    <div className="gh-agent-logs__block">
+                      {Array.isArray(entry?.task_lines) &&
+                      entry.task_lines.length > 0 ? (
+                        entry.task_lines
+                          .slice(0, MAX_VISIBLE_TASK_LINES)
+                          .map((line, i) => (
+                            <div key={`task-${i}`} className="gh-agent-logs__line gh-agent-logs__line--task">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {`Task: ${line}`}
+                              </ReactMarkdown>
+                            </div>
+                          ))
+                      ) : null}
+                      {Array.isArray(entry?.response_lines) &&
+                      entry.response_lines.length > 0 ? (
+                        entry.response_lines
+                          .slice(0, MAX_VISIBLE_RESPONSE_LINES)
+                          .map((line, i) => (
+                          <div key={`resp-${i}`} className="gh-agent-logs__line">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {String(line || "")}
+                            </ReactMarkdown>
+                          </div>
+                          ))
+                      ) : (
+                        <div className="gh-agent-logs__line">
+                          No response content.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  ))
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="gh-resources">
+        {!hasLiveState ? (
+          <div className="gh-resources__sync">
+            Syncing live simulation data...
+          </div>
+        ) : (
+          <>
+            <div className="gh-resources__row">
+              <span className="gh-resources__label">Water</span>
+              <div className="gh-resources__bar-track">
+                <div
+                  className={`gh-resources__bar-fill ${barClass(waterPct)}`}
+                  style={{
+                    width: `${Math.max(0, Math.min(100, waterPct * 100))}%`,
+                  }}
+                />
+              </div>
+              <span className="gh-resources__value">
+                {Math.round(hud.waterL)}L
+              </span>
+            </div>
+            <div className="gh-resources__row">
+              <span className="gh-resources__label">Nutrients</span>
+              <div className="gh-resources__bar-track">
+                <div
+                  className={`gh-resources__bar-fill ${barClass(nutrientPct)}`}
+                  style={{
+                    width: `${Math.max(0, Math.min(100, nutrientPct * 100))}%`,
+                  }}
+                />
+              </div>
+              <span className="gh-resources__value">
+                {Math.round(hud.nutrientsKg)}kg
+              </span>
+            </div>
+            <div className="gh-resources__row">
+              <span className="gh-resources__label">Crops</span>
+              <span className="gh-resources__value gh-resources__value--wide">
+                {hud.cropsGrowing} growing / {hud.cropsReady} ready
+                {hud.harvestedCount > 0 && ` / ${hud.harvestedCount} harvested`}
+              </span>
+            </div>
+            <div className="gh-resources__row">
+              <span className="gh-resources__label">Calories</span>
+              <div className="gh-resources__bar-track">
+                <div
+                  className={`gh-resources__bar-fill ${
+                    hud.caloriesNeededPerDay > 0
+                      ? hud.caloriesAvailable / hud.caloriesNeededPerDay > 3
+                        ? "gh-bar--ok"
+                        : hud.caloriesAvailable / hud.caloriesNeededPerDay > 1
+                          ? "gh-bar--warn"
+                          : "gh-bar--crit"
+                      : "gh-bar--crit"
+                  }`}
+                  style={{
+                    width: `${Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        hud.caloriesNeededPerDay > 0
+                          ? (hud.caloriesAvailable /
+                              (hud.caloriesNeededPerDay * 10)) *
+                              100
+                          : 0,
+                      ),
+                    )}%`,
+                  }}
+                />
+              </div>
+              <span className="gh-resources__value">
+                {Math.round(hud.caloriesAvailable).toLocaleString()} kcal
+              </span>
+            </div>
+
+            <div className="gh-resources__env">
+              <span className="gh-resources__env-item">{hud.tempC}°C</span>
+              <span className="gh-resources__env-sep">·</span>
+              <span className="gh-resources__env-item">{hud.co2Ppm}ppm</span>
+              <span className="gh-resources__env-sep">·</span>
+              <span className="gh-resources__env-item">
+                {hud.humidityPct}%RH
+              </span>
+              <span className="gh-resources__env-sep">·</span>
+              <span className="gh-resources__env-item">
+                {hud.lightHours}h light
+              </span>
+            </div>
+
+            {Object.keys(hud.cropBreakdown).length > 0 && (
+              <div className="gh-resources__crop-breakdown">
+                {Object.entries(hud.cropBreakdown).map(([name, count]) => (
+                  <span
+                    key={name}
+                    className="gh-resources__crop-chip"
+                    style={cropChipStyle(name)}
+                  >
+                    {name}: {count}
+                  </span>
                 ))}
               </div>
-              <div className="gh-agent-logs__list" ref={logsListRef}>
-                {visibleAgentEntries.length === 0 ? (
-                  <div className="gh-agent-logs__empty">
-                    No entries for this agent yet.
-                  </div>
-                ) : (
-                  visibleAgentEntries.map((entry, idx) => (
-                    <div
-                      key={`${activeTab}-${idx}`}
-                      className="gh-agent-logs__entry"
-                    >
-                      <div className="gh-agent-logs__meta">
-                        Sol {entry?.day ?? "?"}
-                      </div>
-                      <div className="gh-agent-logs__block">
-                        {Array.isArray(entry?.task_lines) &&
-                        entry.task_lines.length > 0
-                          ? entry.task_lines
-                              .slice(0, MAX_VISIBLE_TASK_LINES)
-                              .map((line, i) => (
-                                <div
-                                  key={`task-${i}`}
-                                  className="gh-agent-logs__line gh-agent-logs__line--task"
-                                >
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                    {`Task: ${line}`}
-                                  </ReactMarkdown>
-                                </div>
-                              ))
-                          : null}
-                        {Array.isArray(entry?.response_lines) &&
-                        entry.response_lines.length > 0 ? (
-                          entry.response_lines
-                            .slice(0, MAX_VISIBLE_RESPONSE_LINES)
-                            .map((line, i) => (
-                              <div
-                                key={`resp-${i}`}
-                                className="gh-agent-logs__line"
-                              >
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                  {String(line || "")}
-                                </ReactMarkdown>
-                              </div>
-                            ))
-                        ) : (
-                          <div className="gh-agent-logs__line">
-                            No response content.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
-          )}
-        </div>
+            )}
 
-        <div className="gh-resources">
-          {!hasLiveState ? (
-            <div className="gh-resources__sync">
-              Syncing live simulation data...
-            </div>
-          ) : (
-            <>
-              <div className="gh-resources__row">
-                <span className="gh-resources__label">Water</span>
-                <div className="gh-resources__bar-track">
-                  <div
-                    className={`gh-resources__bar-fill ${barClass(waterPct)}`}
-                    style={{
-                      width: `${Math.max(0, Math.min(100, waterPct * 100))}%`,
-                    }}
-                  />
-                </div>
-                <span className="gh-resources__value">
-                  {Math.round(hud.waterL)}L
-                </span>
-              </div>
-              <div className="gh-resources__row">
-                <span className="gh-resources__label">Nutrients</span>
-                <div className="gh-resources__bar-track">
-                  <div
-                    className={`gh-resources__bar-fill ${barClass(nutrientPct)}`}
-                    style={{
-                      width: `${Math.max(0, Math.min(100, nutrientPct * 100))}%`,
-                    }}
-                  />
-                </div>
-                <span className="gh-resources__value">
-                  {Math.round(hud.nutrientsKg)}kg
-                </span>
-              </div>
-              <div className="gh-resources__row">
-                <span className="gh-resources__label">Crops</span>
-                <span className="gh-resources__value gh-resources__value--wide">
-                  {hud.cropsGrowing} growing / {hud.cropsReady} ready
-                  {hud.harvestedCount > 0 &&
-                    ` / ${hud.harvestedCount} harvested`}
-                </span>
-              </div>
-              <div className="gh-resources__row">
-                <span className="gh-resources__label">Calories</span>
-                <div className="gh-resources__bar-track">
-                  <div
-                    className={`gh-resources__bar-fill ${
-                      hud.caloriesNeededPerDay > 0
-                        ? hud.caloriesAvailable / hud.caloriesNeededPerDay > 3
-                          ? "gh-bar--ok"
-                          : hud.caloriesAvailable / hud.caloriesNeededPerDay > 1
-                            ? "gh-bar--warn"
-                            : "gh-bar--crit"
-                        : "gh-bar--crit"
-                    }`}
-                    style={{
-                      width: `${Math.max(
-                        0,
-                        Math.min(
-                          100,
-                          hud.caloriesNeededPerDay > 0
-                            ? (hud.caloriesAvailable /
-                                (hud.caloriesNeededPerDay * 10)) *
-                                100
-                            : 0,
-                        ),
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <span className="gh-resources__value">
-                  {Math.round(hud.caloriesAvailable).toLocaleString()} kcal
-                </span>
-              </div>
-
-              <div className="gh-resources__row">
-                <span className="gh-resources__label">Fuel</span>
-                <div className="gh-resources__bar-track">
-                  <div
-                    className={`gh-resources__bar-fill ${hud.fuelKg > 5000 ? "gh-bar--ok" : hud.fuelKg > 1000 ? "gh-bar--warn" : "gh-bar--crit"}`}
-                    style={{
-                      width: `${Math.max(0, Math.min(100, (hud.fuelKg / 40000) * 100))}%`,
-                    }}
-                  />
-                </div>
-                <span className="gh-resources__value">
-                  {Math.round(hud.fuelKg).toLocaleString()} kg
-                </span>
-              </div>
-
-              <div className="gh-resources__env">
-                <span className="gh-resources__env-item">{hud.tempC}°C</span>
-                <span className="gh-resources__env-sep">·</span>
-                <span className="gh-resources__env-item">{hud.co2Ppm}ppm</span>
-                <span className="gh-resources__env-sep">·</span>
-                <span className="gh-resources__env-item">
-                  {hud.humidityPct}%RH
-                </span>
-                <span className="gh-resources__env-sep">·</span>
-                <span className="gh-resources__env-item">
-                  {hud.lightHours}h light
-                </span>
-              </div>
-
-              {Object.keys(hud.cropBreakdown).length > 0 && (
-                <div className="gh-resources__crop-breakdown">
-                  {Object.entries(hud.cropBreakdown).map(([name, count]) => (
-                    <span
-                      key={name}
-                      className="gh-resources__crop-chip"
-                      style={cropChipStyle(name)}
-                    >
-                      {name}: {count}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {hud.seedReserve && Object.keys(hud.seedReserve).length > 0 && (
-                <div className="gh-resources__crop-breakdown">
+            {hud.seedReserve && Object.keys(hud.seedReserve).length > 0 && (
+              <div className="gh-resources__crop-breakdown">
+                <span className="gh-resources__label" style={{ width: '100%', marginBottom: 2 }}>Seed Reserve</span>
+                {Object.entries(hud.seedReserve).map(([name, count]) => (
                   <span
-                    className="gh-resources__label"
-                    style={{ width: "100%", marginBottom: 2 }}
+                    key={`reserve-${name}`}
+                    className="gh-resources__crop-chip"
+                    style={cropChipStyle(name)}
                   >
-                    Seed Reserve
+                    {name}: {count}
                   </span>
-                  {Object.entries(hud.seedReserve).map(([name, count]) => (
-                    <span
-                      key={`reserve-${name}`}
-                      className="gh-resources__crop-chip"
-                      style={cropChipStyle(name)}
-                    >
-                      {name}: {count}
-                    </span>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
+            )}
 
-              {hud.activeEvents.length > 0 && (
-                <div className="gh-resources__events">
-                  {hud.activeEvents.map((ev) => (
-                    <span key={ev} className="gh-resources__event-tag">
-                      {ev.replace(/_/g, " ")}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            {hud.activeEvents.length > 0 && (
+              <div className="gh-resources__events">
+                {hud.activeEvents.map((ev) => (
+                  <span key={ev} className="gh-resources__event-tag">
+                    {ev.replace(/_/g, " ")}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
       </div>
 
       <div className="gh-timeline">
@@ -1259,11 +1526,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             className="gh-timeline-slider"
             min={1}
             max={totalDays}
-            value={
-              isDragging
-                ? sliderValue
-                : Math.max(1, Math.min(totalDays, currentSol))
-            }
+            value={isDragging ? sliderValue : Math.max(1, Math.min(totalDays, currentSol))}
             onChange={handleSliderChange}
             onMouseUp={handleSliderCommit}
             onTouchEnd={handleSliderCommit}

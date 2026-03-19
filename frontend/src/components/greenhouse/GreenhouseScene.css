@@ -330,6 +330,7 @@
 }
 
 .gh-resource-trends__chart-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -391,12 +392,12 @@
 }
 
 .gh-resource-trends__value-label {
-  font-size: 7.5px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1px;
   paint-order: stroke;
   stroke: rgba(10, 5, 2, 0.85);
-  stroke-width: 1.2px;
+  stroke-width: 1.4px;
   vector-effect: non-scaling-stroke;
 }
 
@@ -406,6 +407,66 @@
 
 .gh-resource-trends__value-label--nutrients {
   fill: rgba(141, 230, 111, 0.95);
+}
+
+.gh-resource-trends__value-bg {
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.gh-resource-trends__value-bg--water {
+  fill: rgba(13, 34, 44, 0.88);
+  stroke: rgba(88, 205, 250, 0.55);
+}
+
+.gh-resource-trends__value-bg--nutrients {
+  fill: rgba(20, 36, 18, 0.88);
+  stroke: rgba(141, 230, 111, 0.55);
+}
+
+.gh-resource-trends__hover-line {
+  stroke: rgba(255, 235, 205, 0.52);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.gh-resource-trends__hover-dot {
+  stroke-width: 1.2;
+}
+
+.gh-resource-trends__hover-dot--water {
+  fill: #7fddff;
+  stroke: rgba(24, 59, 76, 0.95);
+}
+
+.gh-resource-trends__hover-dot--nutrients {
+  fill: #b4f59c;
+  stroke: rgba(31, 66, 27, 0.95);
+}
+
+.gh-resource-trends__hover-tip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 8px));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(232, 120, 64, 0.5);
+  background: rgba(8, 8, 8, 0.9);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: rgba(250, 236, 220, 0.96);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.gh-resource-trends__hover-tip.is-below {
+  transform: translate(-50%, 8px);
 }
 
 .gh-resource-trends__chart--water .gh-resource-trends__line {
