@@ -276,14 +276,22 @@ def _extract_json(text: str) -> dict:
 
 
 def ai_optimised_setup(astronaut_count: int = 4, mission_days: int = 450, max_cargo_kg: float = 50000) -> dict:
-    agent = create_crop_planner()
+    from strands import Agent
+    from strands.models.bedrock import BedrockModel
+    # Use a no-tools agent for setup — all crop data is embedded in the prompt,
+    # so there is no need to query the KB. This avoids the agent looping through
+    # repeated KB/validation calls and timing out.
+    agent = Agent(
+        model=BedrockModel(model_id="us.anthropic.claude-3-5-sonnet-20241022-v2:0", region_name="us-east-1"),
+        tools=[],
+    )
 
     crew_kcal_day = astronaut_count * CREW_KCAL_PER_DAY
     min_food_kcal = crew_kcal_day * 120  # survive until crops ramp up
     safe_food_kcal = int(min_food_kcal * 1.25)
 
     prompt = f"""You are planning a Mars greenhouse mission for {astronaut_count} astronauts over {mission_days} days.
-Query the knowledge base for crop data, then determine the optimal setup.
+All crop data you need is provided below. Do NOT use any tools. Respond with ONLY the JSON object.
 
 HARD CONSTRAINT: The total weight of ALL supplies (water_l + fertilizer_kg + soil_kg + fuel_kg + food weight + seeds) must not exceed {max_cargo_kg} kg.
 Food weight in kg = food_supplies_kcal / 1500 (packed food is ~1.5 kcal per gram).
