@@ -16,26 +16,13 @@ export const CROP_HARVEST_EMISSIVE = '#FFD700'
 export const INITIAL_WATER = 4800
 
 export const DOME_DEFS_BASE = [
-  { id: 'DOME_01', x:  0,   z:  0,   r: 24  },
-  { id: 'DOME_02', x: -48,  z: -14,  r: 18  },
-  { id: 'DOME_03', x:  44,  z: -20,  r: 20  },
-  { id: 'DOME_04', x: -20,  z:  42,  r: 15  },
-  { id: 'DOME_05', x:  28,  z:  36,  r: 16  },
-  { id: 'DOME_06', x: -55,  z:  28,  r: 12  },
-  { id: 'DOME_07', x:  62,  z:  16,  r: 14  },
+  { id: 'DOME_01', x: 0, z: 0, r: 24 },
 ]
 
 export const MIN_DOME_R = 8
 export const MAX_DOME_R = 35
 
-export const TUNNELS = [
-  ['DOME_01', 'DOME_02'],
-  ['DOME_01', 'DOME_03'],
-  ['DOME_01', 'DOME_04'],
-  ['DOME_01', 'DOME_05'],
-  ['DOME_04', 'DOME_06'],
-  ['DOME_03', 'DOME_07'],
-]
+export const TUNNELS = []
 
 export function compassDir(deg) {
   const d = ['N','NE','E','SE','S','SW','W','NW']
