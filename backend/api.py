@@ -12,7 +12,7 @@ from state import (
     get_state, update_state, normalize_session_key,
     set_request_session, reset_request_session,
 )
-from simulation import apply_mars_rules
+from agents.simulator import run_simulation_tick, clear_kb_params_cache
 
 _lock_registry = {}
 _lock_registry_guard = threading.Lock()
@@ -601,7 +601,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
     if not state.get("setup_complete"):
         raise HTTPException(status_code=400, detail="Setup not complete")
 
-    state = apply_mars_rules(state)
+    state = run_simulation_tick(state)
     update_state(state, session_key=session_key)
 
     lock = _get_invoke_lock(session_key)
@@ -709,37 +709,11 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
     return _state_with_parsed_logs(state)
 
 
-class JumpRequest(BaseModel):
-    target_day: int
-
-
-@app.post("/simulate-jump")
-def simulate_jump(req: JumpRequest, x_session_id: str | None = Header(default=None, alias="x-session-id")):
-    """Fast-forward (or stay) to a target mission day by running ticks in a loop."""
-    session_key = normalize_session_key(x_session_id)
-    state = get_state(session_key=session_key)
-
-    if not state.get("setup_complete"):
-        raise HTTPException(status_code=400, detail="Setup not complete")
-
-    current_day = state.get("mission_day", 1)
-    target = req.target_day
-
-    if target <= current_day:
-        return _state_with_parsed_logs(state)
-
-    # Cap at 500 ticks per call to avoid excessive compute
-    ticks = min(target - current_day, 500)
-    for _ in range(ticks):
-        state = apply_mars_rules(state)
-
-    update_state(state, session_key=session_key)
-    return _state_with_parsed_logs(state)
-
 
 @app.post("/reset")
 def reset_state(x_session_id: str | None = Header(default=None, alias="x-session-id")):
     session_key = normalize_session_key(x_session_id)
+    clear_kb_params_cache(session_key)
     from setup_modes import _blank_state
     fresh = _blank_state()
     update_state(fresh, session_key=session_key)
