@@ -1,6 +1,7 @@
 from strands import Agent
 from strands.models.bedrock import BedrockModel
 from tools.greenhouse_tools import search_mars_kb
+from tools.simulation_tools import get_current_state
 
 MODEL = BedrockModel(model_id="amazon.nova-pro-v1:0", region_name="us-east-1")
 
@@ -32,5 +33,5 @@ def create_harvest_optimizer():
     return Agent(
         system_prompt=SYSTEM_PROMPT,
         model=MODEL,
-        tools=[search_mars_kb],
+        tools=[search_mars_kb, get_current_state],
     )

@@ -1,5 +1,14 @@
 from strands import Agent, tool
 from strands.models.bedrock import BedrockModel
+from tools.simulation_tools import (
+    get_current_state,
+    harvest_crop,
+    replant_crop,
+    adjust_water_allocation,
+    adjust_nutrient_allocation,
+    set_environment_param,
+    add_alert,
+)
 
 _orchestrator = None
 
@@ -77,13 +86,31 @@ def get_orchestrator():
     - Environment Monitor: temperature, CO2, humidity, lighting adjustments
     - Resource Manager: water and nutrient optimization, consumption tracking
     - Harvest Optimizer: harvest timing, replanting schedules, yield planning
-    - Fault Handler: equipment failures, dust storms, emergency triage""",
+    - Fault Handler: equipment failures, dust storms, emergency triage
+
+    You also have direct tools to inspect and modify the greenhouse state:
+    - get_current_state: read the full simulation state before making decisions
+    - harvest_crop: harvest a mature crop by index
+    - replant_crop: plant a new seedling in a crop slot
+    - adjust_water_allocation / adjust_nutrient_allocation: tune per-crop resource usage
+    - set_environment_param: adjust temp, CO2, humidity, or light hours
+    - add_alert: record alerts for the crew
+
+    IMPORTANT: Always call get_current_state first to see exact crop indices and values
+    before calling harvest_crop, replant_crop, or adjustment tools.""",
             tools=[
                 delegate_to_crop_planner,
                 delegate_to_env_monitor,
                 delegate_to_resource_manager,
                 delegate_to_harvest_optimizer,
                 delegate_to_fault_handler,
+                get_current_state,
+                harvest_crop,
+                replant_crop,
+                adjust_water_allocation,
+                adjust_nutrient_allocation,
+                set_environment_param,
+                add_alert,
             ]
         )
     return _orchestrator

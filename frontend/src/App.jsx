@@ -5,7 +5,7 @@ import Mars from "./components/Mars";
 import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
 import LearnMore from "./components/LearnMore";
-import GreenhouseScene from "./components/GreenhouseScene";
+import GreenhouseScene from "./components/greenhouse/GreenhouseScene";
 import "./App.css";
 
 function App() {
