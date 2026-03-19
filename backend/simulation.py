@@ -1,6 +1,8 @@
 import random
 import math
 
+URINE_RECOVERY_EFFICIENCY = 0.85
+
 
 def apply_mars_rules(state: dict) -> dict:
     if not state.get("setup_complete"):
@@ -16,8 +18,12 @@ def apply_mars_rules(state: dict) -> dict:
 
     # --- Resource depletion ---
     crew_water_use = 10
+    # Closed-loop life support recovers most crew wastewater as potable water.
+    recovered_urine_water = crew_water_use * URINE_RECOVERY_EFFICIENCY
+    net_crew_water_use = crew_water_use - recovered_urine_water
     crop_water_use = sum(c.get("water_per_day_l", 0) for c in crops)
-    res["water_l"] = max(0, res["water_l"] - crop_water_use - crew_water_use)
+    res["water_l"] = max(0, res["water_l"] - crop_water_use - net_crew_water_use)
+    state["water_recycled_l_today"] = round(recovered_urine_water, 2)
 
     crop_nutrient_use = sum(c.get("nutrient_per_day_kg", 0) for c in crops)
     res["nutrients_kg"] = max(0, res["nutrients_kg"] - crop_nutrient_use)
