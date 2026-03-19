@@ -88,7 +88,7 @@ export default function Mars({ dashboardActive = false }) {
       const introX = THREE.MathUtils.lerp(2.8, 0, introEased)
       const introZ = THREE.MathUtils.lerp(-3.2, 0, introEased)
       const introScale = THREE.MathUtils.lerp(0.52, 1, introEased)
-      const dashboardX = THREE.MathUtils.lerp(0, -1.25, eased)
+      const dashboardX = THREE.MathUtils.lerp(0, -1.55, eased)
       const dashboardScale = THREE.MathUtils.lerp(1, 0.6, eased)
 
       const x = introX + dashboardX

@@ -25,11 +25,11 @@
 /* ── Glass panel ── */
 .is-panel {
   width: 100%;
-  max-width: 1200px;
+  max-width: 860px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 0 clamp(20px, 5vw, 60px) 48px;
+  padding: 0 clamp(12px, 2.8vw, 24px) 34px;
   animation: is-slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
@@ -42,10 +42,10 @@
 .is-topbar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 28px 0 28px;
+  gap: 18px;
+  padding: 22px 0 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  margin-bottom: 32px;
+  margin-bottom: 22px;
 }
 
 .is-back {
@@ -71,6 +71,9 @@
 }
 
 .is-title { flex: 1; }
+.is-title--left {
+  text-align: left;
+}
 .is-title__mono {
   display: block;
   font-family: var(--mono);
@@ -88,6 +91,10 @@
   color: #f5f0eb;
   margin: 0;
   line-height: 1.1;
+}
+
+.is-topbar--left {
+  justify-content: flex-start;
 }
 
 /* Supply pill */
@@ -120,7 +127,7 @@
 /* ── Body: two-column layout ── */
 .is-body {
   display: flex;
-  gap: 20px;
+  gap: 10px;
   flex: 1;
   align-items: flex-start;
 }
@@ -131,20 +138,20 @@
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 10px;
 }
 
 /* ── Card ── */
 .is-card {
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border-radius: 14px;
   backdrop-filter: blur(32px);
   -webkit-backdrop-filter: blur(32px);
-  padding: 20px 20px 22px;
+  padding: 16px 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   transition: border-color 0.25s, background 0.25s;
 }
 .is-card:hover {
@@ -447,17 +454,17 @@
 
 /* ── Overview sidebar ── */
 .is-overview {
-  width: 240px;
+  width: 182px;
   flex-shrink: 0;
   background: rgba(210, 205, 220, 0.055);
   border: 1px solid rgba(210, 205, 220, 0.12);
   border-radius: 16px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  padding: 20px 18px 30px;
+  padding: 14px 12px 18px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   position: sticky;
   top: 24px;
 }
@@ -612,7 +619,7 @@
 /* ── Responsive ── */
 @media (max-width: 1100px) {
   .is-overview {
-    width: 210px;
+    width: 174px;
   }
 }
 @media (max-width: 900px) {
