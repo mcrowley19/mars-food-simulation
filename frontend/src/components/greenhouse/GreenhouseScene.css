@@ -44,8 +44,9 @@
 .gh-timeline {
   position: fixed;
   bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 20px;
+  left: auto;
+  transform: none;
   z-index: 102;
   display: flex;
   align-items: center;
@@ -55,7 +56,7 @@
   backdrop-filter: blur(10px);
   border: 1px solid rgba(232, 120, 64, 0.2);
   border-radius: 10px;
-  width: min(600px, 80vw);
+  width: min(620px, 56vw);
 }
 
 .gh-timeline-play {
@@ -285,12 +286,19 @@
 
 /* ── Agent logs panel (above resources) ── */
 
-.gh-agent-logs {
+.gh-left-panels {
   position: fixed;
   left: 20px;
-  bottom: 220px;
+  bottom: 24px;
   z-index: 102;
   width: min(430px, 42vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gh-agent-logs {
+  width: 100%;
   max-height: min(34vh, 300px);
   display: flex;
   flex-direction: column;
@@ -387,6 +395,35 @@
   word-break: break-word;
 }
 
+.gh-agent-logs__line p {
+  margin: 0;
+}
+
+.gh-agent-logs__line ul,
+.gh-agent-logs__line ol {
+  margin: 2px 0 2px 16px;
+  padding: 0;
+}
+
+.gh-agent-logs__line li {
+  margin: 0;
+}
+
+.gh-agent-logs__line code {
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  background: rgba(232, 120, 64, 0.12);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+
+.gh-agent-logs__line a {
+  color: #ffd1ac;
+}
+
+.gh-agent-logs__line--task {
+  color: rgba(140, 220, 180, 0.9);
+}
+
 .gh-agent-logs__empty {
   font-size: 10px;
   color: rgba(200, 190, 180, 0.7);
@@ -395,15 +432,12 @@
 /* ── Resource HUD panel (bottom-left) ── */
 
 .gh-resources {
-  position: fixed;
-  bottom: 24px;
-  left: 20px;
-  z-index: 102;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 14px 18px;
-  min-width: 180px;
+  min-width: 0;
   background: rgba(10, 5, 2, 0.85);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(232, 120, 64, 0.2);

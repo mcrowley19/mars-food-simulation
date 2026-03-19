@@ -36,20 +36,23 @@ export function buildTerrain(scene) {
   marsTexture.wrapT = THREE.RepeatWrapping
   // Keep original image proportions so rocks/terrain details are not stretched.
   // Tile cell ratio should match image ratio: cellW/cellH = imgW/imgH.
-  const tileY = 12
+  const tileY = 14
   const imgW = marsTexture.image?.width || 1
   const imgH = marsTexture.image?.height || 1
   const aspect = imgW / imgH
   const tileX = tileY / aspect
   marsTexture.repeat.set(tileX, tileY)
-  marsTexture.offset.set(0, 0)
+  // Center texture tiling at the plane's origin so the ground reads centered.
+  const centeredOffsetX = THREE.MathUtils.euclideanModulo(0.5 - tileX * 0.5, 1)
+  const centeredOffsetY = THREE.MathUtils.euclideanModulo(0.5 - tileY * 0.5, 1)
+  marsTexture.offset.set(centeredOffsetX, centeredOffsetY)
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(3200, 3200),
     new THREE.MeshStandardMaterial({ map: marsTexture, roughness: 0.95 })
   )
   ground.rotation.x = -Math.PI / 2
-  ground.position.y = 0.08
+  ground.position.set(0, 0.08, 0)
   ground.receiveShadow = true
   scene.add(ground)
 }

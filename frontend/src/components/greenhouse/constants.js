@@ -1,6 +1,6 @@
 export const FRUSTUM = 80;
 export const DOME_OPACITY = 0.4;
-export const ZOOM_DEFAULT = 1.0;
+export const ZOOM_DEFAULT = 0.95;
 export const ZOOM_ENTERED = 7;
 export const ZOOM_ALL = 1.05;
 export const ANIM_DURATION = 1.2;
@@ -24,8 +24,9 @@ export const INITIAL_WATER = 4800;
 
 export const DOME_DEFS_BASE = [{ id: "DOME_01", x: 0, z: 0, r: 24 }];
 
-export const MIN_DOME_R = 8;
-export const MAX_DOME_R = 35;
+export const DOME_WORLD_SCALE = 3;
+export const MIN_DOME_R = 20;
+export const MAX_DOME_R = 70;
 
 export function compassDir(deg) {
   const d = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -46,7 +47,7 @@ export function scaleDomeDefs(floorSpaceM2) {
   const totalBaseArea = baseAreas.reduce((a, b) => a + b, 0);
   return DOME_DEFS_BASE.map((def, i) => {
     const share = (baseAreas[i] / totalBaseArea) * floorSpaceM2;
-    const raw = Math.sqrt(share / Math.PI);
+    const raw = Math.sqrt(share / Math.PI) * DOME_WORLD_SCALE;
     const clamped = Math.max(MIN_DOME_R, Math.min(MAX_DOME_R, raw));
     return { ...def, r: clamped };
   });

@@ -19,9 +19,9 @@ _lock_registry_guard = threading.Lock()
 _ai_setup_registry = {}
 _ai_setup_registry_guard = threading.Lock()
 _orchestrator_call_lock = threading.Lock()
-_MAX_PARSED_LOG_ENTRIES_PER_AGENT = 12
+_MAX_PARSED_LOG_ENTRIES_PER_AGENT = 16
 _MAX_PARSED_LINES_PER_TASK = 1
-_MAX_PARSED_LINES_PER_RESPONSE = 5
+_MAX_PARSED_LINES_PER_RESPONSE = 8
 _MAX_LINE_LENGTH = 160
 
 _AGENT_PRIORITY_KEYS = {
@@ -200,6 +200,75 @@ def _clip_lines(lines: list[str], max_lines: int) -> list[str]:
     return clipped
 
 
+def _line_importance_score(line: str, agent_name: str = "") -> int:
+    text = str(line or "").strip().lower()
+    if not text:
+        return -999
+
+    score = 0
+    if ":" in text:
+        score += 2
+    if len(text) >= 24:
+        score += 1
+
+    high_signal_keywords = (
+        "status",
+        "severity",
+        "recommended_action",
+        "immediate_actions",
+        "fault",
+        "alert",
+        "warning",
+        "critical",
+        "days_remaining",
+        "current_level",
+        "consumption_rate",
+        "parameter",
+        "current_value",
+        "safe_range",
+        "yield",
+        "harvest",
+        "water",
+        "nutrient",
+        "co2",
+        "humidity",
+        "temp",
+        "light",
+        "priority",
+        "rationale",
+    )
+    for key in high_signal_keywords:
+        if key in text:
+            score += 3
+
+    if agent_name and agent_name in _AGENT_PRIORITY_KEYS:
+        for key in _AGENT_PRIORITY_KEYS[agent_name]:
+            if key in text:
+                score += 2
+
+    if text.startswith(("note:", "info:", "summary:")):
+        score -= 1
+
+    return score
+
+
+def _select_important_lines(lines: list[str], max_lines: int, agent_name: str = "") -> list[str]:
+    clean = [_truncate_line(ln) for ln in lines if str(ln).strip()]
+    if len(clean) <= max_lines:
+        return clean
+
+    ranked = sorted(
+        enumerate(clean),
+        key=lambda item: (_line_importance_score(item[1], agent_name), -item[0]),
+        reverse=True,
+    )
+    selected_idx = sorted(idx for idx, _ in ranked[:max_lines])
+    selected = [clean[i] for i in selected_idx]
+    if len(clean) > max_lines:
+        selected[-1] = f"{selected[-1]} (+{len(clean) - max_lines} more)"
+    return selected
+
+
 def _format_priority_json(agent_name: str, parsed: dict) -> list[str]:
     keys = _AGENT_PRIORITY_KEYS.get(agent_name, [])
     if not keys:
@@ -292,14 +361,17 @@ def _build_parsed_agent_logs(state: dict) -> dict:
                 _parse_readable_lines(entry.get("task", ""), agent_name),
                 _MAX_PARSED_LINES_PER_TASK,
             )
-            response_lines = _clip_lines(
-                _parse_readable_lines(response, agent_name),
+            parsed_response_lines = _parse_readable_lines(response, agent_name)
+            response_lines = _select_important_lines(
+                parsed_response_lines,
                 _MAX_PARSED_LINES_PER_RESPONSE,
+                agent_name,
             )
             if not response_lines:
-                response_lines = _clip_lines(
+                response_lines = _select_important_lines(
                     _compact_key_value_lines(response),
                     _MAX_PARSED_LINES_PER_RESPONSE,
+                    agent_name,
                 )
             parsed_entries.append({
                 "day": entry.get("day"),
