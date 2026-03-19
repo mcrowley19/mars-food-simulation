@@ -45,6 +45,18 @@ def apply_mars_rules(state: dict) -> dict:
         env["co2_ppm"] = env["co2_ppm"] + 200
         state["active_events"].append("co2_spike")
 
+    # --- Calorie tracking ---
+    from setup_modes import KCAL_PER_KG, CREW_KCAL_PER_DAY
+    astronaut_count = state.get("astronaut_count", 4)
+    calories_needed_per_day = astronaut_count * CREW_KCAL_PER_DAY
+    harvested = state.get("harvested", [])
+    calories_available = sum(
+        h.get("yield_kg", 0) * KCAL_PER_KG.get(h.get("name", ""), 0)
+        for h in harvested
+    )
+    state["calories_available"] = round(calories_available, 1)
+    state["calories_needed_per_day"] = calories_needed_per_day
+
     # --- Advance mission day ---
     state["mission_day"] = day + 1
 

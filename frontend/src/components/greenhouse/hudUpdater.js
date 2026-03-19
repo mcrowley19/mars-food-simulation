@@ -23,5 +23,7 @@ export function computeHud(sunPhase, fps, anim, camera, ss, events) {
     harvestedCount: Array.isArray(ss?.harvested) ? ss.harvested.length : 0,
     agentStatus: ss?.agent_last_actions?.orchestrator || '',
     cropBreakdown: breakdown,
+    caloriesAvailable: ss?.calories_available ?? 0,
+    caloriesNeededPerDay: ss?.calories_needed_per_day ?? 0,
   }
 }

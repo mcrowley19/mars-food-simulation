@@ -17,6 +17,20 @@ CROP_DEFAULTS = {
     "carrot":  {"maturity_days": 75,  "water_per_day_l": 0.3, "nutrient_per_day_kg": 0.015},
 }
 
+KCAL_PER_KG = {
+    "potato": 770,
+    "wheat": 3390,
+    "lettuce": 150,
+    "tomato": 180,
+    "soybean": 1470,
+    "radish": 160,
+    "pea": 810,
+    "kale": 490,
+    "carrot": 410,
+}
+
+CREW_KCAL_PER_DAY = 2500
+
 
 def _blank_state():
     return {

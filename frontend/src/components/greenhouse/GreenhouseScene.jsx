@@ -70,6 +70,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     harvestedCount: 0,
     agentStatus: "",
     cropBreakdown: {},
+    caloriesAvailable: 0,
+    caloriesNeededPerDay: 0,
   });
   const [enterLabel, setEnterLabel] = useState(null);
   const [plantHover, setPlantHover] = useState(null);
@@ -920,6 +922,38 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               <span className="gh-resources__value gh-resources__value--wide">
                 {hud.cropsGrowing} growing / {hud.cropsReady} ready
                 {hud.harvestedCount > 0 && ` / ${hud.harvestedCount} harvested`}
+              </span>
+            </div>
+            <div className="gh-resources__row">
+              <span className="gh-resources__label">Calories</span>
+              <div className="gh-resources__bar-track">
+                <div
+                  className={`gh-resources__bar-fill ${
+                    hud.caloriesNeededPerDay > 0
+                      ? hud.caloriesAvailable / hud.caloriesNeededPerDay > 3
+                        ? "gh-bar--ok"
+                        : hud.caloriesAvailable / hud.caloriesNeededPerDay > 1
+                          ? "gh-bar--warn"
+                          : "gh-bar--crit"
+                      : "gh-bar--crit"
+                  }`}
+                  style={{
+                    width: `${Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        hud.caloriesNeededPerDay > 0
+                          ? (hud.caloriesAvailable /
+                              (hud.caloriesNeededPerDay * 10)) *
+                              100
+                          : 0,
+                      ),
+                    )}%`,
+                  }}
+                />
+              </div>
+              <span className="gh-resources__value">
+                {Math.round(hud.caloriesAvailable).toLocaleString()} kcal
               </span>
             </div>
 

@@ -19,7 +19,7 @@ export function initScene(canvas, w, h) {
   const aspect = w / h
   const camera = new THREE.OrthographicCamera(
     -FRUSTUM * aspect, FRUSTUM * aspect,
-    FRUSTUM, -FRUSTUM, 0.1, 200
+    FRUSTUM, -FRUSTUM, 0.1, 2000
   )
   camera.position.set(0, 160, 0)
   camera.lookAt(0, 0, 0)
@@ -34,12 +34,12 @@ export function buildTerrain(scene) {
   marsTexture.colorSpace = THREE.SRGBColorSpace
   marsTexture.wrapS = THREE.RepeatWrapping
   marsTexture.wrapT = THREE.RepeatWrapping
-  // Show more of the texture (less zoom).
-  marsTexture.repeat.set(1.5, 1.5)
+  // Tile the texture across the vast terrain so Mars looks to-scale.
+  marsTexture.repeat.set(12, 12)
   marsTexture.offset.set(0, 0)
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(400, 400),
+    new THREE.PlaneGeometry(3200, 3200),
     new THREE.MeshStandardMaterial({ map: marsTexture, roughness: 0.95 })
   )
   ground.rotation.x = -Math.PI / 2
@@ -59,12 +59,12 @@ export function setupLighting(scene) {
   const sun = new THREE.DirectionalLight('#ffe8cc', 2.2)
   sun.castShadow = true
   sun.shadow.mapSize.set(4096, 4096)
-  sun.shadow.camera.left = -120
-  sun.shadow.camera.right = 120
-  sun.shadow.camera.top = 120
-  sun.shadow.camera.bottom = -120
+  sun.shadow.camera.left = -200
+  sun.shadow.camera.right = 200
+  sun.shadow.camera.top = 200
+  sun.shadow.camera.bottom = -200
   sun.shadow.camera.near = 0.5
-  sun.shadow.camera.far = 300
+  sun.shadow.camera.far = 500
   sun.shadow.bias = -0.0005
   scene.add(sun)
   return { sun, ambient, fill }
