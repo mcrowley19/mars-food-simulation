@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { DOME_OPACITY } from "./constants";
 
-function buildDomeInterior(radius) {
+function buildDomeInterior(radius, targetPlantCount = 60) {
   const g = new THREE.Group();
   const FLOOR_Y = 0.1;
   const floorMat = new THREE.MeshStandardMaterial({
@@ -35,13 +35,16 @@ function buildDomeInterior(radius) {
   floor.receiveShadow = false;
   g.add(floor);
 
-  const colSpacing = Math.max(1.7, radius * 0.15);
+  const usableRadius = radius * 0.78;
+  const MAX_PLANTERS = Math.max(targetPlantCount, 4);
+
+  // Work out column count and plants-per-col so total slots ≈ targetPlantCount
+  const estCols = Math.max(2, Math.round(Math.sqrt(targetPlantCount * 0.6)));
+  const colSpacing = Math.max(1.4, (usableRadius * 2) / estCols);
   const colWidth = colSpacing * 0.7;
   const boxH = colSpacing * 0.22;
   const soilH = 0.03;
-  const usableRadius = radius * 0.78;
-  const MAX_PLANTERS = 240;
-  const plantsPerCol = Math.max(2, Math.floor(radius * 1.2));
+  const plantsPerCol = Math.max(2, Math.ceil(targetPlantCount / estCols));
 
   for (let x = -usableRadius; x <= usableRadius; x += colSpacing) {
     if (plantMeshes.length >= MAX_PLANTERS) break;
@@ -149,7 +152,7 @@ function buildDomeInterior(radius) {
   };
 }
 
-export function buildSingleDome(def) {
+export function buildSingleDome(def, cropCount = 60) {
   const { id, r } = def;
   const group = new THREE.Group();
   group.userData.domeId = id;
@@ -238,7 +241,7 @@ export function buildSingleDome(def) {
     soilMeshes,
     planterMeshes,
     interiorLight,
-  } = buildDomeInterior(r);
+  } = buildDomeInterior(r, cropCount);
   interiorGroup.visible = true;
   interiorGroup.name = "interior";
   group.add(interiorGroup);
@@ -409,11 +412,11 @@ function buildSilo(radius, height) {
   return group;
 }
 
-export function buildColony(scene, domeDefs) {
+export function buildColony(scene, domeDefs, cropCounts = {}) {
   const greenhouses = [];
 
   for (const def of domeDefs) {
-    const dome = buildSingleDome(def);
+    const dome = buildSingleDome(def, cropCounts[def.id] ?? 60);
     dome.position.set(def.x, 0, def.z);
     scene.add(dome);
     greenhouses.push(dome);

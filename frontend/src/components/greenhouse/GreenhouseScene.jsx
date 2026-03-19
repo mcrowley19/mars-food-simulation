@@ -239,9 +239,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
   });
   const [resourcesTab, setResourcesTab] = useState("overview");
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [sliderValue, setSliderValue] = useState(1);
-  const jumpInFlightRef = useRef(false);
   const [agentInitTimedOut, setAgentInitTimedOut] = useState(false);
   useEffect(() => {
     if (agentInitTimedOut) return;
@@ -336,35 +333,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
     }
   }, []);
 
-  const handleSliderChange = useCallback((e) => {
-    const val = Number(e.target.value);
-    setSliderValue(val);
-    setIsDragging(true);
-  }, []);
-
-  const handleSliderCommit = useCallback(async (e) => {
-    const target = Number(e.target.value);
-    setIsDragging(false);
-    if (jumpInFlightRef.current) return;
-    const current = simStateRef.current?.mission_day || 1;
-    if (target <= current) return;
-    jumpInFlightRef.current = true;
-    try {
-      const sessionId = getSessionId();
-      await fetch(`${API_BASE_URL}/simulate-jump`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-id": sessionId,
-        },
-        body: JSON.stringify({ target_day: target }),
-      });
-    } catch {
-      // polling will recover
-    } finally {
-      jumpInFlightRef.current = false;
-    }
-  }, []);
 
   useEffect(() => {
     if (domeDefs) return;
@@ -416,7 +384,20 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
       h = window.innerHeight;
     const { renderer, scene, camera } = initScene(canvas, w, h);
     buildTerrain(scene);
-    const greenhouses = buildColony(scene, DOME_DEFS);
+    // Distribute crop count per dome so bed slots match actual crop count
+    const totalCrops = simStateRef.current?.crops?.length ?? 60;
+    const areas = DOME_DEFS.map(d => Math.PI * d.r * d.r);
+    const totalArea = areas.reduce((a, b) => a + b, 0);
+    const cropCounts = {};
+    let assigned = 0;
+    DOME_DEFS.forEach((d, i) => {
+      const c = i < DOME_DEFS.length - 1
+        ? Math.round(totalCrops * (areas[i] / totalArea))
+        : totalCrops - assigned;
+      cropCounts[d.id] = Math.max(4, c);
+      assigned += c;
+    });
+    const greenhouses = buildColony(scene, DOME_DEFS, cropCounts);
     const { sun, ambient, fill } = setupLighting(scene);
 
     const raycaster = new THREE.Raycaster();
@@ -1742,16 +1723,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
         </button>
         <div className="gh-timeline-track">
           <span className="gh-timeline-label">Sol 1</span>
-          <input
-            type="range"
-            className="gh-timeline-slider"
-            min={1}
-            max={totalDays}
-            value={isDragging ? sliderValue : Math.max(1, Math.min(totalDays, currentSol))}
-            onChange={handleSliderChange}
-            onMouseUp={handleSliderCommit}
-            onTouchEnd={handleSliderCommit}
-          />
+          <div className="gh-timeline-bar">
+            <div
+              className="gh-timeline-bar__fill"
+              style={{ width: `${Math.max(0, Math.min(100, ((currentSol - 1) / Math.max(1, totalDays - 1)) * 100))}%` }}
+            />
+          </div>
           <span className="gh-timeline-label">Sol {totalDays}</span>
         </div>
       </div>

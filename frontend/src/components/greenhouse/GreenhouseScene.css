@@ -122,42 +122,19 @@
   flex-shrink: 0;
 }
 
-.gh-timeline-slider {
+.gh-timeline-bar {
   flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
   height: 4px;
   background: rgba(200, 160, 120, 0.15);
   border-radius: 2px;
-  outline: none;
-  cursor: pointer;
+  overflow: hidden;
 }
 
-.gh-timeline-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+.gh-timeline-bar__fill {
+  height: 100%;
   background: #e87840;
-  border: 2px solid rgba(232, 120, 64, 0.6);
-  box-shadow: 0 0 8px rgba(232, 120, 64, 0.4);
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-}
-
-.gh-timeline-slider::-webkit-slider-thumb:hover {
-  box-shadow: 0 0 16px rgba(232, 120, 64, 0.6);
-}
-
-.gh-timeline-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #e87840;
-  border: 2px solid rgba(232, 120, 64, 0.6);
-  box-shadow: 0 0 8px rgba(232, 120, 64, 0.4);
-  cursor: pointer;
+  border-radius: 2px;
+  transition: width 0.6s ease;
 }
 
 /* ── Exit scene button ── */
