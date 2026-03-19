@@ -18,6 +18,11 @@ const CROP_DATA = {
 }
 const CREW_KCAL_PER_DAY = 2500
 
+function calcMinFuelKg(space, timeframe) {
+  const dailyKwh = (0.3 * space * 12) + (3.0 * 24)
+  return Math.ceil((dailyKwh * timeframe) / 3.5)
+}
+
 function calcMinFoodKcal(astronauts, seedTypes) {
   if (seedTypes.length === 0) return astronauts * CREW_KCAL_PER_DAY * 30
   const fastest = Math.min(...seedTypes.map(s => CROP_DATA[s]?.maturity ?? 60))
@@ -35,6 +40,7 @@ const DEFAULTS = {
   astronauts:  4,
   timeframe:   350,
   foodSupplies: 1500000,
+  fuelKg:       40000,
 }
 
 /* ── Stepper ── */
@@ -103,19 +109,26 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
       const min = calcMinFoodKcal(next.astronauts, next.seedTypes)
       if (next.foodSupplies < min) next.foodSupplies = min
     }
+    // Auto-clamp fuel when space or timeframe changes
+    if (key === 'space' || key === 'timeframe') {
+      const min = calcMinFuelKg(next.space, next.timeframe)
+      if (next.fuelKg < min) next.fuelKg = min
+    }
     return next
   })
   const reset  = () => setCfg(DEFAULTS)
 
   const foodKg = Math.round(cfg.foodSupplies / 1500) // ~1.5 kcal/g for packed food
-  const totalSupplies = cfg.fertilizer + cfg.water + cfg.soil + foodKg
+  const totalSupplies = cfg.fertilizer + cfg.water + cfg.soil + foodKg + cfg.fuelKg
   const minFoodKcal = calcMinFoodKcal(cfg.astronauts, cfg.seedTypes)
+  const minFuelKg = calcMinFuelKg(cfg.space, cfg.timeframe)
 
   const changedCount = [
     cfg.fertilizer    !== DEFAULTS.fertilizer,
     cfg.water         !== DEFAULTS.water,
     cfg.soil          !== DEFAULTS.soil,
     cfg.foodSupplies  !== DEFAULTS.foodSupplies,
+    cfg.fuelKg        !== DEFAULTS.fuelKg,
     cfg.space         !== DEFAULTS.space,
     cfg.seedAmt       !== DEFAULTS.seedAmt,
     cfg.bugs          !== DEFAULTS.bugs,
@@ -317,6 +330,10 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
                   <span className="is-ai-summary__label">Food Supplies</span>
                   <span className="is-ai-summary__value">{(aiState.food_supplies_kcal || 0).toLocaleString()} kcal</span>
                 </div>
+                <div className="is-ai-summary__item">
+                  <span className="is-ai-summary__label">Fuel</span>
+                  <span className="is-ai-summary__value">{(aiState.fuel_kg || 0).toLocaleString()} kg</span>
+                </div>
               </div>
 
               <div className="is-ai-summary__seeds-section">
@@ -403,6 +420,12 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             </ParamRow>
             {cfg.foodSupplies <= minFoodKcal && (
               <div className="is-card__hint">Min {minFoodKcal.toLocaleString()} kcal to survive until first harvest</div>
+            )}
+            <ParamRow label="Fuel">
+              <Stepper value={cfg.fuelKg} onChange={v => set('fuelKg', Math.max(minFuelKg, v))} step={1000} min={minFuelKg} unit="kg" />
+            </ParamRow>
+            {cfg.fuelKg <= minFuelKg && (
+              <div className="is-card__hint">Min {minFuelKg.toLocaleString()} kg fuel for lights + life support</div>
             )}
           </div>
 
@@ -529,6 +552,10 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
                 <span className="is-ov__row-key">Food</span>
                 <span className="is-ov__row-val">{cfg.foodSupplies.toLocaleString()} kcal</span>
               </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Fuel</span>
+                <span className="is-ov__row-val">{cfg.fuelKg.toLocaleString()} kg</span>
+              </div>
             </div>
           </div>
 
@@ -544,7 +571,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
 
           <div className="is-ov__total">
             <span className="is-ov__total-label">Total Supplies</span>
-            <span className="is-ov__total-val">{(cfg.fertilizer + cfg.water + cfg.soil).toLocaleString()}</span>
+            <span className="is-ov__total-val">{totalSupplies.toLocaleString()}</span>
             <span className="is-ov__total-unit">kg / L combined</span>
           </div>
 

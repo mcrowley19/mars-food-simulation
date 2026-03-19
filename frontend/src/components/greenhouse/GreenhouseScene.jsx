@@ -100,6 +100,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     caloriesAvailable: 0,
     caloriesNeededPerDay: 0,
     seedReserve: {},
+    fuelKg: 0,
+    energyKwhToday: 0,
+    fuelUsedToday: 0,
   });
   const [enterLabel, setEnterLabel] = useState(null);
   const [plantHover, setPlantHover] = useState(null);
@@ -164,6 +167,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         {
           water,
           nutrients,
+          fuel: Number(hud.fuelKg) || 0,
           day: Number.isFinite(day) ? day : 0,
         },
       ];
@@ -1091,6 +1095,19 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </div>
               <span className="gh-resources__value">
                 {Math.round(hud.caloriesAvailable).toLocaleString()} kcal
+              </span>
+            </div>
+
+            <div className="gh-resources__row">
+              <span className="gh-resources__label">Fuel</span>
+              <div className="gh-resources__bar-track">
+                <div
+                  className={`gh-resources__bar-fill ${hud.fuelKg > 5000 ? 'gh-bar--ok' : hud.fuelKg > 1000 ? 'gh-bar--warn' : 'gh-bar--crit'}`}
+                  style={{ width: `${Math.max(0, Math.min(100, (hud.fuelKg / 40000) * 100))}%` }}
+                />
+              </div>
+              <span className="gh-resources__value">
+                {Math.round(hud.fuelKg).toLocaleString()} kg
               </span>
             </div>
 

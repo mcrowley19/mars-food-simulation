@@ -52,6 +52,7 @@ function App() {
       astronaut_count: config?.astronauts ?? 4,
       seed_amounts: seedAmounts,
       food_supplies_kcal: config?.foodSupplies ?? 1500000,
+      fuel_kg: config?.fuelKg ?? 40000,
     };
 
     let setupOk = false;

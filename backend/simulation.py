@@ -133,6 +133,23 @@ def apply_mars_rules(state: dict) -> dict:
     env["light_hours"] = round(12 + 2 * math.sin(2 * math.pi * day / 30), 1)
     env["light_intensity"] = 1.0
 
+    # --- Energy / fuel consumption ---
+    from setup_modes import GROW_LIGHT_KW_PER_M2, LIFE_SUPPORT_KW, KWH_PER_KG_FUEL
+    floor_space = state.get("floor_space_m2", 0)
+    light_hours = env["light_hours"]
+    light_intensity = env["light_intensity"]
+    light_kwh = GROW_LIGHT_KW_PER_M2 * floor_space * light_hours * light_intensity
+    life_support_kwh = LIFE_SUPPORT_KW * 24
+    total_kwh = light_kwh + life_support_kwh
+    fuel_used = total_kwh / KWH_PER_KG_FUEL
+    res["fuel_kg"] = round(max(0, res.get("fuel_kg", 0) - fuel_used), 2)
+    state["energy_kwh_today"] = round(total_kwh, 1)
+    state["fuel_used_today"] = round(fuel_used, 2)
+    if res["fuel_kg"] <= 0:
+        # No fuel = no lights, intensity drops to ambient Mars light (~10%)
+        env["light_intensity"] = 0.1
+        state["active_events"].append("fuel_depleted")
+
     # --- Random events ---
     if random.random() < 0.05:
         env["light_intensity"] = 0.4

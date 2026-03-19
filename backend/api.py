@@ -444,6 +444,7 @@ class ManualSetupRequest(BaseModel):
     astronaut_count: int
     seed_amounts: dict
     food_supplies_kcal: float = 0
+    fuel_kg: float = 0
 
 
 @app.get("/health")

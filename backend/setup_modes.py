@@ -31,6 +31,15 @@ KCAL_PER_KG = {
 
 CREW_KCAL_PER_DAY = 2500
 
+# --- Energy model ---
+# Grow lights consume ~0.3 kW per m² of growing area at full intensity.
+# They run for light_hours per day (default ~12-16h).
+GROW_LIGHT_KW_PER_M2 = 0.3
+# Life support baseline: heating, air recycling, water pumps, comms.
+LIFE_SUPPORT_KW = 3.0  # constant draw
+# Fuel consumption: methane/LOX generator yields ~3.5 kWh per kg of fuel.
+KWH_PER_KG_FUEL = 3.5
+
 # Shelf life in days after harvest before food rots and loses all caloric value
 SHELF_LIFE_DAYS = {
     "potato": 60,
@@ -117,6 +126,7 @@ def _blank_state():
         "seed_amounts": {},
         "seed_reserve": {},
         "food_supplies_kcal": 0,
+        "fuel_kg": 0,
         "setup_complete": False,
         "setup_mode": None,
         "ai_setup_reasoning": None,
@@ -134,6 +144,7 @@ def manual_setup(params: dict) -> dict:
     astronaut_count = params["astronaut_count"]
     seed_amounts = params["seed_amounts"]
     food_supplies_kcal = params.get("food_supplies_kcal", 0)
+    fuel_kg = params.get("fuel_kg", 0)
 
     # Validate no negative numbers
     for field in ["water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "mission_days", "astronaut_count"]:
@@ -142,6 +153,8 @@ def manual_setup(params: dict) -> dict:
 
     if food_supplies_kcal < 0:
         raise ValueError("food_supplies_kcal cannot be negative")
+    if fuel_kg < 0:
+        raise ValueError("fuel_kg cannot be negative")
 
     # Validate seed types
     for seed_type in seed_amounts:
@@ -167,6 +180,19 @@ def manual_setup(params: dict) -> dict:
             f"until the first crop harvest. Provided: {food_supplies_kcal:,} kcal"
         )
 
+    # Validate fuel covers mission energy needs
+    import math as _math
+    light_area = floor_space_m2  # grow lights cover the entire floor
+    daily_light_kwh = GROW_LIGHT_KW_PER_M2 * light_area * 12  # ~12h avg light
+    daily_life_support_kwh = LIFE_SUPPORT_KW * 24
+    daily_kwh = daily_light_kwh + daily_life_support_kwh
+    min_fuel = _math.ceil((daily_kwh * mission_days) / KWH_PER_KG_FUEL)
+    if fuel_kg < min_fuel:
+        raise ValueError(
+            f"Not enough fuel: {daily_kwh:.0f} kWh/day × {mission_days} days "
+            f"requires at least {min_fuel:,} kg of fuel. Provided: {fuel_kg:,} kg"
+        )
+
     state = _blank_state()
     state["water_l"] = water_l
     state["fertilizer_kg"] = fertilizer_kg
@@ -176,10 +202,12 @@ def manual_setup(params: dict) -> dict:
     state["astronaut_count"] = astronaut_count
     state["seed_amounts"] = seed_amounts
     state["food_supplies_kcal"] = food_supplies_kcal
+    state["fuel_kg"] = fuel_kg
     state["calories_available"] = float(food_supplies_kcal)
     state["calories_needed_per_day"] = astronaut_count * CREW_KCAL_PER_DAY
     state["resources"]["water_l"] = water_l
     state["resources"]["nutrients_kg"] = fertilizer_kg
+    state["resources"]["fuel_kg"] = fuel_kg
     state["setup_complete"] = True
 
     # Plant an initial batch (2/3 of seeds) and reserve the rest for staggered planting
@@ -261,6 +289,7 @@ You must return ONLY a JSON object (no markdown, no explanation outside the JSON
   "soil_kg": 1000,
   "floor_space_m2": 50,
   "food_supplies_kcal": 1500000,
+  "fuel_kg": 5000,
   "reasoning": "explanation of choices"
 }
 
@@ -272,6 +301,7 @@ Rules:
 - food_supplies_kcal is the amount of pre-packed food (in kcal) the crew brings along. 4 astronauts consume 10000 kcal/day total. Crops take 25-120 days to mature and early harvests are small — it takes multiple harvest cycles before crop production can fully sustain the crew. Food also rots (shelf life varies: lettuce 7 days, wheat 180 days). You MUST bring enough food to last well beyond the first harvest. Calculate: 10000 kcal/day × at least 120 days = 1200000 kcal minimum. Bring at least 1500000 kcal (1.5 million) to be safe. This is critical — if the crew runs out of calories they die.
 - Optimize for nutritional completeness for 4 astronauts
 - Bring LOTS of seeds (100+ total across types). Prioritize calorie-dense crops with long shelf life: wheat (3390 kcal/kg, 180d shelf), soybean (1470 kcal/kg, 120d shelf), potato (770 kcal/kg, 60d shelf). These are the backbone of crew survival. Include some fast-growing crops (radish 25d, lettuce 30d) for early harvests but in smaller quantities since they rot quickly.
+- fuel_kg is generator fuel (methane/LOX) for electricity. Grow lights use 0.3 kW/m² of floor space running ~12h/day. Life support uses 3 kW constant (24h). Generator yields 3.5 kWh per kg fuel. Calculate: daily_kwh = (0.3 × floor_space_m2 × 12) + (3.0 × 24). Total fuel = (daily_kwh × 450) / 3.5. Add 15% safety margin. This fuel is HEAVY and takes up rocket cargo space, so balance floor space (more space = more lights = more fuel) against crop yield needs.
 - Do NOT wrap the JSON in markdown code fences"""
 
     result = str(agent(prompt))
@@ -279,7 +309,7 @@ Rules:
 
     parsed = _extract_json(result)
 
-    required_keys = {"seed_amounts", "water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "food_supplies_kcal"}
+    required_keys = {"seed_amounts", "water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "food_supplies_kcal", "fuel_kg"}
     missing = required_keys - set(parsed.keys())
     if missing:
         raise ValueError(f"AI response missing keys: {missing}")
@@ -289,7 +319,7 @@ Rules:
         parsed.pop("reasoning")
 
     # Validate that numeric fields are non-zero
-    for field in ["water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "food_supplies_kcal"]:
+    for field in ["water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "food_supplies_kcal", "fuel_kg"]:
         val = float(parsed[field])
         if val <= 0:
             raise ValueError(f"AI returned {field}={val}, expected a positive number")
@@ -311,6 +341,7 @@ Rules:
         "soil_kg": float(parsed["soil_kg"]),
         "floor_space_m2": float(parsed["floor_space_m2"]),
         "food_supplies_kcal": float(parsed["food_supplies_kcal"]),
+        "fuel_kg": float(parsed["fuel_kg"]),
         "mission_days": 450,
         "astronaut_count": 4,
         "seed_amounts": valid_seeds,

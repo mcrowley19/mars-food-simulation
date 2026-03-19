@@ -26,5 +26,8 @@ export function computeHud(sunPhase, fps, anim, camera, ss, events) {
     caloriesAvailable: ss?.calories_available ?? 0,
     caloriesNeededPerDay: ss?.calories_needed_per_day ?? 0,
     seedReserve: ss?.seed_reserve ?? {},
+    fuelKg: ss?.resources?.fuel_kg ?? 0,
+    energyKwhToday: ss?.energy_kwh_today ?? 0,
+    fuelUsedToday: ss?.fuel_used_today ?? 0,
   }
 }
