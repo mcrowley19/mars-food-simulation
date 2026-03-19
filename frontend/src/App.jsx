@@ -114,7 +114,7 @@ function App() {
     setScreen("greenhouse");
   };
 
-  const handleBeginAI = async () => {
+  const handleBeginAI = async (aiCfg) => {
     const sessionId = getSessionId();
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -124,7 +124,12 @@ function App() {
       try {
         const res = await fetch(`${API_BASE_URL}/setup/ai-optimised`, {
           method: "POST",
-          headers: { "x-session-id": sessionId },
+          headers: { "Content-Type": "application/json", "x-session-id": sessionId },
+          body: JSON.stringify({
+            astronaut_count: aiCfg?.astronauts ?? 4,
+            mission_days: aiCfg?.timeframe ?? 450,
+            max_cargo_kg: aiCfg?.maxCargoKg ?? 50000,
+          }),
         });
         if (!res.ok) {
           const detail = await res.text().catch(() => "");

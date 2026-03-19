@@ -273,35 +273,44 @@ def _extract_json(text: str) -> dict:
     raise ValueError(f"No valid JSON object found in agent response. Response: {text[:500]}")
 
 
-def ai_optimised_setup() -> dict:
+def ai_optimised_setup(astronaut_count: int = 4, mission_days: int = 450, max_cargo_kg: float = 50000) -> dict:
     agent = create_crop_planner()
 
-    prompt = """You are planning a Mars greenhouse mission for 4 astronauts over 450 days.
+    crew_kcal_day = astronaut_count * CREW_KCAL_PER_DAY
+    min_food_kcal = crew_kcal_day * 120  # survive until crops ramp up
+    safe_food_kcal = int(min_food_kcal * 1.25)
+
+    prompt = f"""You are planning a Mars greenhouse mission for {astronaut_count} astronauts over {mission_days} days.
 Query the knowledge base for crop data, then determine the optimal setup.
+
+HARD CONSTRAINT: The total weight of ALL supplies (water_l + fertilizer_kg + soil_kg + fuel_kg + food weight + seeds) must not exceed {max_cargo_kg} kg.
+Food weight in kg = food_supplies_kcal / 1500 (packed food is ~1.5 kcal per gram).
+Seeds weigh roughly 0.05 kg each. Keep this cargo limit in mind when choosing quantities.
 
 The ONLY valid seed types are: potato, wheat, lettuce, tomato, soybean, radish, pea, kale, carrot
 
 You must return ONLY a JSON object (no markdown, no explanation outside the JSON) in this exact shape:
-{
-  "seed_amounts": {"lettuce": 40, "potato": 20, ...},
+{{
+  "seed_amounts": {{"lettuce": 40, "potato": 20, ...}},
   "water_l": 5000,
   "fertilizer_kg": 200,
   "soil_kg": 1000,
   "floor_space_m2": 50,
-  "food_supplies_kcal": 1500000,
-  "fuel_kg": 5000,
+  "food_supplies_kcal": {safe_food_kcal},
+  "fuel_kg": 35000,
   "reasoning": "explanation of choices"
-}
+}}
 
 Rules:
 - seed_amounts must only contain seeds from the valid list above
 - All numeric values must be greater than 0
 - floor_space_m2 must be enough for all plants (0.25 m² per plant)
-- water_l, fertilizer_kg, soil_kg must be enough for the full 450-day mission
-- food_supplies_kcal is the amount of pre-packed food (in kcal) the crew brings along. 4 astronauts consume 10000 kcal/day total. Crops take 25-120 days to mature and early harvests are small — it takes multiple harvest cycles before crop production can fully sustain the crew. Food also rots (shelf life varies: lettuce 7 days, wheat 180 days). You MUST bring enough food to last well beyond the first harvest. Calculate: 10000 kcal/day × at least 120 days = 1200000 kcal minimum. Bring at least 1500000 kcal (1.5 million) to be safe. This is critical — if the crew runs out of calories they die.
-- Optimize for nutritional completeness for 4 astronauts
-- Bring LOTS of seeds (100+ total across types). Prioritize calorie-dense crops with long shelf life: wheat (3390 kcal/kg, 180d shelf), soybean (1470 kcal/kg, 120d shelf), potato (770 kcal/kg, 60d shelf). These are the backbone of crew survival. Include some fast-growing crops (radish 25d, lettuce 30d) for early harvests but in smaller quantities since they rot quickly.
-- fuel_kg is generator fuel (methane/LOX) for electricity. Grow lights use 0.3 kW/m² of floor space running ~12h/day. Life support uses 3 kW constant (24h). Generator yields 3.5 kWh per kg fuel. Calculate: daily_kwh = (0.3 × floor_space_m2 × 12) + (3.0 × 24). Total fuel = (daily_kwh × 450) / 3.5. Add 15% safety margin. This fuel is HEAVY and takes up rocket cargo space, so balance floor space (more space = more lights = more fuel) against crop yield needs.
+- water_l, fertilizer_kg, soil_kg must be enough for the full {mission_days}-day mission
+- food_supplies_kcal is pre-packed food (kcal). {astronaut_count} astronauts consume {crew_kcal_day} kcal/day total. Crops take 25-120 days to mature and early harvests are small. Food rots (shelf life varies: lettuce 7d, wheat 180d). Bring at least {safe_food_kcal} kcal. If the crew runs out of calories they die.
+- Optimize for nutritional completeness for {astronaut_count} astronauts
+- Bring LOTS of seeds (100+ total). Prioritize calorie-dense crops with long shelf life: wheat (3390 kcal/kg, 180d shelf), soybean (1470 kcal/kg, 120d shelf), potato (770 kcal/kg, 60d shelf). Include some fast-growing crops (radish 25d, lettuce 30d) for early harvests.
+- fuel_kg is generator fuel. Grow lights use 0.3 kW/m² running ~12h/day. Life support uses 3 kW constant (24h). Generator yields 3.5 kWh/kg fuel. Calculate: daily_kwh = (0.3 × floor_space_m2 × 12) + (3.0 × 24). fuel_kg = ceil((daily_kwh × {mission_days}) / 3.5 × 1.15). Fuel is HEAVY — balance floor space against fuel cost.
+- TOTAL CARGO MUST NOT EXCEED {max_cargo_kg} kg. Add up: water_l (1 kg/L) + fertilizer_kg + soil_kg + fuel_kg + (food_supplies_kcal / 1500) + (total_seeds × 0.05). If it exceeds {max_cargo_kg}, reduce quantities.
 - Do NOT wrap the JSON in markdown code fences"""
 
     result = str(agent(prompt))
@@ -342,8 +351,8 @@ Rules:
         "floor_space_m2": float(parsed["floor_space_m2"]),
         "food_supplies_kcal": float(parsed["food_supplies_kcal"]),
         "fuel_kg": float(parsed["fuel_kg"]),
-        "mission_days": 450,
-        "astronaut_count": 4,
+        "mission_days": mission_days,
+        "astronaut_count": astronaut_count,
         "seed_amounts": valid_seeds,
     }
 

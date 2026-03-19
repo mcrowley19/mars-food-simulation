@@ -527,8 +527,17 @@ def setup_manual(req: ManualSetupRequest, x_session_id: str | None = Header(defa
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class AISetupRequest(BaseModel):
+    astronaut_count: int = 4
+    mission_days: int = 450
+    max_cargo_kg: float = 50000
+
+
 @app.post("/setup/ai-optimised")
-def setup_ai_optimised(x_session_id: str | None = Header(default=None, alias="x-session-id")):
+def setup_ai_optimised(
+    body: AISetupRequest = AISetupRequest(),
+    x_session_id: str | None = Header(default=None, alias="x-session-id"),
+):
     session_key = normalize_session_key(x_session_id)
     current = get_state(session_key=session_key)
 
@@ -546,11 +555,17 @@ def setup_ai_optimised(x_session_id: str | None = Header(default=None, alias="x-
     current["ai_setup_error"] = None
     update_state(current, session_key=session_key)
 
+    ai_params = {
+        "astronaut_count": body.astronaut_count,
+        "mission_days": body.mission_days,
+        "max_cargo_kg": body.max_cargo_kg,
+    }
+
     def _run_ai_setup():
         try:
             with _session_context(session_key):
                 from setup_modes import ai_optimised_setup
-                state = ai_optimised_setup()
+                state = ai_optimised_setup(**ai_params)
                 state["setup_complete"] = True
                 state["setup_mode"] = "ai_optimised"
                 state["ai_setup_in_progress"] = False

@@ -101,6 +101,8 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   const [aiState, setAiState]     = useState(null)
   const [aiLogs, setAiLogs]       = useState([])
   const [aiError, setAiError]     = useState('')
+  const [aiCfg, setAiCfg]         = useState({ astronauts: 4, timeframe: 450, maxCargoKg: 50000 })
+  const setAi = (key, val) => setAiCfg(prev => ({ ...prev, [key]: val }))
 
   const set    = (key, val) => setCfg(prev => {
     const next = { ...prev, [key]: val }
@@ -173,7 +175,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
     }
     try {
       if (onBeginAI) {
-        const state = await onBeginAI()
+        const state = await onBeginAI(aiCfg)
         timers.forEach(clearTimeout)
         setAiLogs(prev => [...prev, { time: Date.now(), text: 'Optimal loadout computed. Ready for review.', done: true }])
         setAiState(state)
@@ -220,12 +222,59 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
               </span>
             </button>
 
-            <button className="is-mode-card is-mode-card--ai" onClick={handleAIBegin}>
+            <button className="is-mode-card is-mode-card--ai" onClick={() => setMode('ai-config')}>
               <span className="is-mode-card__tag">AI OPTIMISED</span>
               <span className="is-mode-card__title">Optimal Loadout</span>
               <span className="is-mode-card__desc">
-                AI calculates the best supplies for 4 astronauts over 450 sols, maximising nutritional coverage and survival.
+                Set crew size, mission duration and cargo capacity — AI handles the rest.
               </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'ai-config') {
+    return (
+      <div className="is-overlay">
+        <div className="is-panel is-panel--mode-select">
+          <div className="is-topbar">
+            <button className="is-back" onClick={() => setMode(null)}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
+            <div className="is-title">
+              <span className="is-title__mono">SYS · AI</span>
+              <h1 className="is-title__h1">Mission Parameters</h1>
+            </div>
+            <div style={{ width: 160 }} />
+          </div>
+
+          <div className="is-ai-config">
+            <div className="is-card">
+              <div className="is-card__header">
+                <span className="is-card__tag">MSN</span>
+                <span className="is-card__name">Mission Constraints</span>
+              </div>
+              <ParamRow label="Astronauts">
+                <Stepper value={aiCfg.astronauts} onChange={v => setAi('astronauts', v)} min={1} max={12} step={1} unit="crew" />
+              </ParamRow>
+              <ParamRow label="Duration">
+                <Stepper value={aiCfg.timeframe} onChange={v => setAi('timeframe', v)} min={50} step={10} unit="sols" />
+              </ParamRow>
+              <ParamRow label="Max Cargo">
+                <Stepper value={aiCfg.maxCargoKg} onChange={v => setAi('maxCargoKg', v)} min={5000} step={5000} unit="kg" />
+              </ParamRow>
+              <div className="is-card__hint">
+                The AI will optimise seeds, water, food, fuel and floor space to fit within {aiCfg.maxCargoKg.toLocaleString()} kg
+              </div>
+            </div>
+
+            <button className="is-btn-begin is-btn-begin--ai" onClick={handleAIBegin}>
+              Run AI Optimisation
             </button>
           </div>
         </div>
@@ -306,7 +355,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             <div className="is-ai-summary__card">
               <div className="is-ai-summary__heading">Supply Manifest</div>
               <div className="is-ai-summary__subtitle">
-                {aiState.astronaut_count || 4} astronauts · {aiState.mission_days || 450} sols
+                {aiState.astronaut_count || aiCfg.astronauts} astronauts · {aiState.mission_days || aiCfg.timeframe} sols · {aiCfg.maxCargoKg.toLocaleString()} kg cargo limit
               </div>
 
               <div className="is-ai-summary__grid">
