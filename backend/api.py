@@ -16,10 +16,12 @@ from simulation import apply_mars_rules
 
 _lock_registry = {}
 _lock_registry_guard = threading.Lock()
+_ai_setup_registry = {}
+_ai_setup_registry_guard = threading.Lock()
 _orchestrator_call_lock = threading.Lock()
-_MAX_PARSED_LOG_ENTRIES_PER_AGENT = 12
+_MAX_PARSED_LOG_ENTRIES_PER_AGENT = 16
 _MAX_PARSED_LINES_PER_TASK = 1
-_MAX_PARSED_LINES_PER_RESPONSE = 5
+_MAX_PARSED_LINES_PER_RESPONSE = 8
 _MAX_LINE_LENGTH = 160
 
 _AGENT_PRIORITY_KEYS = {
@@ -73,6 +75,15 @@ def _get_invoke_lock(session_key: str) -> threading.Lock:
         if lock is None:
             lock = threading.Lock()
             _lock_registry[session_key] = lock
+        return lock
+
+
+def _get_ai_setup_lock(session_key: str) -> threading.Lock:
+    with _ai_setup_registry_guard:
+        lock = _ai_setup_registry.get(session_key)
+        if lock is None:
+            lock = threading.Lock()
+            _ai_setup_registry[session_key] = lock
         return lock
 
 
@@ -189,6 +200,75 @@ def _clip_lines(lines: list[str], max_lines: int) -> list[str]:
     return clipped
 
 
+def _line_importance_score(line: str, agent_name: str = "") -> int:
+    text = str(line or "").strip().lower()
+    if not text:
+        return -999
+
+    score = 0
+    if ":" in text:
+        score += 2
+    if len(text) >= 24:
+        score += 1
+
+    high_signal_keywords = (
+        "status",
+        "severity",
+        "recommended_action",
+        "immediate_actions",
+        "fault",
+        "alert",
+        "warning",
+        "critical",
+        "days_remaining",
+        "current_level",
+        "consumption_rate",
+        "parameter",
+        "current_value",
+        "safe_range",
+        "yield",
+        "harvest",
+        "water",
+        "nutrient",
+        "co2",
+        "humidity",
+        "temp",
+        "light",
+        "priority",
+        "rationale",
+    )
+    for key in high_signal_keywords:
+        if key in text:
+            score += 3
+
+    if agent_name and agent_name in _AGENT_PRIORITY_KEYS:
+        for key in _AGENT_PRIORITY_KEYS[agent_name]:
+            if key in text:
+                score += 2
+
+    if text.startswith(("note:", "info:", "summary:")):
+        score -= 1
+
+    return score
+
+
+def _select_important_lines(lines: list[str], max_lines: int, agent_name: str = "") -> list[str]:
+    clean = [_truncate_line(ln) for ln in lines if str(ln).strip()]
+    if len(clean) <= max_lines:
+        return clean
+
+    ranked = sorted(
+        enumerate(clean),
+        key=lambda item: (_line_importance_score(item[1], agent_name), -item[0]),
+        reverse=True,
+    )
+    selected_idx = sorted(idx for idx, _ in ranked[:max_lines])
+    selected = [clean[i] for i in selected_idx]
+    if len(clean) > max_lines:
+        selected[-1] = f"{selected[-1]} (+{len(clean) - max_lines} more)"
+    return selected
+
+
 def _format_priority_json(agent_name: str, parsed: dict) -> list[str]:
     keys = _AGENT_PRIORITY_KEYS.get(agent_name, [])
     if not keys:
@@ -281,14 +361,17 @@ def _build_parsed_agent_logs(state: dict) -> dict:
                 _parse_readable_lines(entry.get("task", ""), agent_name),
                 _MAX_PARSED_LINES_PER_TASK,
             )
-            response_lines = _clip_lines(
-                _parse_readable_lines(response, agent_name),
+            parsed_response_lines = _parse_readable_lines(response, agent_name)
+            response_lines = _select_important_lines(
+                parsed_response_lines,
                 _MAX_PARSED_LINES_PER_RESPONSE,
+                agent_name,
             )
             if not response_lines:
-                response_lines = _clip_lines(
+                response_lines = _select_important_lines(
                     _compact_key_value_lines(response),
                     _MAX_PARSED_LINES_PER_RESPONSE,
+                    agent_name,
                 )
             parsed_entries.append({
                 "day": entry.get("day"),
@@ -376,9 +459,17 @@ def setup_status(x_session_id: str | None = Header(default=None, alias="x-sessio
             "setup_complete": state.get("setup_complete", False),
             "setup_mode": state.get("setup_mode"),
             "mission_day": state.get("mission_day", 1),
+            "ai_setup_in_progress": state.get("ai_setup_in_progress", False),
+            "ai_setup_error": state.get("ai_setup_error"),
         }
     except Exception:
-        return {"setup_complete": False, "setup_mode": None, "mission_day": 1}
+        return {
+            "setup_complete": False,
+            "setup_mode": None,
+            "mission_day": 1,
+            "ai_setup_in_progress": False,
+            "ai_setup_error": None,
+        }
 
 
 @app.post("/invoke")
@@ -437,14 +528,42 @@ def setup_manual(req: ManualSetupRequest, x_session_id: str | None = Header(defa
 @app.post("/setup/ai-optimised")
 def setup_ai_optimised(x_session_id: str | None = Header(default=None, alias="x-session-id")):
     session_key = normalize_session_key(x_session_id)
-    try:
-        from setup_modes import ai_optimised_setup
-        state = ai_optimised_setup()
-        state["setup_complete"] = True
-        update_state(state, session_key=session_key)
-        return state
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    current = get_state(session_key=session_key)
+
+    if current.get("setup_complete") and current.get("setup_mode") == "ai_optimised":
+        return {"status": "ready"}
+
+    if current.get("ai_setup_in_progress"):
+        return {"status": "in_progress"}
+
+    lock = _get_ai_setup_lock(session_key)
+    if not lock.acquire(blocking=False):
+        return {"status": "in_progress"}
+
+    current["ai_setup_in_progress"] = True
+    current["ai_setup_error"] = None
+    update_state(current, session_key=session_key)
+
+    def _run_ai_setup():
+        try:
+            with _session_context(session_key):
+                from setup_modes import ai_optimised_setup
+                state = ai_optimised_setup()
+                state["setup_complete"] = True
+                state["setup_mode"] = "ai_optimised"
+                state["ai_setup_in_progress"] = False
+                state["ai_setup_error"] = None
+                update_state(state, session_key=session_key)
+        except Exception as e:
+            s = get_state(session_key=session_key)
+            s["ai_setup_in_progress"] = False
+            s["ai_setup_error"] = str(e)
+            update_state(s, session_key=session_key)
+        finally:
+            lock.release()
+
+    threading.Thread(target=_run_ai_setup, daemon=True).start()
+    return {"status": "started"}
 
 
 @app.post("/simulate-tick")

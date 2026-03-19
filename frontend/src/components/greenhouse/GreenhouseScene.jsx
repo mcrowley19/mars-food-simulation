@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import useGreenhouseState from "../../hooks/useGreenhouseState";
 import { getSessionId } from "../../utils/session";
 import { initScene, buildTerrain, setupLighting } from "./sceneSetup";
@@ -23,8 +25,9 @@ import {
 import "./GreenhouseScene.css";
 
 let DOME_DEFS = DOME_DEFS_BASE;
-const MAX_VISIBLE_AGENT_LOGS = 8;
-const MAX_VISIBLE_RESPONSE_LINES = 3;
+const MAX_VISIBLE_AGENT_LOGS = 12;
+const MAX_VISIBLE_RESPONSE_LINES = 5;
+const MAX_VISIBLE_TASK_LINES = 1;
 
 function cropChipStyle(cropName) {
   const colorHex = CROP_COLORS[cropName?.toLowerCase()] || "#6ea07d";
@@ -801,6 +804,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         </div>
       )}
 
+      <div className="gh-left-panels">
       <div className="gh-agent-logs">
         <div className="gh-agent-logs__header">Agent Logs</div>
         {!hasLiveState ? (
@@ -840,13 +844,27 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                       Sol {entry?.day ?? "?"}
                     </div>
                     <div className="gh-agent-logs__block">
+                      {Array.isArray(entry?.task_lines) &&
+                      entry.task_lines.length > 0 ? (
+                        entry.task_lines
+                          .slice(0, MAX_VISIBLE_TASK_LINES)
+                          .map((line, i) => (
+                            <div key={`task-${i}`} className="gh-agent-logs__line gh-agent-logs__line--task">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {`Task: ${line}`}
+                              </ReactMarkdown>
+                            </div>
+                          ))
+                      ) : null}
                       {Array.isArray(entry?.response_lines) &&
                       entry.response_lines.length > 0 ? (
                         entry.response_lines
                           .slice(0, MAX_VISIBLE_RESPONSE_LINES)
                           .map((line, i) => (
                           <div key={`resp-${i}`} className="gh-agent-logs__line">
-                            {line}
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {String(line || "")}
+                            </ReactMarkdown>
                           </div>
                           ))
                       ) : (
@@ -977,6 +995,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             )}
           </>
         )}
+      </div>
       </div>
 
       <div className="gh-timeline">

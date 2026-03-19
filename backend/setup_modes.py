@@ -63,6 +63,8 @@ def _blank_state():
         "setup_complete": False,
         "setup_mode": None,
         "ai_setup_reasoning": None,
+        "ai_setup_in_progress": False,
+        "ai_setup_error": None,
     }
 
 

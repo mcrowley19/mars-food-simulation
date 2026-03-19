@@ -95,6 +95,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   const [launching, setLaunching] = useState(false)
   const [aiState, setAiState]     = useState(null)
   const [aiLogs, setAiLogs]       = useState([])
+  const [aiError, setAiError]     = useState('')
 
   const set    = (key, val) => setCfg(prev => ({ ...prev, [key]: val }))
   const reset  = () => setCfg(DEFAULTS)
@@ -130,6 +131,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   const handleAIBegin = async () => {
     setMode('ai')
     setAiLogs([])
+    setAiError('')
 
     const LOG_STEPS = [
       { delay: 0,    text: 'Initialising crop planner agent…' },
@@ -148,7 +150,6 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
         setAiLogs(prev => [...prev, { time: Date.now(), text: step.text }])
       }, step.delay))
     }
-
     try {
       if (onBeginAI) {
         const state = await onBeginAI()
@@ -158,11 +159,11 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
         await new Promise(r => setTimeout(r, 800))
         setMode('ai-review')
       }
-    } catch {
+    } catch (e) {
       timers.forEach(clearTimeout)
-      setAiLogs(prev => [...prev, { time: Date.now(), text: 'Error: AI setup failed. Please try again.', error: true }])
-      await new Promise(r => setTimeout(r, 2000))
-      setMode(null)
+      const message = e?.message || 'Something went wrong. Please try again.'
+      setAiError(message)
+      setAiLogs(prev => [...prev, { time: Date.now(), text: `Error: ${message}`, error: true }])
     }
   }
 
@@ -246,6 +247,16 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
                 </div>
               )}
             </div>
+            {aiError && (
+              <div className="is-ai-loading__actions">
+                <button className="is-btn-reset" onClick={() => setMode(null)}>
+                  Back
+                </button>
+                <button className="is-btn-begin" onClick={handleAIBegin}>
+                  Retry AI Setup
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
