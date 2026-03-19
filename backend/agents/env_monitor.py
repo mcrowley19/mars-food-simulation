@@ -3,7 +3,7 @@ from strands.models.bedrock import BedrockModel
 from tools.greenhouse_tools import search_mars_kb
 from tools.simulation_tools import get_current_state
 
-MODEL = BedrockModel(model_id="us.anthropic.claude-3-5-haiku-20241022-v1:0", region_name="us-east-1")
+MODEL = BedrockModel(model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0", region_name="us-east-1")
 
 SYSTEM_PROMPT = """You are the Environment Monitor for a Martian greenhouse.
 Monitor and recommend adjustments for temperature, CO2, humidity, and lighting

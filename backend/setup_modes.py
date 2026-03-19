@@ -282,7 +282,7 @@ def ai_optimised_setup(astronaut_count: int = 4, mission_days: int = 450, max_ca
     # so there is no need to query the KB. This avoids the agent looping through
     # repeated KB/validation calls and timing out.
     agent = Agent(
-        model=BedrockModel(model_id="us.anthropic.claude-3-5-sonnet-20241022-v2:0", region_name="us-east-1"),
+        model=BedrockModel(model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0", region_name="us-east-1"),
         tools=[],
     )
 
