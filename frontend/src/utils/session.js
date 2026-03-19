@@ -16,3 +16,9 @@ export function getSessionId() {
   }
   return value
 }
+
+export function clearSessionId() {
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY)
+  }
+}

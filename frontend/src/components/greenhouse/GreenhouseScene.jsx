@@ -3,7 +3,7 @@ import * as THREE from "three";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import useGreenhouseState from "../../hooks/useGreenhouseState";
-import { getSessionId } from "../../utils/session";
+import { getSessionId, clearSessionId } from "../../utils/session";
 import { API_BASE_URL } from "../../utils/api";
 import { initScene, buildTerrain, setupLighting } from "./sceneSetup";
 import { buildColony } from "./domeBuilder";
@@ -893,6 +893,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       handleExitDome();
       return;
     }
+    const sessionId = getSessionId();
+    fetch(`${API_BASE_URL}/reset`, {
+      method: "POST",
+      headers: { "x-session-id": sessionId },
+    }).catch(() => {});
+    clearSessionId();
     onExit();
   }, [insideDome, handleExitDome, onExit]);
 
