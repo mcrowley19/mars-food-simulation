@@ -149,6 +149,7 @@ def manual_setup(params: dict) -> dict:
     state["seed_amounts"] = seed_amounts
     state["food_supplies_kcal"] = food_supplies_kcal
     state["calories_available"] = float(food_supplies_kcal)
+    state["calories_needed_per_day"] = astronaut_count * CREW_KCAL_PER_DAY
     state["resources"]["water_l"] = water_l
     state["resources"]["nutrients_kg"] = fertilizer_kg
     state["setup_complete"] = True

@@ -55,12 +55,20 @@ def apply_mars_rules(state: dict) -> dict:
     state["crops"] = crops
     state["seed_reserve"] = reserve
 
-    # --- Food rot: remove harvested food past its shelf life ---
-    from setup_modes import SHELF_LIFE_DAYS, CROP_DEFAULTS
-    state["harvested"] = [
-        h for h in state["harvested"]
-        if (day - h.get("harvested_on_day", 0)) <= SHELF_LIFE_DAYS.get(h.get("name", ""), 30)
-    ]
+    # --- Food rot: remove harvested food past its shelf life, subtract lost calories ---
+    from setup_modes import SHELF_LIFE_DAYS, CROP_DEFAULTS, KCAL_PER_KG
+    surviving = []
+    rotted_kcal = 0
+    for h in state.get("harvested", []):
+        age = day - h.get("harvested_on_day", 0)
+        shelf = SHELF_LIFE_DAYS.get(h.get("name", ""), 30)
+        if age <= shelf:
+            surviving.append(h)
+        else:
+            rotted_kcal += h.get("yield_kg", 0) * KCAL_PER_KG.get(h.get("name", ""), 0)
+    state["harvested"] = surviving
+    if rotted_kcal > 0:
+        state["calories_available"] = max(0, state.get("calories_available", 0) - rotted_kcal)
 
     # --- Smart auto-planting from reserve ---
     # Plant seeds in staggered waves: for each crop type in reserve, plant a small
@@ -129,22 +137,24 @@ def apply_mars_rules(state: dict) -> dict:
         env["co2_ppm"] = env["co2_ppm"] + 200
         state["active_events"].append("co2_spike")
 
-    # --- Calorie tracking ---
-    from setup_modes import KCAL_PER_KG, CREW_KCAL_PER_DAY
+    # --- Calorie tracking (running balance) ---
+    from setup_modes import CREW_KCAL_PER_DAY
     astronaut_count = state.get("astronaut_count", 4)
     calories_needed_per_day = astronaut_count * CREW_KCAL_PER_DAY
-    harvested = state.get("harvested", [])
-    harvest_calories = sum(
-        h.get("yield_kg", 0) * KCAL_PER_KG.get(h.get("name", ""), 0)
-        for h in harvested
-    )
-    food_supplies = state.get("food_supplies_kcal", 0)
-    # Crew consumes calories_needed_per_day each day from food supplies first
-    days_elapsed = day - 1  # day hasn't been incremented yet
-    consumed = days_elapsed * calories_needed_per_day
-    remaining_supplies = max(0, food_supplies - consumed)
-    state["calories_available"] = round(remaining_supplies + harvest_calories, 1)
     state["calories_needed_per_day"] = calories_needed_per_day
+
+    # Add calories from today's harvests
+    for h in state.get("harvested", []):
+        if h.get("harvested_on_day") == day and not h.get("_counted"):
+            h["_counted"] = True
+            state["calories_available"] = state.get("calories_available", 0) + (
+                h.get("yield_kg", 0) * KCAL_PER_KG.get(h.get("name", ""), 0)
+            )
+
+    # Crew eats every day
+    state["calories_available"] = round(
+        max(0, state.get("calories_available", 0) - calories_needed_per_day), 1
+    )
 
     # --- Advance mission day ---
     state["mission_day"] = day + 1
