@@ -181,8 +181,8 @@ function PanelChevron({ collapsed }) {
   );
 }
 
-export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents = false }) {
-  const SOL_TICK_MS = 8000;
+export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents = false }) {
+  const SOL_TICK_MS = 6000;
   const canvasRef = useRef(null);
   const exitButtonRef = useRef(null);
   const leftPanelsRef = useRef(null);
@@ -249,7 +249,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
     return () => clearTimeout(t);
   }, [agentInitTimedOut]);
 
-  const simState = useGreenhouseState(true);
+  const statePollMs = isLogsSidebarOpen ? 400 : 900;
+  const simState = useGreenhouseState(true, statePollMs);
   const simStateRef = useRef(null);
 
   const lerpedRef = useRef({
@@ -671,11 +672,13 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
       const baseSunI = lerp(0.35, 2.95, dayFactor);
       sun.intensity = baseSunI * lv.sunIntensityMul;
       sun.castShadow = dayFactor > 0.12;
-      // When zoomed into a dome, keep ambient bright (grow lights are always on)
+      // Keep dome interiors readable at night by enforcing a minimum indoor light floor.
       const minAmb = isInsideDome ? 1.2 : 0;
+      const ambientTintMul = isInsideDome
+        ? Math.max(0.85, lv.ambientTint)
+        : lv.ambientTint;
       const baseAmbI = Math.max(minAmb, lerp(0.2, 0.72, twilight));
-      ambient.intensity = baseAmbI * lv.ambientTint;
-      fill.intensity = isInsideDome ? 0.8 : lerp(0.12, 0.52, twilight);
+      ambient.intensity = baseAmbI * ambientTintMul;
 
       sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor);
       sun.color.copy(sunColor);
@@ -700,14 +703,19 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
         scene.fog = null;
       }
 
-      // Drive per-dome interior lighting: bright at night so zoomed-in view stays lit
       const nightFactor = 1 - dayFactor;
+      fill.intensity = isInsideDome
+        ? Math.max(0.8, lerp(0.5, 0.95, nightFactor))
+        : lerp(0.12, 0.52, twilight);
+
+      // Drive per-dome interior lighting: bright at night so zoomed-in view stays lit.
       for (const gh of greenhouses) {
         const iLight = gh.userData.interiorLight;
         const sMat   = gh.userData.shellMat;
         if (iLight) {
-          // Base intensity always on (grow lights), boosted at night
-          iLight.intensity = lerp(1.2, 3.2, nightFactor);
+          // Add a small boost when inside to maintain interior visibility after dusk.
+          const insideBoost = isInsideDome ? 1.2 : 1.0;
+          iLight.intensity = lerp(1.2, 3.2, nightFactor) * insideBoost;
         }
         if (sMat && sMat.emissive) {
           // Warm emissive glow on dome shell at night (visible from outside)
@@ -824,6 +832,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
   useEffect(() => {
     if (!simState?.setup_complete || !isPlaying) return;
     const interval = isFastForward ? SOL_TICK_MS / 3 : SOL_TICK_MS;
+    // Trigger one tick immediately so agent logs start flowing without initial delay.
+    simulateTick();
     const timer = setInterval(() => {
       simulateTick();
     }, interval);
@@ -1153,11 +1163,21 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
         </div>
       </div>
 
-      <div className={`gh-agent-sidebar-wrap${isLogsSidebarOpen ? " is-open" : " is-closed"}`}>
-        <aside
-          className={`gh-agent-sidebar-panel${isLogsSidebarOpen ? " is-open" : " is-closed"}`}
-          aria-label="Agent logs sidebar"
+      <div className={`gh-agent-sidebar-unit${isLogsSidebarOpen ? " is-open" : " is-closed"}`}>
+        <button
+          type="button"
+          className="gh-agent-sidebar__toggle"
+          onClick={() => setIsLogsSidebarOpen((v) => !v)}
+          aria-label={isLogsSidebarOpen ? "Hide agent logs" : "Show agent logs"}
+          title={isLogsSidebarOpen ? "Hide agent logs" : "Show agent logs"}
         >
+          {isLogsSidebarOpen ? "›" : "‹"}
+        </button>
+        <div className="gh-agent-sidebar-panel-wrap">
+          <aside
+            className={`gh-agent-sidebar-panel${isLogsSidebarOpen ? " is-open" : " is-closed"}`}
+            aria-label="Agent logs sidebar"
+          >
           <div className="gh-agent-logs">
           <div className="gh-agent-logs__header">Agent Logs</div>
           {!hasLiveState ? (
@@ -1234,15 +1254,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
           )}
           </div>
         </aside>
-        <button
-          type="button"
-          className="gh-agent-sidebar__toggle"
-          onClick={() => setIsLogsSidebarOpen((v) => !v)}
-          aria-label={isLogsSidebarOpen ? "Hide agent logs" : "Show agent logs"}
-          title={isLogsSidebarOpen ? "Hide agent logs" : "Show agent logs"}
-        >
-          {isLogsSidebarOpen ? "›" : "‹"}
-        </button>
+        </div>
       </div>
 
       {enterLabel && !insideDome && (

@@ -38,7 +38,7 @@ const DEFAULTS = {
   seedTypes:   ['Potato', 'Wheat', 'Lettuce'],
   bugs:        20,
   astronauts:  4,
-  timeframe:   350,
+  timeframe:   450,
   foodSupplies: 1500000,
   fuelKg:       40000,
 }
