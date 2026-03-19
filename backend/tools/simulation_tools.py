@@ -1,6 +1,6 @@
 import json
 from strands import tool
-from state import get_state, update_state
+from state import get_state, update_state, _SESSION_KEY_CTX
 
 VALID_ENV_PARAMS = {"temp_c", "co2_ppm", "humidity_pct", "light_hours"}
 
@@ -10,9 +10,14 @@ def _crop_defaults():
     return CROP_DEFAULTS
 
 
+def _session_key():
+    """Always resolve the current session key explicitly."""
+    return _SESSION_KEY_CTX.get()
+
+
 def _get_crop(crop_index):
     """Fetch state and validate crop_index. Returns (state, crops, error_msg)."""
-    state = get_state()
+    state = get_state(session_key=_session_key())
     crops = state.get("crops", [])
     if crop_index < 0 or crop_index >= len(crops):
         return state, crops, f"Error: crop_index {crop_index} out of range (0-{len(crops)-1})"
@@ -20,7 +25,7 @@ def _get_crop(crop_index):
 
 
 def _get_crops_for_replant(crop_index):
-    state = get_state()
+    state = get_state(session_key=_session_key())
     crops = state.get("crops", [])
     if crop_index < 0 or crop_index > len(crops):
         return state, crops, f"Error: crop_index {crop_index} out of range"
@@ -30,7 +35,7 @@ def _get_crops_for_replant(crop_index):
 @tool
 def get_current_state() -> str:
     """Return the full current greenhouse simulation state as a JSON string."""
-    return json.dumps(get_state(), default=str)
+    return json.dumps(get_state(session_key=_session_key()), default=str)
 
 
 @tool
@@ -61,7 +66,7 @@ def harvest_crop(crop_index: int) -> str:
     state["harvested"].append(harvested_entry)
     crops.pop(crop_index)
     state["crops"] = crops
-    update_state(state)
+    update_state(state, session_key=_session_key())
     return f"Harvested {crop['name']} (index {crop_index}): {yield_kg}kg yield on day {state.get('mission_day', '?')}"
 
 
@@ -89,7 +94,7 @@ def replant_crop(crop_index: int, new_crop_name: str) -> str:
     else:
         crops[crop_index] = new_crop
     state["crops"] = crops
-    update_state(state)
+    update_state(state, session_key=_session_key())
     return f"Planted {name} at index {crop_index} (matures in {defaults['maturity_days']} days)"
 
 
@@ -104,7 +109,7 @@ def adjust_water_allocation(crop_index: int, new_water_per_day_l: float) -> str:
     old_val = crops[crop_index]["water_per_day_l"]
     crops[crop_index]["water_per_day_l"] = new_water_per_day_l
     state["crops"] = crops
-    update_state(state)
+    update_state(state, session_key=_session_key())
     return f"Updated {crops[crop_index]['name']} water: {old_val} → {new_water_per_day_l} L/day"
 
 
@@ -119,7 +124,7 @@ def adjust_nutrient_allocation(crop_index: int, new_nutrient_per_day_kg: float) 
     old_val = crops[crop_index]["nutrient_per_day_kg"]
     crops[crop_index]["nutrient_per_day_kg"] = new_nutrient_per_day_kg
     state["crops"] = crops
-    update_state(state)
+    update_state(state, session_key=_session_key())
     return f"Updated {crops[crop_index]['name']} nutrients: {old_val} → {new_nutrient_per_day_kg} kg/day"
 
 
@@ -128,12 +133,12 @@ def set_environment_param(param: str, value: float) -> str:
     """Adjust a greenhouse environment parameter. Valid params: temp_c, co2_ppm, humidity_pct, light_hours."""
     if param not in VALID_ENV_PARAMS:
         return f"Error: invalid param '{param}'. Valid: {sorted(VALID_ENV_PARAMS)}"
-    state = get_state()
+    state = get_state(session_key=_session_key())
     env = state.get("environment", {})
     old_val = env.get(param)
     env[param] = value
     state["environment"] = env
-    update_state(state)
+    update_state(state, session_key=_session_key())
     return f"Environment {param}: {old_val} → {value}"
 
 
@@ -142,10 +147,10 @@ def add_alert(severity: str, message: str) -> str:
     """Add an alert to the simulation. Severity: info, warning, critical."""
     if severity not in ("info", "warning", "critical"):
         return f"Error: severity must be info, warning, or critical"
-    state = get_state()
+    state = get_state(session_key=_session_key())
     alert = {"severity": severity, "message": message, "day": state.get("mission_day", 0)}
     if "alerts" not in state:
         state["alerts"] = []
     state["alerts"].append(alert)
-    update_state(state)
+    update_state(state, session_key=_session_key())
     return f"Alert added: [{severity}] {message}"

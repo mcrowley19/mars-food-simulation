@@ -20,7 +20,7 @@ CROP_DEFAULTS = {
 
 def _blank_state():
     return {
-        "key": "current",
+        "key": "unset",
         "mission_day": 1,
         "crops": [],
         "environment": {

@@ -36,16 +36,7 @@ def _session_context(session_key: str):
 
 @asynccontextmanager
 async def lifespan(app):
-    # On startup: only reset state in local dev, not in Lambda
-    import os
-    if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-        try:
-            state = get_state()
-            if state.get("setup_complete"):
-                from setup_modes import _blank_state
-                update_state(_blank_state())
-        except Exception:
-            pass  # Table may not exist yet
+    # Sessions are isolated per user; no shared state to reset on startup.
     yield
 
 
