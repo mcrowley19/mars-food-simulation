@@ -487,6 +487,9 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             <ParamRow label="Floor Space">
               <Stepper value={cfg.space} onChange={v => set('space', v)} step={10} min={10} unit="m²" />
             </ParamRow>
+            <div className="is-card__hint">
+              0.25 m² per plant → max {Math.floor(cfg.space / 0.25)} plants
+            </div>
             <ParamRow label="Seed Amount">
               <Stepper value={cfg.seedAmt} onChange={v => set('seedAmt', v)} step={5} unit="packs" />
             </ParamRow>
