@@ -3,16 +3,32 @@ import * as THREE from 'three'
 import useGreenhouseState from '../../hooks/useGreenhouseState'
 import { initScene, buildTerrain, setupLighting } from './sceneSetup'
 import { buildColony } from './domeBuilder'
-import { updateCropsAndBeds } from './cropRenderer'
+import { distributeCrops, updateCropsAndBeds } from './cropRenderer'
 import { computeHud } from './hudUpdater'
 import {
   FRUSTUM, DOME_OPACITY, ZOOM_DEFAULT, ZOOM_ENTERED, ZOOM_ALL,
-  ANIM_DURATION, INITIAL_WATER, DOME_DEFS_BASE,
+  ANIM_DURATION, INITIAL_WATER, DOME_DEFS_BASE, CROP_COLORS,
   lerp, easeInOut, scaleDomeDefs,
 } from './constants'
 import './GreenhouseScene.css'
 
 let DOME_DEFS = DOME_DEFS_BASE
+
+function cropChipStyle(cropName) {
+  const colorHex = CROP_COLORS[cropName?.toLowerCase()] || '#6ea07d'
+  const hex = colorHex.replace('#', '')
+  const normalized = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex
+  const int = Number.parseInt(normalized, 16)
+  if (Number.isNaN(int)) return undefined
+  const r = (int >> 16) & 255
+  const g = (int >> 8) & 255
+  const b = int & 255
+  return {
+    backgroundColor: `rgba(${r}, ${g}, ${b}, 0.16)`,
+    borderColor: `rgba(${r}, ${g}, ${b}, 0.45)`,
+    color: `rgba(${r}, ${g}, ${b}, 0.96)`,
+  }
+}
 
 export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const canvasRef = useRef(null)
@@ -27,29 +43,13 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     cropBreakdown: {},
   })
   const [enterLabel, setEnterLabel] = useState(null)
+  const [plantHover, setPlantHover] = useState(null)
   const [insideDome, setInsideDome] = useState(null)
-  const [simDay, setSimDay] = useState(1)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const isPlayingRef = useRef(false)
   const simDayFracRef = useRef(0.25)
-  const playIntervalRef = useRef(null)
   const [domeDefs, setDomeDefs] = useState(null)
 
   const simState = useGreenhouseState(true)
   const simStateRef = useRef(null)
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
-  const simulateTick = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/simulate-tick`, { method: 'POST' })
-      if (res.ok) {
-        const newState = await res.json()
-        simStateRef.current = newState
-      }
-    } catch {
-      // ignore network errors
-    }
-  }, [API])
 
   const lerpedRef = useRef({
     sunIntensityMul: 1.0,
@@ -60,12 +60,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     co2Tint: 0,
   })
 
-  useEffect(() => {
-    simStateRef.current = simState
-    if (simState?.mission_day && !isPlayingRef.current) {
-      setSimDay(simState.mission_day)
-    }
-  }, [simState])
+  useEffect(() => { simStateRef.current = simState }, [simState])
 
   useEffect(() => {
     if (domeDefs) return
@@ -158,6 +153,56 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     }
     canvas.addEventListener('click', onClick)
 
+    const onMouseMove = (e) => {
+      const rect = canvas.getBoundingClientRect()
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(pointer, camera)
+
+      const plantMeshes = []
+      for (const gh of greenhouses) {
+        const arr = gh.userData.plantMeshes || []
+        for (const m of arr) if (m.visible) plantMeshes.push(m)
+      }
+
+      if (plantMeshes.length === 0) {
+        setPlantHover(null)
+        return
+      }
+
+      const hits = raycaster.intersectObjects(plantMeshes, false)
+      if (hits.length === 0) {
+        setPlantHover(null)
+        return
+      }
+
+      const mesh = hits[0].object
+      const ss = simStateRef.current
+      const domeCrops = distributeCrops(ss?.crops || [], DOME_DEFS)
+      let foundCrop = null
+
+      for (let di = 0; di < greenhouses.length && !foundCrop; di++) {
+        const plants = greenhouses[di].userData.plantMeshes || []
+        const pi = plants.indexOf(mesh)
+        if (pi !== -1) foundCrop = domeCrops[di]?.[pi] || null
+      }
+
+      if (!foundCrop) {
+        setPlantHover(null)
+        return
+      }
+
+      setPlantHover({
+        x: e.clientX + 14,
+        y: e.clientY + 14,
+        crop: foundCrop,
+      })
+    }
+
+    const onMouseLeave = () => setPlantHover(null)
+    canvas.addEventListener('mousemove', onMouseMove)
+    canvas.addEventListener('mouseleave', onMouseLeave)
+
     const onResize = () => {
       const nw = window.innerWidth, nh = window.innerHeight
       renderer.setSize(nw, nh)
@@ -187,11 +232,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       const dt = (now - lastTime) / 1000
       lastTime = now
 
-      if (isPlayingRef.current) {
-        simDayFracRef.current += dt / SOL_DURATION
-        if (simDayFracRef.current >= 1) {
-          simDayFracRef.current = 0
-        }
+      simDayFracRef.current += dt / SOL_DURATION
+      if (simDayFracRef.current >= 1) {
+        simDayFracRef.current = 0
       }
 
       const sunPhase = simDayFracRef.current
@@ -332,6 +375,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
     return () => {
       canvas.removeEventListener('click', onClick)
+      canvas.removeEventListener('mousemove', onMouseMove)
+      canvas.removeEventListener('mouseleave', onMouseLeave)
       window.removeEventListener('resize', onResize)
       cleanup()
     }
@@ -440,31 +485,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     setEnterLabel(null)
   }, [])
 
-  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
-
-  useEffect(() => {
-    if (isPlaying) {
-      let lastFrac = simDayFracRef.current
-      playIntervalRef.current = setInterval(() => {
-        const curFrac = simDayFracRef.current
-        if (curFrac < lastFrac) {
-          setSimDay(prev => {
-            if (prev >= totalDays) {
-              setIsPlaying(false)
-              return prev
-            }
-            return prev + 1
-          })
-          simulateTick()
-        }
-        lastFrac = curFrac
-      }, 100)
-    } else {
-      if (playIntervalRef.current) clearInterval(playIntervalRef.current)
-    }
-    return () => { if (playIntervalRef.current) clearInterval(playIntervalRef.current) }
-  }, [isPlaying, totalDays, simulateTick])
-
   if (!domeDefs) {
     return (
       <div className="gh-overlay">
@@ -479,6 +499,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const waterPct = INITIAL_WATER > 0 ? hud.waterL / INITIAL_WATER : 1
   const nutrientPct = 200 > 0 ? hud.nutrientsKg / 200 : 1
   const barClass = (pct) => pct > 0.5 ? 'gh-bar--ok' : pct > 0.2 ? 'gh-bar--warn' : 'gh-bar--crit'
+  const hasLiveState = Boolean(simState && simState.setup_complete)
+  const currentSol = hud.missionDay || simState?.mission_day || 1
 
   return (
     <div className="gh-overlay">
@@ -495,7 +517,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       )}
 
       <div className="gh-date">
-        <span className="gh-date-day">Sol {hud.missionDay || simDay}</span>
+        <span className="gh-date-day">Sol {currentSol}</span>
       </div>
 
       {enterLabel && !insideDome && (
@@ -508,7 +530,36 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         </button>
       )}
 
+      {plantHover && (
+        <div
+          className="gh-plant-tooltip"
+          style={{ left: plantHover.x, top: plantHover.y }}
+        >
+          <div className="gh-plant-tooltip__name">{plantHover.crop.name}</div>
+          <div className="gh-plant-tooltip__row">
+            <span>Status</span>
+            <span>{String(plantHover.crop.status || 'unknown').replace(/_/g, ' ')}</span>
+          </div>
+          <div className="gh-plant-tooltip__row">
+            <span>Age</span>
+            <span>{plantHover.crop.age_days ?? 0} / {plantHover.crop.maturity_days ?? 0} days</span>
+          </div>
+          <div className="gh-plant-tooltip__row">
+            <span>Water</span>
+            <span>{plantHover.crop.water_per_day_l ?? 0} L/day</span>
+          </div>
+          <div className="gh-plant-tooltip__row">
+            <span>Nutrients</span>
+            <span>{plantHover.crop.nutrient_per_day_kg ?? 0} kg/day</span>
+          </div>
+        </div>
+      )}
+
       <div className="gh-resources">
+        {!hasLiveState ? (
+          <div className="gh-resources__sync">Syncing live simulation data...</div>
+        ) : (
+          <>
         <div className="gh-resources__row">
           <span className="gh-resources__label">Water</span>
           <div className="gh-resources__bar-track">
@@ -550,7 +601,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         {Object.keys(hud.cropBreakdown).length > 0 && (
           <div className="gh-resources__crop-breakdown">
             {Object.entries(hud.cropBreakdown).map(([name, count]) => (
-              <span key={name} className="gh-resources__crop-chip">
+              <span key={name} className="gh-resources__crop-chip" style={cropChipStyle(name)}>
                 {name}: {count}
               </span>
             ))}
@@ -564,16 +615,17 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             ))}
           </div>
         )}
-
+          </>
+        )}
       </div>
 
       <div className="gh-timeline">
         <button
           className="gh-timeline-play"
-          onClick={() => setIsPlaying(p => !p)}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
+          disabled
+          aria-label="Live backend time"
         >
-          {isPlaying ? '❚❚' : '▶'}
+          LIVE
         </button>
         <div className="gh-timeline-track">
           <span className="gh-timeline-label">Sol 1</span>
@@ -582,37 +634,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             className="gh-timeline-slider"
             min={1}
             max={totalDays}
-            value={simDay}
-            onChange={e => {
-              setSimDay(Number(e.target.value))
-              simDayFracRef.current = 0
-            }}
-            onMouseUp={e => {
-              const target = Number(e.target.value)
-              const current = simStateRef.current?.mission_day || 1
-              if (target > current) {
-                const ticksNeeded = target - current
-                const runTicks = async () => {
-                  for (let i = 0; i < ticksNeeded; i++) {
-                    await simulateTick()
-                  }
-                }
-                runTicks()
-              }
-            }}
-            onTouchEnd={e => {
-              const target = Number(e.target.value)
-              const current = simStateRef.current?.mission_day || 1
-              if (target > current) {
-                const ticksNeeded = target - current
-                const runTicks = async () => {
-                  for (let i = 0; i < ticksNeeded; i++) {
-                    await simulateTick()
-                  }
-                }
-                runTicks()
-              }
-            }}
+            value={Math.max(1, Math.min(totalDays, currentSol))}
+            readOnly
+            disabled
           />
           <span className="gh-timeline-label">Sol {totalDays}</span>
         </div>

@@ -3,7 +3,8 @@ import { DOME_OPACITY, CROP_EMPTY_COLOR } from './constants'
 
 function buildDomeInterior(radius) {
   const g = new THREE.Group()
-  const floorMat = new THREE.MeshStandardMaterial({ color: '#2b221c', roughness: 0.85, metalness: 0.05 })
+  const FLOOR_Y = 0.1
+  const floorMat = new THREE.MeshStandardMaterial({ color: '#f1f1f1', roughness: 0.82, metalness: 0.04 })
   const planterMat = new THREE.MeshStandardMaterial({ color: '#6a4429', roughness: 0.8, metalness: 0.08 })
   const plantGeom = new THREE.SphereGeometry(1, 10, 8)
   const plantMeshes = []
@@ -13,7 +14,7 @@ function buildDomeInterior(radius) {
 
   const floor = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.93, 48), floorMat)
   floor.rotation.x = -Math.PI / 2
-  floor.position.y = 0.01
+  floor.position.y = FLOOR_Y
   floor.receiveShadow = true
   g.add(floor)
 
@@ -28,11 +29,11 @@ function buildDomeInterior(radius) {
   for (let x = gridMin; x <= gridMax; x += step) {
     for (let z = gridMin; z <= gridMax; z += step) {
       if (x * x + z * z > (radius * 0.8) * (radius * 0.8)) continue
-      if (planterMeshes.length >= MAX_PLANTERS) break
+      if (plantMeshes.length >= MAX_PLANTERS) break
 
       const planter = new THREE.Mesh(new THREE.BoxGeometry(boxW, boxH, boxW), planterMat)
-      planter.position.set(x, boxH / 2 + 0.02, z)
-      planter.castShadow = false
+      planter.position.set(x, FLOOR_Y + boxH / 2 + 0.02, z)
+      planter.castShadow = true
       planter.receiveShadow = true
       g.add(planter)
       planterMeshes.push(planter)
@@ -41,7 +42,7 @@ function buildDomeInterior(radius) {
         color: '#3f2a1d', emissive: '#000000', emissiveIntensity: 0, roughness: 0.9,
       })
       const soil = new THREE.Mesh(new THREE.BoxGeometry(boxW * 0.84, soilH, boxW * 0.84), soilMat)
-      soil.position.set(x, boxH + soilH / 2 + 0.02, z)
+      soil.position.set(x, FLOOR_Y + boxH + soilH / 2 + 0.02, z)
       g.add(soil)
       soilMats.push(soilMat)
       soilMeshes.push(soil)
@@ -51,14 +52,14 @@ function buildDomeInterior(radius) {
         color: CROP_EMPTY_COLOR, emissive: '#000000', emissiveIntensity: 0, roughness: 0.55,
       })
       const plant = new THREE.Mesh(plantGeom, plantMat)
-      plant.position.set(x, boxH + soilH + pBase + 0.02, z)
+      plant.position.set(x, FLOOR_Y + boxH + soilH + pBase + 0.02, z)
       plant.scale.set(pBase, pBase * 1.25, pBase)
       plant.userData.isPlant = true
       plant.userData.baseScale = pBase
       g.add(plant)
       plantMeshes.push(plant)
     }
-    if (planterMeshes.length >= MAX_PLANTERS) break
+    if (plantMeshes.length >= MAX_PLANTERS) break
   }
 
   return { group: g, plantMeshes, soilMats, soilMeshes, planterMeshes }

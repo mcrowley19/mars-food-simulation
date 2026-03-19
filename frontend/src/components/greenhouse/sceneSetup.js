@@ -43,7 +43,7 @@ export function buildTerrain(scene) {
     new THREE.MeshStandardMaterial({ map: marsTexture, roughness: 0.95 })
   )
   ground.rotation.x = -Math.PI / 2
-  ground.position.y = 0.02
+  ground.position.y = 0.08
   ground.receiveShadow = true
   scene.add(ground)
 }
