@@ -2,8 +2,6 @@ import { useState } from 'react'
 import './InitialiseSession.css'
 
 const SEED_OPTIONS  = ['Potato', 'Wheat', 'Lettuce', 'Tomato', 'Soybean', 'Spinach', 'Radish', 'Pea', 'Kale', 'Carrot']
-const WEATHER_OPTS  = ['Calm', 'Gusty', 'Dust Storm', 'Variable']
-const AIR_OPTS      = ['Earth Norm', 'Hab Mix', 'Mars Adapted', 'Experimental']
 
 // Kcal per kg for each crop and maturity days — used to compute minimum food supplies
 const CROP_DATA = {
@@ -36,8 +34,6 @@ const DEFAULTS = {
   bugs:        20,
   astronauts:  4,
   timeframe:   350,
-  weather:     'Calm',
-  airComp:     'Hab Mix',
   foodSupplies: 300000,
 }
 
@@ -59,25 +55,6 @@ function Stepper({ value, onChange, min = 0, max = Infinity, step = 1, unit }) {
         onClick={() => onChange(Math.min(max, value + step))}
         disabled={value >= max}
       >+</button>
-    </div>
-  )
-}
-
-/* ── Cycle selector ── */
-function CycleSelect({ options, value, onChange }) {
-  const idx  = options.indexOf(value)
-  const prev = () => onChange(options[(idx - 1 + options.length) % options.length])
-  const next = () => onChange(options[(idx + 1) % options.length])
-  return (
-    <div className="is-cycle">
-      <button className="is-cycle__arrow" onClick={prev}>‹</button>
-      <span className="is-cycle__val">{value}</span>
-      <button className="is-cycle__arrow" onClick={next}>›</button>
-      <div className="is-cycle__dots">
-        {options.map(opt => (
-          <span key={opt} className="is-cycle__dot" data-active={opt === value} onClick={() => onChange(opt)} />
-        ))}
-      </div>
     </div>
   )
 }
@@ -144,8 +121,6 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
     cfg.bugs          !== DEFAULTS.bugs,
     cfg.astronauts    !== DEFAULTS.astronauts,
     cfg.timeframe     !== DEFAULTS.timeframe,
-    cfg.weather       !== DEFAULTS.weather,
-    cfg.airComp       !== DEFAULTS.airComp,
   ].filter(Boolean).length
 
   const handleBegin = async () => {
@@ -480,20 +455,6 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             </ParamRow>
           </div>
 
-          {/* Environment */}
-          <div className="is-card">
-            <div className="is-card__header">
-              <span className="is-card__tag">ENV</span>
-              <span className="is-card__name">Environment</span>
-            </div>
-            <ParamRow label="Weather">
-              <CycleSelect options={WEATHER_OPTS} value={cfg.weather} onChange={v => set('weather', v)} />
-            </ParamRow>
-            <ParamRow label="Air Composition">
-              <CycleSelect options={AIR_OPTS} value={cfg.airComp} onChange={v => set('airComp', v)} />
-            </ParamRow>
-          </div>
-
         </div>
 
         {/* ── Overview sidebar ── */}
@@ -572,20 +533,6 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
           </div>
 
           <div className="is-ov__section">
-            <span className="is-ov__section-label">Environment</span>
-            <div className="is-ov__rows">
-              <div className="is-ov__row">
-                <span className="is-ov__row-key">Weather</span>
-                <span className="is-ov__row-val">{cfg.weather}</span>
-              </div>
-              <div className="is-ov__row">
-                <span className="is-ov__row-key">Air mix</span>
-                <span className="is-ov__row-val">{cfg.airComp}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="is-ov__section">
             <span className="is-ov__section-label">Crops</span>
             <div className="is-ov__chips">
               {cfg.seedTypes.length === 0
@@ -606,7 +553,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
               <div className="is-readiness__bar">
                 <div className="is-readiness__fill" style={{ width: `${changedCount * 10}%` }} />
               </div>
-              <span className="is-readiness__label">{changedCount} of 10 parameters customised</span>
+              <span className="is-readiness__label">{changedCount} of 9 parameters customised</span>
             </div>
           </div>
 
