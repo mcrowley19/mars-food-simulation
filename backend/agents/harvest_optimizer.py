@@ -11,11 +11,16 @@ Decide optimal harvest timing for each crop for 4 astronauts across a 450-day mi
 Balance immediate nutritional needs vs replanting schedules.
 Plan across the full mission window to avoid food gaps.
 
+CRITICAL: Food rots after harvest! Shelf lives:
+- lettuce: 7d, pea: 5d, kale: 10d, tomato: 14d, radish: 14d
+- carrot: 30d, potato: 60d, soybean: 120d, wheat: 180d
+
 Decision factors:
 - Crop maturity stage and peak nutrition window
 - Current crew nutritional deficits
-- Time to replant and grow the next cycle
-- Storage capacity and shelf life
+- Shelf life — do NOT over-harvest perishable crops; they will rot before being consumed
+- Time to replant and grow the next cycle (seeds return to reserve on harvest)
+- Stagger harvests so calories flow continuously rather than in large rotting batches
 - Mission timeline remaining (avoid waste near end)
 
 Always return structured JSON:

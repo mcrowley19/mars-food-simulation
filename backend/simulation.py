@@ -28,6 +28,40 @@ def apply_mars_rules(state: dict) -> dict:
         if crop["age_days"] >= crop.get("maturity_days", 9999):
             crop["status"] = "ready_to_harvest"
 
+    # --- Auto-harvest mature crops; return seed to reserve ---
+    base_yield_kg = {
+        "potato": 0.3, "wheat": 0.15, "lettuce": 0.25, "tomato": 0.2,
+        "soybean": 0.12, "radish": 0.1, "pea": 0.08, "kale": 0.2, "carrot": 0.15,
+    }
+    if "harvested" not in state:
+        state["harvested"] = []
+    reserve = state.get("seed_reserve", {})
+    remaining = []
+    for crop in crops:
+        if crop["status"] == "ready_to_harvest":
+            progress = crop["age_days"] / crop["maturity_days"] if crop.get("maturity_days", 0) > 0 else 0
+            yield_kg = round(base_yield_kg.get(crop["name"], 0.1) * min(progress, 1.0), 3)
+            state["harvested"].append({
+                "name": crop["name"],
+                "yield_kg": yield_kg,
+                "harvested_on_day": day,
+                "age_at_harvest": crop["age_days"],
+            })
+            # Return a seed to the reserve for future planting
+            reserve[crop["name"]] = reserve.get(crop["name"], 0) + 1
+        else:
+            remaining.append(crop)
+    crops = remaining
+    state["crops"] = crops
+    state["seed_reserve"] = reserve
+
+    # --- Food rot: remove harvested food past its shelf life ---
+    from setup_modes import SHELF_LIFE_DAYS
+    state["harvested"] = [
+        h for h in state["harvested"]
+        if (day - h.get("harvested_on_day", 0)) <= SHELF_LIFE_DAYS.get(h.get("name", ""), 30)
+    ]
+
     # --- Light variation on ~30-day Mars sol cycle ---
     env["light_hours"] = round(12 + 2 * math.sin(2 * math.pi * day / 30), 1)
     env["light_intensity"] = 1.0
@@ -50,11 +84,16 @@ def apply_mars_rules(state: dict) -> dict:
     astronaut_count = state.get("astronaut_count", 4)
     calories_needed_per_day = astronaut_count * CREW_KCAL_PER_DAY
     harvested = state.get("harvested", [])
-    calories_available = sum(
+    harvest_calories = sum(
         h.get("yield_kg", 0) * KCAL_PER_KG.get(h.get("name", ""), 0)
         for h in harvested
     )
-    state["calories_available"] = round(calories_available, 1)
+    food_supplies = state.get("food_supplies_kcal", 0)
+    # Crew consumes calories_needed_per_day each day from food supplies first
+    days_elapsed = day - 1  # day hasn't been incremented yet
+    consumed = days_elapsed * calories_needed_per_day
+    remaining_supplies = max(0, food_supplies - consumed)
+    state["calories_available"] = round(remaining_supplies + harvest_calories, 1)
     state["calories_needed_per_day"] = calories_needed_per_day
 
     # --- Advance mission day ---

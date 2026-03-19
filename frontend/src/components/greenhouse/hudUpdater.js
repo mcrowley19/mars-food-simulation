@@ -25,5 +25,6 @@ export function computeHud(sunPhase, fps, anim, camera, ss, events) {
     cropBreakdown: breakdown,
     caloriesAvailable: ss?.calories_available ?? 0,
     caloriesNeededPerDay: ss?.calories_needed_per_day ?? 0,
+    seedReserve: ss?.seed_reserve ?? {},
   }
 }

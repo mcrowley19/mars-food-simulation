@@ -154,3 +154,51 @@ def add_alert(severity: str, message: str) -> str:
     state["alerts"].append(alert)
     update_state(state, session_key=_session_key())
     return f"Alert added: [{severity}] {message}"
+
+
+@tool
+def plant_from_reserve(crop_name: str, count: int) -> str:
+    """Plant seeds from the seed reserve into active growing slots.
+    Use this to stagger plantings over time rather than planting everything at once.
+    The seed_reserve tracks available unplanted seeds per crop type."""
+    name = crop_name.lower().strip()
+    defaults_map = _crop_defaults()
+    if name not in defaults_map:
+        return f"Error: unknown crop '{name}'. Valid: {sorted(defaults_map.keys())}"
+    if count <= 0:
+        return "Error: count must be positive"
+
+    state = get_state(session_key=_session_key())
+    reserve = state.get("seed_reserve", {})
+    available = reserve.get(name, 0)
+    if available <= 0:
+        return f"Error: no '{name}' seeds in reserve. Reserve: {reserve}"
+    actual = min(count, available)
+
+    # Check floor space
+    crops = state.get("crops", [])
+    floor = state.get("floor_space_m2", 0)
+    space_per_plant = 0.25
+    if (len(crops) + actual) * space_per_plant > floor:
+        max_new = int(floor / space_per_plant) - len(crops)
+        if max_new <= 0:
+            return f"Error: no floor space available ({len(crops)} plants using {len(crops) * space_per_plant} of {floor} m²)"
+        actual = min(actual, max_new)
+
+    defaults = defaults_map[name]
+    for _ in range(actual):
+        crops.append({
+            "name": name,
+            "age_days": 0,
+            "maturity_days": defaults["maturity_days"],
+            "water_per_day_l": defaults["water_per_day_l"],
+            "nutrient_per_day_kg": defaults["nutrient_per_day_kg"],
+            "status": "growing",
+        })
+    reserve[name] = available - actual
+    if reserve[name] <= 0:
+        del reserve[name]
+    state["crops"] = crops
+    state["seed_reserve"] = reserve
+    update_state(state, session_key=_session_key())
+    return f"Planted {actual} {name} from reserve (remaining reserve: {reserve})"

@@ -31,6 +31,19 @@ KCAL_PER_KG = {
 
 CREW_KCAL_PER_DAY = 2500
 
+# Shelf life in days after harvest before food rots and loses all caloric value
+SHELF_LIFE_DAYS = {
+    "potato": 60,
+    "wheat": 180,
+    "lettuce": 7,
+    "tomato": 14,
+    "soybean": 120,
+    "radish": 14,
+    "pea": 5,
+    "kale": 10,
+    "carrot": 30,
+}
+
 
 def min_food_supplies_kcal(astronaut_count: int, seed_amounts: dict) -> int:
     """Minimum kcal of food supplies needed to survive until the first harvest."""
@@ -74,6 +87,7 @@ def _blank_state():
         "mission_days": 0,
         "astronaut_count": 0,
         "seed_amounts": {},
+        "seed_reserve": {},
         "food_supplies_kcal": 0,
         "setup_complete": False,
         "setup_mode": None,
@@ -139,11 +153,15 @@ def manual_setup(params: dict) -> dict:
     state["resources"]["nutrients_kg"] = fertilizer_kg
     state["setup_complete"] = True
 
-    # Populate crops array from seed_amounts
+    # Plant an initial batch (1/3 of seeds) and reserve the rest for staggered planting
+    import math as _math
     crops = []
+    reserve = {}
     for seed_type, count in seed_amounts.items():
+        initial = max(1, _math.ceil(count / 3))
+        to_reserve = count - initial
         defaults = CROP_DEFAULTS.get(seed_type, {})
-        for _ in range(count):
+        for _ in range(initial):
             crops.append({
                 "name": seed_type,
                 "age_days": 0,
@@ -152,7 +170,10 @@ def manual_setup(params: dict) -> dict:
                 "nutrient_per_day_kg": defaults.get("nutrient_per_day_kg", 0.015),
                 "status": "growing",
             })
+        if to_reserve > 0:
+            reserve[seed_type] = to_reserve
     state["crops"] = crops
+    state["seed_reserve"] = reserve
 
     return state
 

@@ -5,6 +5,7 @@ from tools.simulation_tools import (
     get_current_state,
     harvest_crop,
     replant_crop,
+    plant_from_reserve,
     adjust_water_allocation,
     adjust_nutrient_allocation,
     set_environment_param,
@@ -125,12 +126,22 @@ def get_orchestrator():
     - get_current_state: read the full simulation state before making decisions
     - harvest_crop: harvest a mature crop by index
     - replant_crop: plant a new seedling in a crop slot
+    - plant_from_reserve: plant seeds from the seed reserve (stagger plantings over time)
     - adjust_water_allocation / adjust_nutrient_allocation: tune per-crop resource usage
     - set_environment_param: adjust temp, CO2, humidity, or light hours
     - add_alert: record alerts for the crew
 
-    IMPORTANT: Always call get_current_state first to see exact crop indices and values
-    before calling harvest_crop, replant_crop, or adjustment tools.""",
+    IMPORTANT RULES:
+    1. Always call get_current_state first to see exact crop indices and values
+       before calling harvest_crop, replant_crop, or adjustment tools.
+    2. FOOD ROTS: Each harvested crop has a shelf life. Check seed_reserve and
+       plan staggered plantings to maintain steady calorie flow. Do NOT plant
+       all seeds at once — spread plantings so harvests are continuous.
+       Shelf lives: lettuce 7d, pea 5d, kale 10d, tomato 14d, radish 14d,
+       carrot 30d, potato 60d, soybean 120d, wheat 180d.
+    3. Use plant_from_reserve to plant seeds when needed. Check seed_reserve
+       in state to see available seeds. Plant in small batches timed so that
+       harvests overlap and the crew always has fresh, non-rotted food.""",
             tools=[
                 delegate_to_crop_planner,
                 delegate_to_env_monitor,
@@ -140,6 +151,7 @@ def get_orchestrator():
                 get_current_state,
                 harvest_crop,
                 replant_crop,
+                plant_from_reserve,
                 adjust_water_allocation,
                 adjust_nutrient_allocation,
                 set_environment_param,

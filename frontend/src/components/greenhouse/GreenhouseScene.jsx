@@ -96,6 +96,10 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const [activeAgentTab, setActiveAgentTab] = useState("");
   const logsListRef = useRef(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [sliderValue, setSliderValue] = useState(1);
+  const jumpInFlightRef = useRef(false);
+
   const simState = useGreenhouseState(true);
   const simStateRef = useRef(null);
   const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -139,6 +143,36 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       // ignore transient network/backend errors; polling will recover
     } finally {
       tickInFlightRef.current = false;
+    }
+  }, [API]);
+
+  const handleSliderChange = useCallback((e) => {
+    const val = Number(e.target.value);
+    setSliderValue(val);
+    setIsDragging(true);
+  }, []);
+
+  const handleSliderCommit = useCallback(async (e) => {
+    const target = Number(e.target.value);
+    setIsDragging(false);
+    if (jumpInFlightRef.current) return;
+    const current = simStateRef.current?.mission_day || 1;
+    if (target <= current) return;
+    jumpInFlightRef.current = true;
+    try {
+      const sessionId = getSessionId();
+      await fetch(`${API}/simulate-jump`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-id": sessionId,
+        },
+        body: JSON.stringify({ target_day: target }),
+      });
+    } catch {
+      // polling will recover
+    } finally {
+      jumpInFlightRef.current = false;
     }
   }, [API]);
 
@@ -997,6 +1031,21 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </div>
             )}
 
+            {Object.keys(hud.seedReserve).length > 0 && (
+              <div className="gh-resources__crop-breakdown">
+                <span className="gh-resources__label" style={{ width: '100%', marginBottom: 2 }}>Seed Reserve</span>
+                {Object.entries(hud.seedReserve).map(([name, count]) => (
+                  <span
+                    key={`reserve-${name}`}
+                    className="gh-resources__crop-chip"
+                    style={cropChipStyle(name)}
+                  >
+                    {name}: {count}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {hud.activeEvents.length > 0 && (
               <div className="gh-resources__events">
                 {hud.activeEvents.map((ev) => (
@@ -1033,9 +1082,10 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             className="gh-timeline-slider"
             min={1}
             max={totalDays}
-            value={Math.max(1, Math.min(totalDays, currentSol))}
-            readOnly
-            disabled
+            value={isDragging ? sliderValue : Math.max(1, Math.min(totalDays, currentSol))}
+            onChange={handleSliderChange}
+            onMouseUp={handleSliderCommit}
+            onTouchEnd={handleSliderCommit}
           />
           <span className="gh-timeline-label">Sol {totalDays}</span>
         </div>
