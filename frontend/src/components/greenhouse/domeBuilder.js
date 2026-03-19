@@ -451,12 +451,12 @@ export function buildColony(scene, domeDefs) {
     const siloR = def.r * 1;
     const siloH = siloR * 4;
     const silo = buildSilo(siloR, siloH);
-    silo.position.set(def.x - def.r * 3, 0, def.z - def.r * 5);
+    silo.position.set(def.x - def.r * 1.8, 0, def.z - def.r * 2);
     scene.add(silo);
 
     // Second silo touching the first on its left side
     const silo2 = buildSilo(siloR, siloH);
-    silo2.position.set(def.x - def.r * 3 - siloR * 2, 0, def.z - def.r * 5);
+    silo2.position.set(def.x - def.r * 1.8 - siloR * 2, 0, def.z - def.r * 2);
     scene.add(silo2);
   }
 
