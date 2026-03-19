@@ -16,6 +16,55 @@ from simulation import apply_mars_rules
 
 _lock_registry = {}
 _lock_registry_guard = threading.Lock()
+_orchestrator_call_lock = threading.Lock()
+_MAX_PARSED_LOG_ENTRIES_PER_AGENT = 12
+_MAX_PARSED_LINES_PER_TASK = 1
+_MAX_PARSED_LINES_PER_RESPONSE = 5
+_MAX_LINE_LENGTH = 160
+
+_AGENT_PRIORITY_KEYS = {
+    "resource_manager": [
+        "resource_type",
+        "current_level",
+        "unit",
+        "consumption_rate",
+        "days_remaining",
+        "status",
+        "recommended_action",
+    ],
+    "env_monitor": [
+        "parameter",
+        "current_value",
+        "safe_range",
+        "severity",
+        "recommended_action",
+    ],
+    "crop_planner": [
+        "crop_name",
+        "planting_date",
+        "harvest_date",
+        "expected_yield_kg",
+        "key_nutrients",
+    ],
+    "harvest_optimizer": [
+        "crop_name",
+        "harvest_date",
+        "expected_yield_kg",
+        "replant_date",
+        "priority",
+        "rationale",
+    ],
+    "fault_handler": [
+        "fault_type",
+        "severity",
+        "affected_systems",
+        "affected_crops",
+        "immediate_actions",
+        "estimated_repair_time_hours",
+        "escalate",
+        "rationale",
+    ],
+}
 
 
 def _get_invoke_lock(session_key: str) -> threading.Lock:
@@ -45,12 +94,24 @@ def _append_state_agent_log(session_key: str, agent_name: str, task: str, respon
 
 def _parse_text_lines(raw: str) -> list[str]:
     text = str(raw or "").replace("\r", "\n")
+    # Remove agent meta tags that are not user-facing content.
+    text = re.sub(r"<thinking>[\s\S]*?</thinking>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?mission_report>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?[a-z_]+>", "", text, flags=re.IGNORECASE)
     lines = [ln.strip() for ln in text.split("\n")]
     out = []
     for ln in lines:
         if not ln:
             continue
         cleaned = re.sub(r"^\s*[-*#>\d\.\)\(]+\s*", "", ln).strip()
+        # Drop noisy partial JSON structural lines.
+        if cleaned in {"[", "]", "{", "}", ",", "[]", "{}"}:
+            continue
+        if re.fullmatch(r'["\']?[a-zA-Z0-9_]+["\']?\s*:\s*', cleaned):
+            continue
+        cleaned = cleaned.strip(",")
+        cleaned = re.sub(r'^"([^"]+)"\s*:\s*"([^"]*)"$', r"\1: \2", cleaned)
+        cleaned = re.sub(r'^"([^"]+)"\s*:\s*([0-9]+(?:\.[0-9]+)?)$', r"\1: \2", cleaned)
         if cleaned:
             out.append(cleaned)
     if not out and text.strip():
@@ -112,12 +173,82 @@ def _render_json_lines(value, indent: int = 0) -> list[str]:
     return [f"{pad}{value}"]
 
 
-def _parse_readable_lines(raw: str) -> list[str]:
+def _truncate_line(text: str, max_len: int = _MAX_LINE_LENGTH) -> str:
+    line = str(text or "").strip()
+    if len(line) <= max_len:
+        return line
+    return f"{line[: max_len - 1].rstrip()}…"
+
+
+def _clip_lines(lines: list[str], max_lines: int) -> list[str]:
+    clean = [_truncate_line(ln) for ln in lines if str(ln).strip()]
+    if len(clean) <= max_lines:
+        return clean
+    clipped = clean[:max_lines]
+    clipped[-1] = f"{clipped[-1]} (+{len(clean) - max_lines} more)"
+    return clipped
+
+
+def _format_priority_json(agent_name: str, parsed: dict) -> list[str]:
+    keys = _AGENT_PRIORITY_KEYS.get(agent_name, [])
+    if not keys:
+        return []
+    out = []
+    for key in keys:
+        if key not in parsed:
+            continue
+        val = parsed.get(key)
+        if isinstance(val, list):
+            compact = ", ".join(str(v) for v in val[:4])
+            if len(val) > 4:
+                compact = f"{compact}, +{len(val) - 4} more"
+            out.append(f"{key}: {compact}")
+        elif isinstance(val, dict):
+            compact = ", ".join(f"{k}={v}" for k, v in list(val.items())[:4])
+            if len(val) > 4:
+                compact = f"{compact}, +{len(val) - 4} more"
+            out.append(f"{key}: {compact}")
+        else:
+            out.append(f"{key}: {val}")
+    return out
+
+
+def _parse_readable_lines(raw: str, agent_name: str = "") -> list[str]:
     parsed = _try_parse_json_payload(raw)
     if parsed is not None:
+        if isinstance(parsed, dict):
+            priority_lines = _format_priority_json(agent_name, parsed)
+            if priority_lines:
+                return priority_lines
         lines = _render_json_lines(parsed)
         return [ln for ln in lines if ln.strip()]
     return _parse_text_lines(raw)
+
+
+def _compact_key_value_lines(raw: str) -> list[str]:
+    """
+    Recover readable key/value pairs from partial JSON-like text fragments.
+    Example input:
+      [
+      {
+      "parameter": "light",
+    Output:
+      ['parameter: light']
+    """
+    out = []
+    text = str(raw or "")
+    for match in re.finditer(r'"?([a-zA-Z0-9_]+)"?\s*:\s*"([^"]*)"', text):
+        key = match.group(1)
+        val = match.group(2).strip()
+        if key and val:
+            out.append(f"{key}: {val}")
+    for match in re.finditer(r'"?([a-zA-Z0-9_]+)"?\s*:\s*([0-9]+(?:\.[0-9]+)?)', text):
+        key = match.group(1)
+        val = match.group(2)
+        line = f"{key}: {val}"
+        if line not in out:
+            out.append(line)
+    return out
 
 
 def _hide_log_from_frontend(agent_name: str, response: str) -> bool:
@@ -140,16 +271,29 @@ def _build_parsed_agent_logs(state: dict) -> dict:
         if not isinstance(entries, list):
             continue
         parsed_entries = []
-        for entry in entries[-30:]:
+        for entry in entries[-_MAX_PARSED_LOG_ENTRIES_PER_AGENT:]:
             if not isinstance(entry, dict):
                 continue
             response = entry.get("response", "")
             if _hide_log_from_frontend(agent_name, response):
                 continue
+            task_lines = _clip_lines(
+                _parse_readable_lines(entry.get("task", ""), agent_name),
+                _MAX_PARSED_LINES_PER_TASK,
+            )
+            response_lines = _clip_lines(
+                _parse_readable_lines(response, agent_name),
+                _MAX_PARSED_LINES_PER_RESPONSE,
+            )
+            if not response_lines:
+                response_lines = _clip_lines(
+                    _compact_key_value_lines(response),
+                    _MAX_PARSED_LINES_PER_RESPONSE,
+                )
             parsed_entries.append({
                 "day": entry.get("day"),
-                "task_lines": _parse_readable_lines(entry.get("task", "")),
-                "response_lines": _parse_readable_lines(response),
+                "task_lines": task_lines,
+                "response_lines": response_lines,
             })
         if parsed_entries:
             parsed[agent_name] = parsed_entries
@@ -165,7 +309,10 @@ def _build_parsed_agent_logs(state: dict) -> dict:
                 parsed[agent_name] = [{
                     "day": state.get("mission_day"),
                     "task_lines": [],
-                    "response_lines": _parse_readable_lines(action),
+                    "response_lines": _clip_lines(
+                        _parse_readable_lines(action, agent_name),
+                        _MAX_PARSED_LINES_PER_RESPONSE,
+                    ),
                 }]
     return parsed
 
@@ -246,7 +393,8 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
         with _session_context(session_key):
             from agents.orchestrator import get_orchestrator
             orchestrator = get_orchestrator()
-            result = orchestrator(req.prompt)
+            with _orchestrator_call_lock:
+                result = orchestrator(req.prompt)
             _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
             return {"response": str(result)}
     except Exception as e:
@@ -339,7 +487,8 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
 
                 from agents.orchestrator import get_orchestrator
                 orchestrator = get_orchestrator()
-                result = orchestrator(context)
+                with _orchestrator_call_lock:
+                    result = orchestrator(context)
                 _append_state_agent_log(session_key, "orchestrator", context, str(result))
         except Exception as e:
             err_text = str(e)

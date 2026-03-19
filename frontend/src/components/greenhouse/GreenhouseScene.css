@@ -291,7 +291,7 @@
   bottom: 220px;
   z-index: 102;
   width: min(430px, 42vw);
-  max-height: min(40vh, 340px);
+  max-height: min(34vh, 300px);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -345,7 +345,7 @@
 .gh-agent-logs__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow: auto;
   padding-right: 2px;
 }
@@ -354,10 +354,10 @@
   border: 1px solid rgba(232, 120, 64, 0.18);
   background: rgba(255, 255, 255, 0.02);
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .gh-agent-logs__meta {
@@ -381,8 +381,8 @@
 }
 
 .gh-agent-logs__line {
-  font-size: 10px;
-  line-height: 1.35;
+  font-size: 9.5px;
+  line-height: 1.28;
   color: rgba(245, 224, 204, 0.9);
   word-break: break-word;
 }
