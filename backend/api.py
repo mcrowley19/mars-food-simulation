@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from contextlib import contextmanager
 import threading
 import re
+import json
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -57,6 +58,81 @@ def _parse_text_lines(raw: str) -> list[str]:
     return out
 
 
+def _try_parse_json_payload(raw: str):
+    text = str(raw or "").strip()
+    if not text:
+        return None
+
+    candidates = [text]
+
+    fenced_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text, re.IGNORECASE)
+    if fenced_match:
+        candidates.append(fenced_match.group(1).strip())
+
+    obj_start = text.find("{")
+    obj_end = text.rfind("}")
+    if obj_start != -1 and obj_end > obj_start:
+        candidates.append(text[obj_start:obj_end + 1].strip())
+
+    arr_start = text.find("[")
+    arr_end = text.rfind("]")
+    if arr_start != -1 and arr_end > arr_start:
+        candidates.append(text[arr_start:arr_end + 1].strip())
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            return json.loads(candidate)
+        except Exception:
+            continue
+    return None
+
+
+def _render_json_lines(value, indent: int = 0) -> list[str]:
+    pad = " " * indent
+    if isinstance(value, dict):
+        lines = []
+        for key, val in value.items():
+            if isinstance(val, (dict, list)):
+                lines.append(f"{pad}{key}:")
+                lines.extend(_render_json_lines(val, indent + 2))
+            else:
+                lines.append(f"{pad}{key}: {val}")
+        return lines
+    if isinstance(value, list):
+        lines = []
+        for item in value:
+            if isinstance(item, (dict, list)):
+                lines.append(f"{pad}-")
+                lines.extend(_render_json_lines(item, indent + 2))
+            else:
+                lines.append(f"{pad}- {item}")
+        return lines
+    return [f"{pad}{value}"]
+
+
+def _parse_readable_lines(raw: str) -> list[str]:
+    parsed = _try_parse_json_payload(raw)
+    if parsed is not None:
+        lines = _render_json_lines(parsed)
+        return [ln for ln in lines if ln.strip()]
+    return _parse_text_lines(raw)
+
+
+def _hide_log_from_frontend(agent_name: str, response: str) -> bool:
+    if agent_name != "orchestrator":
+        return False
+    text = str(response or "").lower()
+    hidden_markers = (
+        "invocation error:",
+        "agent is already processing a request. concurrent invocations are not supported.",
+        "agent is already running — skipping duplicate invocation.",
+        "background run error:",
+    )
+    return any(marker in text for marker in hidden_markers)
+
+
 def _build_parsed_agent_logs(state: dict) -> dict:
     raw_logs = state.get("agent_logs") if isinstance(state.get("agent_logs"), dict) else {}
     parsed = {}
@@ -67,10 +143,13 @@ def _build_parsed_agent_logs(state: dict) -> dict:
         for entry in entries[-30:]:
             if not isinstance(entry, dict):
                 continue
+            response = entry.get("response", "")
+            if _hide_log_from_frontend(agent_name, response):
+                continue
             parsed_entries.append({
                 "day": entry.get("day"),
-                "task_lines": _parse_text_lines(entry.get("task", "")),
-                "response_lines": _parse_text_lines(entry.get("response", "")),
+                "task_lines": _parse_readable_lines(entry.get("task", "")),
+                "response_lines": _parse_readable_lines(response),
             })
         if parsed_entries:
             parsed[agent_name] = parsed_entries
@@ -81,10 +160,12 @@ def _build_parsed_agent_logs(state: dict) -> dict:
             for agent_name, action in last_actions.items():
                 if not action:
                     continue
+                if _hide_log_from_frontend(agent_name, action):
+                    continue
                 parsed[agent_name] = [{
                     "day": state.get("mission_day"),
                     "task_lines": [],
-                    "response_lines": _parse_text_lines(action),
+                    "response_lines": _parse_readable_lines(action),
                 }]
     return parsed
 
