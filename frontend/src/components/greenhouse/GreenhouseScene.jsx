@@ -174,7 +174,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     } finally {
       jumpInFlightRef.current = false;
     }
-  }, [API]);
+  }, []);
 
   useEffect(() => {
     if (domeDefs) return;
