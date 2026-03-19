@@ -161,7 +161,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     jumpInFlightRef.current = true;
     try {
       const sessionId = getSessionId();
-      await fetch(`${API}/simulate-jump`, {
+      await fetch(`${API_BASE_URL}/simulate-jump`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

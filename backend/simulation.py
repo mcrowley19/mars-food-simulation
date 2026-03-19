@@ -56,11 +56,61 @@ def apply_mars_rules(state: dict) -> dict:
     state["seed_reserve"] = reserve
 
     # --- Food rot: remove harvested food past its shelf life ---
-    from setup_modes import SHELF_LIFE_DAYS
+    from setup_modes import SHELF_LIFE_DAYS, CROP_DEFAULTS
     state["harvested"] = [
         h for h in state["harvested"]
         if (day - h.get("harvested_on_day", 0)) <= SHELF_LIFE_DAYS.get(h.get("name", ""), 30)
     ]
+
+    # --- Smart auto-planting from reserve ---
+    # Plant seeds in staggered waves: for each crop type in reserve, plant a small
+    # batch at intervals tied to its shelf life so harvests stay continuous.
+    # E.g. if lettuce shelf life is 7 days, plant a batch every 7 days.
+    reserve = state.get("seed_reserve", {})
+    floor_space = state.get("floor_space_m2", 0)
+    space_per_plant = 0.25
+    crops = state["crops"]
+    max_plants = int(floor_space / space_per_plant) if space_per_plant > 0 else 0
+
+    if reserve and len(crops) < max_plants:
+        for crop_name in list(reserve.keys()):
+            if reserve[crop_name] <= 0:
+                continue
+            shelf = SHELF_LIFE_DAYS.get(crop_name, 30)
+            maturity = CROP_DEFAULTS.get(crop_name, {}).get("maturity_days", 60)
+            # Plant a batch every `shelf` days so new harvests overlap with expiry
+            # Check if we already have a young batch (age < shelf) of this type growing
+            young_of_type = [
+                c for c in crops
+                if c["name"] == crop_name and c["age_days"] < maturity and c["age_days"] % shelf < 2
+            ]
+            # Only plant if no very young seedlings of this type exist (age < 3 days)
+            seedlings = [c for c in crops if c["name"] == crop_name and c["age_days"] < 3]
+            if seedlings:
+                continue
+            # Determine batch size: enough to sustain crew until next batch
+            # but leave room for other crops
+            slots_available = max_plants - len(crops)
+            if slots_available <= 0:
+                break
+            # Plant 1-3 seeds per batch depending on availability and space
+            batch = min(reserve[crop_name], slots_available, 3)
+            defaults = CROP_DEFAULTS.get(crop_name, {})
+            for _ in range(batch):
+                crops.append({
+                    "name": crop_name,
+                    "age_days": 0,
+                    "maturity_days": defaults.get("maturity_days", 60),
+                    "water_per_day_l": defaults.get("water_per_day_l", 0.3),
+                    "nutrient_per_day_kg": defaults.get("nutrient_per_day_kg", 0.015),
+                    "status": "growing",
+                })
+            reserve[crop_name] -= batch
+            if reserve[crop_name] <= 0:
+                del reserve[crop_name]
+
+    state["crops"] = crops
+    state["seed_reserve"] = reserve
 
     # --- Light variation on ~30-day Mars sol cycle ---
     env["light_hours"] = round(12 + 2 * math.sin(2 * math.pi * day / 30), 1)

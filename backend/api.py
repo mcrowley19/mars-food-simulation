@@ -594,15 +594,25 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                     for c in s["crops"]
                 ) or "No crops planted"
 
+                reserve = s.get("seed_reserve", {})
+                reserve_summary = ", ".join(f"{k}: {v}" for k, v in reserve.items()) if reserve else "empty"
+                cal_avail = s.get("calories_available", 0)
+                cal_need = s.get("calories_needed_per_day", 0)
+                cal_days = round(cal_avail / cal_need, 1) if cal_need > 0 else 0
+
                 context = (
                     f"Mission day {s['mission_day']}. "
                     f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
                     f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
                     f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
                     f"Crops: {crop_summary}. "
+                    f"Seed reserve: {reserve_summary}. "
+                    f"Calories: {cal_avail:.0f} kcal available ({cal_days} days of food remaining at {cal_need} kcal/day). "
                     f"Active events: {', '.join(events) if events else 'none'}. "
                     f"Alerts: {len(s['alerts'])} total. "
-                    "Assess the situation. Take any necessary actions."
+                    "Assess the situation. If seed reserve is not empty and there is floor space, "
+                    "use plant_from_reserve to plant seeds in staggered batches to ensure continuous "
+                    "harvests. Remember food rots — spread plantings over time. Take any necessary actions."
                 )
 
                 from agents.orchestrator import get_orchestrator
