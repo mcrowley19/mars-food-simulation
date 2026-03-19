@@ -13,13 +13,46 @@
   height: 100%;
 }
 
-/* ── Date display (top right) ── */
+/* ── Date display and alerts (top right) ── */
 
-.gh-date {
+.gh-date-bar {
   position: fixed;
   top: 20px;
   right: 20px;
   z-index: 101;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-date-alerts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gh-date-alert {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(180, 40, 40, 0.85);
+  border: 1px solid rgba(255, 80, 80, 0.6);
+  border-radius: 8px;
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #ffe0e0;
+  animation: gh-alert-flash 1.2s ease-in-out infinite;
+}
+
+@keyframes gh-alert-flash {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 60, 60, 0.4); }
+  50%     { opacity: 0.88; box-shadow: 0 0 14px rgba(255, 60, 60, 0.6); }
+}
+
+.gh-date {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -309,6 +342,70 @@
   gap: 10px;
 }
 
+.gh-agent-sidebar-wrap {
+  position: fixed;
+  top: 92px;
+  right: 20px;
+  bottom: 96px;
+  z-index: 102;
+  width: 34px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: stretch;
+  overflow: hidden;
+  transition: width 0.28s ease;
+}
+
+.gh-agent-sidebar-wrap.is-open {
+  width: min(394px, calc(34vw + 34px));
+  max-width: 454px;
+}
+
+/* Panel (aside) is first in DOM; row-reverse puts it visually to the left of the toggle */
+.gh-agent-sidebar-panel {
+  flex: 0 0 min(360px, 34vw);
+  min-width: 280px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(calc(100% + 34px));
+  transition: transform 0.28s ease;
+  pointer-events: none;
+}
+
+.gh-agent-sidebar-panel.is-open {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.gh-agent-sidebar-panel.is-closed {
+  transform: translateX(calc(100% + 34px));
+}
+
+/* Toggle stays fixed on the right; row-reverse places it at the visual right edge */
+.gh-agent-sidebar__toggle {
+  flex: 0 0 34px;
+  width: 34px;
+  min-height: 64px;
+  align-self: center;
+  border: 1px solid rgba(232, 120, 64, 0.3);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background: rgba(10, 5, 2, 0.9);
+  color: #f0a870;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.gh-agent-sidebar__toggle:hover {
+  background: rgba(232, 120, 64, 0.22);
+  border-color: rgba(232, 120, 64, 0.55);
+  color: #ffe0c0;
+}
+
 .gh-resource-trends {
   width: 100%;
   display: flex;
@@ -527,7 +624,9 @@
 
 .gh-agent-logs {
   width: 100%;
-  max-height: min(34vh, 300px);
+  height: 100%;
+  max-height: none;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -537,6 +636,7 @@
   border: 1px solid rgba(232, 120, 64, 0.2);
   border-radius: 10px;
   font-family: var(--mono, 'JetBrains Mono', monospace);
+  pointer-events: auto;
 }
 
 .gh-agent-logs__header {
@@ -589,6 +689,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding-right: 2px;
 }

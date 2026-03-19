@@ -43,7 +43,7 @@ export default function useGreenhouseState(setupComplete) {
     }
 
     fetchState()
-    intervalRef.current = setInterval(fetchState, 2000)
+    intervalRef.current = setInterval(fetchState, 1000)
 
     return () => {
       if (intervalRef.current) {
