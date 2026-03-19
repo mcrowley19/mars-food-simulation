@@ -60,10 +60,10 @@
 }
 
 .hero-header h1 {
-  font-family: var(--heading);
+  font-family: var(--hero-title);
   font-size: clamp(42px, 7vw, 80px);
   font-weight: 600;
-  letter-spacing: -2px;
+  letter-spacing: -1px;
   line-height: 1.05;
   color: #f5f0eb;
   margin: 0 0 24px;
