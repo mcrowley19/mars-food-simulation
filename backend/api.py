@@ -1,14 +1,37 @@
 from contextlib import asynccontextmanager
+from contextlib import contextmanager
 import threading
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import traceback
 
-from state import get_state, update_state
+from state import (
+    get_state, update_state, normalize_session_key,
+    set_request_session, reset_request_session,
+)
 from simulation import apply_mars_rules
 
-_invoke_lock = threading.Lock()
+_lock_registry = {}
+_lock_registry_guard = threading.Lock()
+
+
+def _get_invoke_lock(session_key: str) -> threading.Lock:
+    with _lock_registry_guard:
+        lock = _lock_registry.get(session_key)
+        if lock is None:
+            lock = threading.Lock()
+            _lock_registry[session_key] = lock
+        return lock
+
+
+@contextmanager
+def _session_context(session_key: str):
+    token = set_request_session(session_key)
+    try:
+        yield
+    finally:
+        reset_request_session(token)
 
 
 @asynccontextmanager
@@ -56,9 +79,10 @@ def health():
 
 
 @app.get("/setup-status")
-def setup_status():
+def setup_status(x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    session_key = normalize_session_key(x_session_id)
     try:
-        state = get_state()
+        state = get_state(session_key=session_key)
         return {
             "setup_complete": state.get("setup_complete", False),
             "setup_mode": state.get("setup_mode"),
@@ -69,14 +93,17 @@ def setup_status():
 
 
 @app.post("/invoke")
-def invoke_agent(req: PromptRequest):
-    if not _invoke_lock.acquire(blocking=False):
+def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    session_key = normalize_session_key(x_session_id)
+    lock = _get_invoke_lock(session_key)
+    if not lock.acquire(blocking=False):
         return {"response": "Agent is already running — skipping duplicate invocation."}
     try:
-        from agents.orchestrator import get_orchestrator
-        orchestrator = get_orchestrator()
-        result = orchestrator(req.prompt)
-        return {"response": str(result)}
+        with _session_context(session_key):
+            from agents.orchestrator import get_orchestrator
+            orchestrator = get_orchestrator()
+            result = orchestrator(req.prompt)
+            return {"response": str(result)}
     except Exception as e:
         message = str(e)
         if "AccessDeniedException" in message or "explicit deny" in message:
@@ -89,94 +116,102 @@ def invoke_agent(req: PromptRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=message)
     finally:
-        _invoke_lock.release()
+        lock.release()
 
 
 @app.get("/state")
-def read_state():
-    return get_state()
+def read_state(x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    session_key = normalize_session_key(x_session_id)
+    return get_state(session_key=session_key)
 
 
 @app.post("/setup/manual")
-def setup_manual(req: ManualSetupRequest):
+def setup_manual(req: ManualSetupRequest, x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    session_key = normalize_session_key(x_session_id)
     try:
         from setup_modes import manual_setup
         state = manual_setup(req.model_dump())
         state["setup_mode"] = "manual"
         state["setup_complete"] = True
-        update_state(state)
+        update_state(state, session_key=session_key)
         return state
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/setup/ai-optimised")
-def setup_ai_optimised():
+def setup_ai_optimised(x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    session_key = normalize_session_key(x_session_id)
     try:
         from setup_modes import ai_optimised_setup
         state = ai_optimised_setup()
         state["setup_complete"] = True
-        update_state(state)
+        update_state(state, session_key=session_key)
         return state
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/simulate-tick")
-def simulate_tick():
-    state = get_state()
+def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    session_key = normalize_session_key(x_session_id)
+    state = get_state(session_key=session_key)
 
     if not state.get("setup_complete"):
         raise HTTPException(status_code=400, detail="Setup not complete")
 
     state = apply_mars_rules(state)
-    update_state(state)
+    update_state(state, session_key=session_key)
+
+    lock = _get_invoke_lock(session_key)
 
     # Invoke agent in background if not already running
     def _run_agent():
         try:
-            s = get_state()
-            env = s["environment"]
-            res = s["resources"]
-            events = s["active_events"]
-            crop_summary = ", ".join(
-                f"{c['name']} (day {c.get('age_days', '?')}/{c.get('maturity_days', '?')}, {c.get('status', 'growing')})"
-                for c in s["crops"]
-            ) or "No crops planted"
+            with _session_context(session_key):
+                s = get_state(session_key=session_key)
+                env = s["environment"]
+                res = s["resources"]
+                events = s["active_events"]
+                crop_summary = ", ".join(
+                    f"{c['name']} (day {c.get('age_days', '?')}/{c.get('maturity_days', '?')}, {c.get('status', 'growing')})"
+                    for c in s["crops"]
+                ) or "No crops planted"
 
-            context = (
-                f"Mission day {s['mission_day']}. "
-                f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
-                f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
-                f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
-                f"Crops: {crop_summary}. "
-                f"Active events: {', '.join(events) if events else 'none'}. "
-                f"Alerts: {len(s['alerts'])} total. "
-                "Assess the situation. Take any necessary actions."
-            )
+                context = (
+                    f"Mission day {s['mission_day']}. "
+                    f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
+                    f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
+                    f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
+                    f"Crops: {crop_summary}. "
+                    f"Active events: {', '.join(events) if events else 'none'}. "
+                    f"Alerts: {len(s['alerts'])} total. "
+                    "Assess the situation. Take any necessary actions."
+                )
 
-            from agents.orchestrator import get_orchestrator
-            orchestrator = get_orchestrator()
-            result = orchestrator(context)
-            s = get_state()  # re-read in case ticks advanced
-            s["agent_last_actions"]["orchestrator"] = str(result)
-            update_state(s)
+                from agents.orchestrator import get_orchestrator
+                orchestrator = get_orchestrator()
+                result = orchestrator(context)
+                s = get_state(session_key=session_key)  # re-read in case ticks advanced
+                s["agent_last_actions"]["orchestrator"] = str(result)
+                update_state(s, session_key=session_key)
         except Exception:
             traceback.print_exc()
         finally:
-            _invoke_lock.release()
+            lock.release()
 
-    if _invoke_lock.acquire(blocking=False):
+    if lock.acquire(blocking=False):
         threading.Thread(target=_run_agent, daemon=True).start()
 
     return state
 
 
 @app.post("/reset")
-def reset_state():
+def reset_state(x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    session_key = normalize_session_key(x_session_id)
     from setup_modes import _blank_state
     fresh = _blank_state()
-    update_state(fresh)
+    update_state(fresh, session_key=session_key)
     return fresh
 
 

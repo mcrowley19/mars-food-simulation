@@ -6,6 +6,7 @@ import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
 import LearnMore from "./components/LearnMore";
 import GreenhouseScene from "./components/greenhouse/GreenhouseScene";
+import { getSessionId } from "./utils/session";
 import "./App.css";
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
   const handleBeginSimulation = async (config) => {
     const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    const sessionId = getSessionId();
 
     const types = Array.isArray(config?.seedTypes) ? config.seedTypes : [];
     const totalPacks = config?.seedAmt ?? 40;
@@ -56,7 +58,10 @@ function App() {
       try {
         const res = await fetch(`${API}/setup/manual`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-session-id": sessionId,
+          },
           body: JSON.stringify(setupPayload),
         });
         if (res.ok) {
@@ -86,14 +91,20 @@ function App() {
     if (setupOk) {
       fetch(`${API}/invoke`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-id": sessionId,
+        },
         body: JSON.stringify({ prompt }),
       }).catch(() => {});
     } else {
       // Fallback: still try invoke once in case setup eventually completed server-side.
       fetch(`${API}/invoke`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-id": sessionId,
+        },
         body: JSON.stringify({ prompt }),
       }).catch(() => {});
     }

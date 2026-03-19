@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { getSessionId } from '../utils/session'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -21,8 +22,11 @@ export default function useGreenhouseState(setupComplete) {
       return
     }
 
+    const sessionId = getSessionId()
     const fetchState = () => {
-      fetch(`${API}/state`)
+      fetch(`${API}/state`, {
+        headers: { 'x-session-id': sessionId },
+      })
         .then(r => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`)
           return r.json()
