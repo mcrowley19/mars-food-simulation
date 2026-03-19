@@ -130,6 +130,7 @@ def _blank_state():
         "calories_consumed_today": 0,
         "calorie_deficit_today": 0,
         "setup_complete": False,
+        "agents_initialised": False,
         "setup_mode": None,
         "ai_setup_reasoning": None,
         "ai_setup_in_progress": False,

@@ -489,6 +489,9 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
             with _orchestrator_call_lock:
                 result = orchestrator(req.prompt)
             _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
+            s = get_state(session_key=session_key)
+            s["agents_initialised"] = True
+            update_state(s, session_key=session_key)
             return {"response": str(result)}
     except Exception as e:
         message = str(e)

@@ -1003,7 +1003,7 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
     insideDome,
   ]);
 
-  const agentReady = !awaitAgents || Boolean(simState?.agent_last_actions?.orchestrator) || agentInitTimedOut;
+  const agentReady = !awaitAgents || Boolean(simState?.agents_initialised) || agentInitTimedOut;
 
   useEffect(() => {
     if (agentReady && domeDefs) setIsPlaying(true);
