@@ -45,6 +45,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const [enterLabel, setEnterLabel] = useState(null)
   const [plantHover, setPlantHover] = useState(null)
   const [insideDome, setInsideDome] = useState(null)
+  const insideDomeRef = useRef(null)
   const simDayFracRef = useRef(0.25)
   const [domeDefs, setDomeDefs] = useState(null)
 
@@ -61,6 +62,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   })
 
   useEffect(() => { simStateRef.current = simState }, [simState])
+  useEffect(() => { insideDomeRef.current = insideDome }, [insideDome])
 
   useEffect(() => {
     if (domeDefs) return
@@ -271,30 +273,43 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       lv.fogDensity = lerp(lv.fogDensity, tgtFogDensity, Math.min(1, dt * LERP_SPEED))
       lv.co2Tint = lerp(lv.co2Tint, tgtCo2Tint, Math.min(1, dt * LERP_SPEED))
 
-      const baseSunI = lerp(1.1, 2.75, dayFactor)
-      sun.intensity = baseSunI * lv.sunIntensityMul
-      sun.castShadow = elevation > -0.05
-      const baseAmbI = lerp(0.52, 0.6, twilight)
-      ambient.intensity = baseAmbI * lv.ambientTint
-      fill.intensity = lerp(0.44, 0.5, twilight)
+      const inside = !!insideDomeRef.current
 
-      sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor)
-      sun.color.copy(sunColor)
-
-      bgColor.copy(NIGHT_BG).lerp(DAY_BG, twilight)
-      if (Math.abs(lv.tempTint) > 0.01) {
-        const tintColor = lv.tempTint < 0
-          ? new THREE.Color('#2244ff')
-          : new THREE.Color('#ff3322')
-        bgColor.lerp(tintColor, Math.abs(lv.tempTint) * 0.15)
-      }
-      scene.background.copy(bgColor)
-
-      if (lv.fogDensity > 0.0001) {
-        if (!scene.fog) scene.fog = new THREE.FogExp2('#CC6633', lv.fogDensity)
-        else { scene.fog.color.set('#CC6633'); scene.fog.density = lv.fogDensity }
-      } else if (scene.fog) {
+      if (inside) {
+        // Inside dome: bright interior lighting, no weather effects
+        sun.intensity = 2.75
+        sun.castShadow = true
+        ambient.intensity = 0.7
+        fill.intensity = 0.5
+        sun.color.copy(NOON_SUN)
+        scene.background.set('#1a1a2e')
         scene.fog = null
+      } else {
+        const baseSunI = lerp(1.1, 2.75, dayFactor)
+        sun.intensity = baseSunI * lv.sunIntensityMul
+        sun.castShadow = elevation > -0.05
+        const baseAmbI = lerp(0.52, 0.6, twilight)
+        ambient.intensity = baseAmbI * lv.ambientTint
+        fill.intensity = lerp(0.44, 0.5, twilight)
+
+        sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor)
+        sun.color.copy(sunColor)
+
+        bgColor.copy(NIGHT_BG).lerp(DAY_BG, twilight)
+        if (Math.abs(lv.tempTint) > 0.01) {
+          const tintColor = lv.tempTint < 0
+            ? new THREE.Color('#2244ff')
+            : new THREE.Color('#ff3322')
+          bgColor.lerp(tintColor, Math.abs(lv.tempTint) * 0.15)
+        }
+        scene.background.copy(bgColor)
+
+        if (lv.fogDensity > 0.0001) {
+          if (!scene.fog) scene.fog = new THREE.FogExp2('#CC6633', lv.fogDensity)
+          else { scene.fog.color.set('#CC6633'); scene.fog.density = lv.fogDensity }
+        } else if (scene.fog) {
+          scene.fog = null
+        }
       }
 
       updateCropsAndBeds(greenhouses, DOME_DEFS, ss, lv, dt)
