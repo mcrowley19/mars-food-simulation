@@ -88,6 +88,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const isPlayingRef = useRef(true);
   const isFastForwardRef = useRef(false);
   const [activeAgentTab, setActiveAgentTab] = useState("");
+  const logsListRef = useRef(null);
 
   const simState = useGreenhouseState(true);
   const simStateRef = useRef(null);
@@ -708,6 +709,10 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       ? simState.agent_logs_parsed
       : {};
   const agentTabs = Object.keys(parsedAgentLogs);
+  const activeTab = agentTabs.includes(activeAgentTab)
+    ? activeAgentTab
+    : agentTabs[0] || "";
+  const activeTabEntries = activeTab ? parsedAgentLogs[activeTab] || [] : [];
 
   useEffect(() => {
     if (!agentTabs.length) {
@@ -716,6 +721,11 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     }
     if (!agentTabs.includes(activeAgentTab)) setActiveAgentTab(agentTabs[0]);
   }, [activeAgentTab, agentTabs]);
+
+  useEffect(() => {
+    if (!logsListRef.current) return;
+    logsListRef.current.scrollTop = logsListRef.current.scrollHeight;
+  }, [activeTab, activeTabEntries.length]);
 
   if (!domeDefs) {
     return (
@@ -734,10 +744,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     pct > 0.5 ? "gh-bar--ok" : pct > 0.2 ? "gh-bar--warn" : "gh-bar--crit";
   const hasLiveState = Boolean(simState && simState.setup_complete);
   const currentSol = hud.missionDay || simState?.mission_day || 1;
-  const activeTab = agentTabs.includes(activeAgentTab)
-    ? activeAgentTab
-    : agentTabs[0] || "";
-  const activeTabEntries = activeTab ? parsedAgentLogs[activeTab] || [] : [];
   const prettyAgentName = (name) => String(name || "").replace(/_/g, " ");
 
   return (
@@ -825,56 +831,47 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                 </button>
               ))}
             </div>
-            <div className="gh-agent-logs__list">
+            <div className="gh-agent-logs__list" ref={logsListRef}>
               {activeTabEntries.length === 0 ? (
                 <div className="gh-agent-logs__empty">
                   No entries for this agent yet.
                 </div>
               ) : (
-                activeTabEntries
-                  .slice()
-                  .reverse()
-                  .map((entry, idx) => (
-                    <div
-                      key={`${activeTab}-${idx}`}
-                      className="gh-agent-logs__entry"
-                    >
-                      <div className="gh-agent-logs__meta">
-                        Sol {entry?.day ?? "?"}
-                      </div>
-                      {Array.isArray(entry?.task_lines) &&
-                        entry.task_lines.length > 0 && (
-                          <div className="gh-agent-logs__block">
-                            <div className="gh-agent-logs__label">Task</div>
-                            {entry.task_lines.map((line, i) => (
-                              <div
-                                key={`task-${i}`}
-                                className="gh-agent-logs__line"
-                              >
-                                {line}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      <div className="gh-agent-logs__block">
-                        <div className="gh-agent-logs__label">Response</div>
-                        {Array.isArray(entry?.response_lines) &&
-                        entry.response_lines.length > 0 ? (
-                          entry.response_lines.map((line, i) => (
-                            <div
-                              key={`resp-${i}`}
-                              className="gh-agent-logs__line"
-                            >
-                              {line}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="gh-agent-logs__line">
-                            No response content.
-                          </div>
-                        )}
-                      </div>
+                activeTabEntries.map((entry, idx) => (
+                  <div
+                    key={`${activeTab}-${idx}`}
+                    className="gh-agent-logs__entry"
+                  >
+                    <div className="gh-agent-logs__meta">
+                      Sol {entry?.day ?? "?"}
                     </div>
+                    {Array.isArray(entry?.task_lines) &&
+                    entry.task_lines.length > 0 ? (
+                      <div className="gh-agent-logs__block">
+                        <div className="gh-agent-logs__label">Task</div>
+                        {entry.task_lines.map((line, i) => (
+                          <div key={`task-${i}`} className="gh-agent-logs__line">
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="gh-agent-logs__block">
+                      <div className="gh-agent-logs__label">Response</div>
+                      {Array.isArray(entry?.response_lines) &&
+                      entry.response_lines.length > 0 ? (
+                        entry.response_lines.map((line, i) => (
+                          <div key={`resp-${i}`} className="gh-agent-logs__line">
+                            {line}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="gh-agent-logs__line">
+                          No response content.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   ))
               )}
             </div>
