@@ -242,7 +242,7 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
   const [agentInitTimedOut, setAgentInitTimedOut] = useState(false);
   useEffect(() => {
     if (agentInitTimedOut) return;
-    const t = setTimeout(() => setAgentInitTimedOut(true), 45000);
+    const t = setTimeout(() => setAgentInitTimedOut(true), 15000);
     return () => clearTimeout(t);
   }, [agentInitTimedOut]);
 

@@ -489,26 +489,24 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
                 with _orchestrator_call_lock:
                     result = orchestrator(req.prompt)
                 _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
-                s = get_state(session_key=session_key)
-                s["agents_initialised"] = True
-                update_state(s, session_key=session_key)
         except Exception as e:
             message = str(e)
             if "AccessDeniedException" in message or "explicit deny" in message:
                 message = "Agent invocation blocked by AWS IAM policy."
             _append_state_agent_log(session_key, "orchestrator", req.prompt, f"Invocation error: {message}")
             traceback.print_exc()
-            # Still mark initialised so the loading screen doesn't hang forever
-            try:
-                s = get_state(session_key=session_key)
-                s["agents_initialised"] = True
-                update_state(s, session_key=session_key)
-            except Exception:
-                pass
         finally:
             lock.release()
 
     threading.Thread(target=_run, daemon=True).start()
+    # Mark agents as initialised immediately so the loading screen clears
+    # while the agent works in the background.
+    try:
+        s = get_state(session_key=session_key)
+        s["agents_initialised"] = True
+        update_state(s, session_key=session_key)
+    except Exception:
+        pass
     return {"response": "Agent invocation started."}
 
 
