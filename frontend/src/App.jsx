@@ -126,11 +126,17 @@ function App() {
     }
 
     const state = await res.json();
+    // Return state so InitialiseSession can show the summary card
+    return state;
+  };
 
-    // Fire off an initial agent invocation with the AI reasoning
+  const handleLaunchAI = (aiState) => {
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const sessionId = getSessionId();
+
     const prompt = [
       "The AI has set up the greenhouse with optimal supplies for 4 astronauts over 450 sols.",
-      state.ai_setup_reasoning ? `Reasoning: ${state.ai_setup_reasoning}` : "",
+      aiState.ai_setup_reasoning ? `Reasoning: ${aiState.ai_setup_reasoning}` : "",
       "Assess the initial state and begin managing the greenhouse.",
     ].filter(Boolean).join(" ");
 
@@ -259,6 +265,7 @@ function App() {
           disableBackdropClose={true}
           onBeginSimulation={handleBeginSimulation}
           onBeginAI={handleBeginAI}
+          onLaunchAI={handleLaunchAI}
         />
       </div>
 

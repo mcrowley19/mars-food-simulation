@@ -89,11 +89,12 @@ function ParamRow({ label, children }) {
 }
 
 /* ── Main component ── */
-export default function InitialiseSession({ onBack, disableBackdropClose = false, onBeginSimulation, onBeginAI }) {
-  const [mode, setMode]           = useState(null) // null = choosing, 'manual' = form, 'ai' = loading
+export default function InitialiseSession({ onBack, disableBackdropClose = false, onBeginSimulation, onBeginAI, onLaunchAI }) {
+  const [mode, setMode]           = useState(null) // null = choosing, 'manual' = form, 'ai' = loading, 'ai-review' = summary
   const [cfg, setCfg]             = useState(DEFAULTS)
   const [launching, setLaunching] = useState(false)
-  const [aiStatus, setAiStatus]   = useState('')
+  const [aiState, setAiState]     = useState(null)
+  const [aiLogs, setAiLogs]       = useState([])
 
   const set    = (key, val) => setCfg(prev => ({ ...prev, [key]: val }))
   const reset  = () => setCfg(DEFAULTS)
@@ -128,13 +129,39 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
 
   const handleAIBegin = async () => {
     setMode('ai')
-    setAiStatus('AI is calculating the optimal supply loadout for a 450-sol mission…')
+    setAiLogs([])
+
+    const LOG_STEPS = [
+      { delay: 0,    text: 'Initialising crop planner agent…' },
+      { delay: 1200, text: 'Connecting to Mars Knowledge Base…' },
+      { delay: 2800, text: 'Querying crop yield data for 9 seed types…' },
+      { delay: 5000, text: 'Analysing nutritional coverage for 4 astronauts × 450 sols…' },
+      { delay: 7500, text: 'Evaluating water & nutrient budgets under Mars constraints…' },
+      { delay: 10000, text: 'Optimising seed ratios for caloric density and micronutrient diversity…' },
+      { delay: 13000, text: 'Computing floor space and staggered planting schedule…' },
+      { delay: 16000, text: 'Running final validation checks…' },
+    ]
+
+    const timers = []
+    for (const step of LOG_STEPS) {
+      timers.push(setTimeout(() => {
+        setAiLogs(prev => [...prev, { time: Date.now(), text: step.text }])
+      }, step.delay))
+    }
+
     try {
       if (onBeginAI) {
-        await onBeginAI()
+        const state = await onBeginAI()
+        timers.forEach(clearTimeout)
+        setAiLogs(prev => [...prev, { time: Date.now(), text: 'Optimal loadout computed. Ready for review.', done: true }])
+        setAiState(state)
+        await new Promise(r => setTimeout(r, 800))
+        setMode('ai-review')
       }
     } catch {
-      setAiStatus('Something went wrong. Please try again.')
+      timers.forEach(clearTimeout)
+      setAiLogs(prev => [...prev, { time: Date.now(), text: 'Error: AI setup failed. Please try again.', error: true }])
+      await new Promise(r => setTimeout(r, 2000))
       setMode(null)
     }
   }
@@ -196,9 +223,108 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             </div>
             <div style={{ width: 160 }} />
           </div>
-          <div className="is-ai-loading">
-            <span className="is-spinner is-spinner--large" />
-            <p className="is-ai-loading__text">{aiStatus}</p>
+          <div className="is-ai-terminal">
+            <div className="is-ai-terminal__header">
+              <span className="is-ai-terminal__dot" />
+              <span className="is-ai-terminal__dot" />
+              <span className="is-ai-terminal__dot" />
+              <span className="is-ai-terminal__title">crop-planner-agent</span>
+            </div>
+            <div className="is-ai-terminal__body">
+              {aiLogs.map((log, i) => (
+                <div
+                  key={i}
+                  className={`is-ai-terminal__line${log.done ? ' is-ai-terminal__line--done' : ''}${log.error ? ' is-ai-terminal__line--error' : ''}`}
+                >
+                  <span className="is-ai-terminal__prefix">
+                    {log.done ? '✓' : log.error ? '✗' : '›'}
+                  </span>
+                  <span className="is-ai-terminal__text">{log.text}</span>
+                </div>
+              ))}
+              {!aiLogs.some(l => l.done || l.error) && (
+                <div className="is-ai-terminal__line is-ai-terminal__line--active">
+                  <span className="is-ai-terminal__cursor" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'ai-review' && aiState) {
+    const seeds = aiState.seed_amounts || {}
+    const totalPlants = Object.values(seeds).reduce((a, b) => a + b, 0)
+    return (
+      <div className="is-overlay">
+        <div className="is-panel is-panel--mode-select">
+          <div className="is-topbar">
+            <button className="is-back" onClick={() => setMode(null)}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
+            <div className="is-title">
+              <span className="is-title__mono">SYS · AI</span>
+              <h1 className="is-title__h1">Optimal Loadout</h1>
+            </div>
+            <div style={{ width: 160 }} />
+          </div>
+
+          <div className="is-ai-summary">
+            <div className="is-ai-summary__card">
+              <div className="is-ai-summary__heading">Supply Manifest</div>
+              <div className="is-ai-summary__subtitle">
+                {aiState.astronaut_count || 4} astronauts · {aiState.mission_days || 450} sols
+              </div>
+
+              <div className="is-ai-summary__grid">
+                <div className="is-ai-summary__item">
+                  <span className="is-ai-summary__label">Water</span>
+                  <span className="is-ai-summary__value">{(aiState.water_l || 0).toLocaleString()} L</span>
+                </div>
+                <div className="is-ai-summary__item">
+                  <span className="is-ai-summary__label">Fertilizer</span>
+                  <span className="is-ai-summary__value">{(aiState.fertilizer_kg || 0).toLocaleString()} kg</span>
+                </div>
+                <div className="is-ai-summary__item">
+                  <span className="is-ai-summary__label">Soil</span>
+                  <span className="is-ai-summary__value">{(aiState.soil_kg || 0).toLocaleString()} kg</span>
+                </div>
+                <div className="is-ai-summary__item">
+                  <span className="is-ai-summary__label">Floor Space</span>
+                  <span className="is-ai-summary__value">{(aiState.floor_space_m2 || 0).toLocaleString()} m²</span>
+                </div>
+              </div>
+
+              <div className="is-ai-summary__seeds-section">
+                <span className="is-ai-summary__seeds-label">Seeds — {totalPlants} plants</span>
+                <div className="is-ai-summary__seeds">
+                  {Object.entries(seeds).map(([name, count]) => (
+                    <span key={name} className="is-ai-summary__seed-chip">
+                      {name} <strong>{count}</strong>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {aiState.ai_setup_reasoning && (
+                <div className="is-ai-summary__reasoning">
+                  <span className="is-ai-summary__reasoning-label">AI Reasoning</span>
+                  <p className="is-ai-summary__reasoning-text">{aiState.ai_setup_reasoning}</p>
+                </div>
+              )}
+            </div>
+
+            <button
+              className="is-btn-begin is-btn-begin--ai"
+              onClick={() => onLaunchAI && onLaunchAI(aiState)}
+            >
+              Begin Mission
+            </button>
           </div>
         </div>
       </div>
