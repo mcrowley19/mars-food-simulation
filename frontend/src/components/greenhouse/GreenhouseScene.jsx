@@ -44,7 +44,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     tempTint: 0,
     fogDensity: 0,
     plantScales: [],
-    waterFault: 0,
     co2Tint: 0,
   })
 
@@ -203,14 +202,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         ? (env.temp_c < 15 ? -(15 - env.temp_c) / 15 : env.temp_c > 30 ? (env.temp_c - 30) / 20 : 0)
         : 0
       const tgtFogDensity = events.includes('dust_storm') ? 0.008 : 0
-      const tgtWaterFault = events.includes('water_recycler_fault') ? 1 : 0
       const tgtCo2Tint = events.includes('co2_spike') ? 1 : 0
 
       lv.sunIntensityMul = lerp(lv.sunIntensityMul, tgtSunMul, Math.min(1, dt * LERP_SPEED))
       lv.ambientTint = lerp(lv.ambientTint, tgtAmbientTint, Math.min(1, dt * LERP_SPEED))
       lv.tempTint = lerp(lv.tempTint, tgtTempTint, Math.min(1, dt * LERP_SPEED))
       lv.fogDensity = lerp(lv.fogDensity, tgtFogDensity, Math.min(1, dt * LERP_SPEED))
-      lv.waterFault = lerp(lv.waterFault, tgtWaterFault, Math.min(1, dt * LERP_SPEED))
       lv.co2Tint = lerp(lv.co2Tint, tgtCo2Tint, Math.min(1, dt * LERP_SPEED))
 
       const baseSunI = lerp(1.1, 2.75, dayFactor)
@@ -239,7 +236,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         scene.fog = null
       }
 
-      updateCropsAndBeds(greenhouses, DOME_DEFS, ss, lv, dt, now)
+      updateCropsAndBeds(greenhouses, DOME_DEFS, ss, lv, dt)
 
       frameCount++; fpsAccum += dt
       if (now - lastFpsUpdate > 500) {

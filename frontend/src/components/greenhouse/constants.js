@@ -22,8 +22,6 @@ export const DOME_DEFS_BASE = [
 export const MIN_DOME_R = 8
 export const MAX_DOME_R = 35
 
-export const TUNNELS = []
-
 export function compassDir(deg) {
   const d = ['N','NE','E','SE','S','SW','W','NW']
   return d[Math.round(((deg % 360) + 360) % 360 / 45) % 8]

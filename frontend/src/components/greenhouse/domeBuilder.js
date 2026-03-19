@@ -61,7 +61,7 @@ function buildDomeInterior(radius) {
     if (planterMeshes.length >= MAX_PLANTERS) break
   }
 
-  return { group: g, plantMeshes, soilMats, soilMeshes, planterMeshes, waterPoolMat: null }
+  return { group: g, plantMeshes, soilMats, soilMeshes, planterMeshes }
 }
 
 export function buildSingleDome(def) {
@@ -142,7 +142,7 @@ export function buildSingleDome(def) {
   airlock.castShadow = true
   group.add(airlock)
 
-  const { group: interiorGroup, plantMeshes, soilMats, soilMeshes, planterMeshes, waterPoolMat } = buildDomeInterior(r)
+  const { group: interiorGroup, plantMeshes, soilMats, soilMeshes, planterMeshes } = buildDomeInterior(r)
   interiorGroup.visible = true
   interiorGroup.name = 'interior'
   group.add(interiorGroup)
@@ -151,7 +151,6 @@ export function buildSingleDome(def) {
   group.userData.soilMats = soilMats
   group.userData.soilMeshes = soilMeshes
   group.userData.planterMeshes = planterMeshes
-  group.userData.waterPoolMat = waterPoolMat
   group.userData.shellMat = domeMat
 
   return group

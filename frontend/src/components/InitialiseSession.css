@@ -381,13 +381,6 @@
   letter-spacing: 0.3px;
 }
 
-.is-footer__actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
 .is-btn-reset {
   font-family: var(--sans);
   font-size: 14px;

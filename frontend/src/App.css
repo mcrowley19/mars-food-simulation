@@ -20,10 +20,6 @@
   display: block;
 }
 
-.canvas-container--dashboard {
-  transform: translateX(0);
-}
-
 .overlay {
   position: relative;
   z-index: 2;

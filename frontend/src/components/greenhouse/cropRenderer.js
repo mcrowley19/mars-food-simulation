@@ -28,7 +28,7 @@ export function distributeCrops(crops, domeDefsArr) {
   return result
 }
 
-export function updateCropsAndBeds(greenhouses, domeDefs, ss, lv, dt, now) {
+export function updateCropsAndBeds(greenhouses, domeDefs, ss, lv, dt) {
   const LERP_SPEED = 4
   if (!ss?.crops) return
 
@@ -102,18 +102,6 @@ export function updateCropsAndBeds(greenhouses, domeDefs, ss, lv, dt, now) {
         if (nPct < 0.15) {
           sm.color.lerp(new THREE.Color('#4a1a1a'), 0.25)
         }
-      }
-    }
-
-    const wpMat = gh.userData.waterPoolMat
-    if (wpMat) {
-      if (lv.waterFault > 0.5) {
-        const pulse = Math.sin(now * 0.006) * 0.5 + 0.5
-        wpMat.color.lerpColors(new THREE.Color('#112244'), new THREE.Color('#cc2222'), lv.waterFault * pulse)
-        wpMat.emissive.lerpColors(new THREE.Color('#0055aa'), new THREE.Color('#ff0000'), lv.waterFault * pulse)
-      } else {
-        wpMat.color.set('#112244')
-        wpMat.emissive.set('#0055aa')
       }
     }
 

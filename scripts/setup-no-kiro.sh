@@ -26,7 +26,7 @@ python -m pip install strands-agents strands-agents-tools
 echo
 echo "==> Setup complete"
 echo "Next steps:"
-echo "  1) Copy env template: cp \"$ROOT_DIR/.env.example\" \"$ROOT_DIR/.env\""
-echo "  2) Fill in AWS vars in .env"
+echo "  1) Copy env template: cp \"$ROOT_DIR/backend/.env.example\" \"$ROOT_DIR/backend/.env\""
+echo "  2) Fill in AWS vars in backend/.env"
 echo "  3) Start frontend: \"$ROOT_DIR/scripts/run-frontend.sh\""
 echo "  4) (Amplify projects only) Start backend sandbox: \"$ROOT_DIR/scripts/run-ampx-sandbox.sh\""
