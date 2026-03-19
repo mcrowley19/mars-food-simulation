@@ -997,19 +997,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
 
   const agentReady = !awaitAgents || Boolean(simState?.agent_last_actions?.orchestrator) || agentInitTimedOut;
 
-  if (!domeDefs || !agentReady) {
-    const loadingText = !domeDefs
-      ? "Loading colony data…"
-      : "Initialising AI agents…";
-    return (
-      <div className="gh-overlay">
-        <div className="gh-loading">
-          <span className="gh-loading__spinner" />
-          <span className="gh-loading__text">{loadingText}</span>
-        </div>
-      </div>
-    );
-  }
+  const showLoadingOverlay = !domeDefs || !agentReady;
+  const loadingText = !domeDefs ? "Loading colony data…" : "Initialising AI agents…";
 
   const waterPct = INITIAL_WATER > 0 ? hud.waterL / INITIAL_WATER : 1;
   const barClass = (pct) =>
@@ -1106,6 +1095,14 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
   return (
     <div className="gh-overlay">
       <canvas ref={canvasRef} className="gh-canvas" />
+      {showLoadingOverlay && (
+        <div className="gh-loading-overlay">
+          <div className="gh-loading">
+            <span className="gh-loading__spinner" />
+            <span className="gh-loading__text">{loadingText}</span>
+          </div>
+        </div>
+      )}
 
       <button className="gh-exit" onClick={handleExit} ref={exitButtonRef}>
         ←{" "}

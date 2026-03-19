@@ -254,6 +254,16 @@
   box-shadow: 0 0 30px rgba(232, 120, 64, 0.25);
 }
 
+.gh-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  background: rgba(6, 3, 1, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .gh-loading {
   display: flex;
   flex-direction: column;
