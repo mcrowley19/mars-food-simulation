@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { DOME_OPACITY, CROP_EMPTY_COLOR } from "./constants";
+import { DOME_OPACITY } from "./constants";
 
 function buildDomeInterior(radius) {
   const g = new THREE.Group();
@@ -21,7 +21,6 @@ function buildDomeInterior(radius) {
   const interiorLight = new THREE.PointLight("#ffe8cc", 1.5, radius * 3, 1);
   interiorLight.position.set(0, radius * 0.55, 0);
   g.add(interiorLight);
-  const plantGeom = new THREE.SphereGeometry(1, 10, 8);
   const hitGeom = new THREE.SphereGeometry(1, 6, 4);
   const hitMat = new THREE.MeshBasicMaterial({ visible: false });
   const plantMeshes = [];
@@ -119,18 +118,13 @@ function buildDomeInterior(radius) {
       soilMeshes.push(soil);
 
       const pBase = Math.max(0.08, colWidth * 0.16);
-      const plantMat = new THREE.MeshStandardMaterial({
-        color: CROP_EMPTY_COLOR,
-        emissive: "#000000",
-        emissiveIntensity: 0,
-        roughness: 0.55,
-        fog: false,
-      });
-      const plant = new THREE.Mesh(plantGeom, plantMat);
+      const plant = new THREE.Group();
       plant.position.set(x, FLOOR_Y + boxH + soilH + pBase + 0.02, z);
-      plant.scale.set(pBase, pBase * 1.25, pBase);
+      plant.scale.set(pBase, pBase, pBase);
       plant.userData.isPlant = true;
       plant.userData.baseScale = pBase;
+      plant.userData.visualType = "";
+      plant.userData.visualMats = [];
       g.add(plant);
       plantMeshes.push(plant);
 
