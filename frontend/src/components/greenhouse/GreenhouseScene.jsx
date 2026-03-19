@@ -412,31 +412,26 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         }
       }
 
+      // Mars sol: ~24h 37m, nearly equal day/night (~12.3h each).
+      // sunPhase 0→1 maps to one full sol. Noon at 0.25, midnight at 0.75.
       const sunPhase = simDayFracRef.current;
       const sunAngle = sunPhase * Math.PI * 2;
       const sunY = Math.sin(sunAngle) * SUN_MAX_H;
       const sunX = Math.cos(sunAngle) * SUN_ORBIT_R;
       const sunZ = Math.sin(sunAngle + Math.PI / 3) * SUN_ORBIT_R * 0.6;
 
-      sun.position.set(sunX, Math.max(sunY, -SUN_MAX_H * 0.5), sunZ);
+      // Let the sun go fully below the horizon — no clamping
+      sun.position.set(sunX, sunY, sunZ);
       sun.target.position.set(0, 0, 0);
       sun.target.updateMatrixWorld();
 
-      const elevation = sunY / SUN_MAX_H;
-      // Explicitly day-dominant cycle: keep daylight for most of the sol.
-      const noonPhase = 0.25;
-      const phaseDist = Math.abs(sunPhase - noonPhase);
-      const circularDist = Math.min(phaseDist, 1 - phaseDist);
-      const blendWindow = (dist, span, feather) => {
-        const half = span * 0.5;
-        const inner = half - feather;
-        const outer = half + feather;
-        if (dist <= inner) return 1;
-        if (dist >= outer) return 0;
-        return 1 - (dist - inner) / (outer - inner);
-      };
-      const dayFactor = blendWindow(circularDist, 0.84, 0.05);
-      const twilight = blendWindow(circularDist, 0.94, 0.08);
+      // elevation: 1 at noon (phase 0.25), -1 at midnight (phase 0.75)
+      const elevation = Math.sin(sunAngle);
+      // dayFactor: 1 when sun is up, 0 when below horizon, smooth twilight transition
+      // Mars twilight is ~1h out of 24.6h ≈ 0.04 of the cycle
+      const dayFactor = Math.max(0, Math.min(1, (elevation + 0.1) / 0.2));
+      // twilight: slightly wider blend for ambient light (includes civil twilight)
+      const twilight = Math.max(0, Math.min(1, (elevation + 0.2) / 0.3));
 
       const ss = simStateRef.current;
       const env = ss?.environment || {};
