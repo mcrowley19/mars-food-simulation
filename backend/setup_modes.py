@@ -38,6 +38,7 @@ def _blank_state():
         "alerts": [],
         "active_events": [],
         "agent_last_actions": {},
+        "agent_logs": {},
         "water_l": 0,
         "fertilizer_kg": 0,
         "soil_kg": 0,

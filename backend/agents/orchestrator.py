@@ -1,5 +1,6 @@
 from strands import Agent, tool
 from strands.models.bedrock import BedrockModel
+from state import get_state, update_state
 from tools.simulation_tools import (
     get_current_state,
     harvest_crop,
@@ -11,6 +12,7 @@ from tools.simulation_tools import (
 )
 
 _orchestrator = None
+_MAX_AGENT_LOGS = 80
 
 
 def _get_agent(name):
@@ -41,34 +43,65 @@ def _lazy(name):
     return _agents[name]
 
 
+def _append_agent_log(agent_name: str, task: str, response: str):
+    """Persist per-agent logs in state for frontend tab rendering."""
+    try:
+        state = get_state()
+        logs = state.setdefault("agent_logs", {})
+        entries = logs.setdefault(agent_name, [])
+        entries.append({
+            "day": state.get("mission_day"),
+            "task": str(task or ""),
+            "response": str(response or ""),
+        })
+        if len(entries) > _MAX_AGENT_LOGS:
+            logs[agent_name] = entries[-_MAX_AGENT_LOGS:]
+        state.setdefault("agent_last_actions", {})
+        state["agent_last_actions"][agent_name] = str(response or "")
+        update_state(state)
+    except Exception:
+        # Logging should never block orchestration flow.
+        return
+
+
 @tool
 def delegate_to_crop_planner(task: str) -> str:
     """Delegate a crop planning or scheduling task."""
-    return str(_lazy("crop_planner")(task))
+    result = str(_lazy("crop_planner")(task))
+    _append_agent_log("crop_planner", task, result)
+    return result
 
 
 @tool
 def delegate_to_env_monitor(task: str) -> str:
     """Delegate an environment monitoring or adjustment task."""
-    return str(_lazy("env_monitor")(task))
+    result = str(_lazy("env_monitor")(task))
+    _append_agent_log("env_monitor", task, result)
+    return result
 
 
 @tool
 def delegate_to_resource_manager(task: str) -> str:
     """Delegate a water or nutrient management task."""
-    return str(_lazy("resource_manager")(task))
+    result = str(_lazy("resource_manager")(task))
+    _append_agent_log("resource_manager", task, result)
+    return result
 
 
 @tool
 def delegate_to_harvest_optimizer(task: str) -> str:
     """Delegate a harvest timing or scheduling optimization task."""
-    return str(_lazy("harvest_optimizer")(task))
+    result = str(_lazy("harvest_optimizer")(task))
+    _append_agent_log("harvest_optimizer", task, result)
+    return result
 
 
 @tool
 def delegate_to_fault_handler(task: str) -> str:
     """Delegate a system failure, equipment issue, or emergency response task."""
-    return str(_lazy("fault_handler")(task))
+    result = str(_lazy("fault_handler")(task))
+    _append_agent_log("fault_handler", task, result)
+    return result
 
 
 def get_orchestrator():

@@ -54,6 +54,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const solStartTimeRef = useRef(0)
   const [domeDefs, setDomeDefs] = useState(null)
   const tickInFlightRef = useRef(false)
+  const [activeAgentTab, setActiveAgentTab] = useState('')
 
   const simState = useGreenhouseState(true)
   const simStateRef = useRef(null)
@@ -565,6 +566,19 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     setEnterLabel(null)
   }, [])
 
+  const parsedAgentLogs = simState?.agent_logs_parsed && typeof simState.agent_logs_parsed === 'object'
+    ? simState.agent_logs_parsed
+    : {}
+  const agentTabs = Object.keys(parsedAgentLogs)
+
+  useEffect(() => {
+    if (!agentTabs.length) {
+      if (activeAgentTab) setActiveAgentTab('')
+      return
+    }
+    if (!agentTabs.includes(activeAgentTab)) setActiveAgentTab(agentTabs[0])
+  }, [activeAgentTab, agentTabs])
+
   if (!domeDefs) {
     return (
       <div className="gh-overlay">
@@ -581,6 +595,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const barClass = (pct) => pct > 0.5 ? 'gh-bar--ok' : pct > 0.2 ? 'gh-bar--warn' : 'gh-bar--crit'
   const hasLiveState = Boolean(simState && simState.setup_complete)
   const currentSol = hud.missionDay || simState?.mission_day || 1
+  const activeTab = agentTabs.includes(activeAgentTab) ? activeAgentTab : (agentTabs[0] || '')
+  const activeTabEntries = activeTab ? parsedAgentLogs[activeTab] || [] : []
+  const prettyAgentName = (name) => String(name || '').replace(/_/g, ' ')
 
   return (
     <div className="gh-overlay">
@@ -634,6 +651,59 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           </div>
         </div>
       )}
+
+      <div className="gh-agent-logs">
+        <div className="gh-agent-logs__header">Agent Logs</div>
+        {!hasLiveState ? (
+          <div className="gh-agent-logs__empty">Waiting for simulation state…</div>
+        ) : !agentTabs.length ? (
+          <div className="gh-agent-logs__empty">No logs yet. Agents will appear here as they run.</div>
+        ) : (
+          <>
+            <div className="gh-agent-logs__tabs">
+              {agentTabs.map(name => (
+                <button
+                  key={name}
+                  className={`gh-agent-logs__tab ${name === activeTab ? 'is-active' : ''}`}
+                  onClick={() => setActiveAgentTab(name)}
+                  type="button"
+                >
+                  {prettyAgentName(name)}
+                </button>
+              ))}
+            </div>
+            <div className="gh-agent-logs__list">
+              {activeTabEntries.length === 0 ? (
+                <div className="gh-agent-logs__empty">No entries for this agent yet.</div>
+              ) : (
+                activeTabEntries.slice().reverse().map((entry, idx) => (
+                  <div key={`${activeTab}-${idx}`} className="gh-agent-logs__entry">
+                    <div className="gh-agent-logs__meta">Sol {entry?.day ?? '?'}</div>
+                    {Array.isArray(entry?.task_lines) && entry.task_lines.length > 0 && (
+                      <div className="gh-agent-logs__block">
+                        <div className="gh-agent-logs__label">Task</div>
+                        {entry.task_lines.map((line, i) => (
+                          <div key={`task-${i}`} className="gh-agent-logs__line">{line}</div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="gh-agent-logs__block">
+                      <div className="gh-agent-logs__label">Response</div>
+                      {Array.isArray(entry?.response_lines) && entry.response_lines.length > 0 ? (
+                        entry.response_lines.map((line, i) => (
+                          <div key={`resp-${i}`} className="gh-agent-logs__line">{line}</div>
+                        ))
+                      ) : (
+                        <div className="gh-agent-logs__line">No response content.</div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="gh-resources">
         {!hasLiveState ? (

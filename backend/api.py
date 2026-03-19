@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from contextlib import contextmanager
 import threading
+import re
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -23,6 +24,75 @@ def _get_invoke_lock(session_key: str) -> threading.Lock:
             lock = threading.Lock()
             _lock_registry[session_key] = lock
         return lock
+
+
+def _append_state_agent_log(session_key: str, agent_name: str, task: str, response: str):
+    state = get_state(session_key=session_key)
+    logs = state.setdefault("agent_logs", {})
+    entries = logs.setdefault(agent_name, [])
+    entries.append({
+        "day": state.get("mission_day"),
+        "task": str(task or ""),
+        "response": str(response or ""),
+    })
+    if len(entries) > 80:
+        logs[agent_name] = entries[-80:]
+    state.setdefault("agent_last_actions", {})
+    state["agent_last_actions"][agent_name] = str(response or "")
+    update_state(state, session_key=session_key)
+
+
+def _parse_text_lines(raw: str) -> list[str]:
+    text = str(raw or "").replace("\r", "\n")
+    lines = [ln.strip() for ln in text.split("\n")]
+    out = []
+    for ln in lines:
+        if not ln:
+            continue
+        cleaned = re.sub(r"^\s*[-*#>\d\.\)\(]+\s*", "", ln).strip()
+        if cleaned:
+            out.append(cleaned)
+    if not out and text.strip():
+        out = [text.strip()]
+    return out
+
+
+def _build_parsed_agent_logs(state: dict) -> dict:
+    raw_logs = state.get("agent_logs") if isinstance(state.get("agent_logs"), dict) else {}
+    parsed = {}
+    for agent_name, entries in raw_logs.items():
+        if not isinstance(entries, list):
+            continue
+        parsed_entries = []
+        for entry in entries[-30:]:
+            if not isinstance(entry, dict):
+                continue
+            parsed_entries.append({
+                "day": entry.get("day"),
+                "task_lines": _parse_text_lines(entry.get("task", "")),
+                "response_lines": _parse_text_lines(entry.get("response", "")),
+            })
+        if parsed_entries:
+            parsed[agent_name] = parsed_entries
+
+    if not parsed:
+        last_actions = state.get("agent_last_actions", {})
+        if isinstance(last_actions, dict):
+            for agent_name, action in last_actions.items():
+                if not action:
+                    continue
+                parsed[agent_name] = [{
+                    "day": state.get("mission_day"),
+                    "task_lines": [],
+                    "response_lines": _parse_text_lines(action),
+                }]
+    return parsed
+
+
+def _state_with_parsed_logs(state: dict) -> dict:
+    payload = dict(state)
+    payload["agent_logs_parsed"] = _build_parsed_agent_logs(state)
+    return payload
 
 
 @contextmanager
@@ -88,22 +158,26 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
     session_key = normalize_session_key(x_session_id)
     lock = _get_invoke_lock(session_key)
     if not lock.acquire(blocking=False):
-        return {"response": "Agent is already running — skipping duplicate invocation."}
+        msg = "Agent is already running — skipping duplicate invocation."
+        _append_state_agent_log(session_key, "orchestrator", req.prompt, msg)
+        return {"response": msg}
     try:
         with _session_context(session_key):
             from agents.orchestrator import get_orchestrator
             orchestrator = get_orchestrator()
             result = orchestrator(req.prompt)
+            _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
             return {"response": str(result)}
     except Exception as e:
         message = str(e)
         if "AccessDeniedException" in message or "explicit deny" in message:
-            return {
-                "response": (
-                    "Agent invocation is currently blocked by AWS IAM policy "
-                    "(explicit deny on Bedrock model invocation)."
-                )
-            }
+            blocked_msg = (
+                "Agent invocation is currently blocked by AWS IAM policy "
+                "(explicit deny on Bedrock model invocation)."
+            )
+            _append_state_agent_log(session_key, "orchestrator", req.prompt, blocked_msg)
+            return {"response": blocked_msg}
+        _append_state_agent_log(session_key, "orchestrator", req.prompt, f"Invocation error: {message}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=message)
     finally:
@@ -113,7 +187,8 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
 @app.get("/state")
 def read_state(x_session_id: str | None = Header(default=None, alias="x-session-id")):
     session_key = normalize_session_key(x_session_id)
-    return get_state(session_key=session_key)
+    state = get_state(session_key=session_key)
+    return _state_with_parsed_logs(state)
 
 
 @app.post("/setup/manual")
@@ -158,6 +233,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
 
     # Invoke agent in background if not already running
     def _run_agent():
+        context = ""
         try:
             with _session_context(session_key):
                 s = get_state(session_key=session_key)
@@ -183,10 +259,20 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                 from agents.orchestrator import get_orchestrator
                 orchestrator = get_orchestrator()
                 result = orchestrator(context)
-                s = get_state(session_key=session_key)  # re-read in case ticks advanced
-                s["agent_last_actions"]["orchestrator"] = str(result)
-                update_state(s, session_key=session_key)
-        except Exception:
+                _append_state_agent_log(session_key, "orchestrator", context, str(result))
+        except Exception as e:
+            err_text = str(e)
+            if "AccessDeniedException" in err_text or "explicit deny" in err_text:
+                err_text = (
+                    "Background orchestrator run blocked by AWS IAM policy "
+                    "(explicit deny on Bedrock model invocation)."
+                )
+            _append_state_agent_log(
+                session_key,
+                "orchestrator",
+                context,
+                f"Background run error: {err_text}",
+            )
             traceback.print_exc()
         finally:
             lock.release()
@@ -194,7 +280,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
     if lock.acquire(blocking=False):
         threading.Thread(target=_run_agent, daemon=True).start()
 
-    return state
+    return _state_with_parsed_logs(state)
 
 
 @app.post("/reset")
