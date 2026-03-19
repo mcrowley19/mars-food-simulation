@@ -3,6 +3,85 @@ import math
 
 URINE_RECOVERY_EFFICIENCY = 0.85
 
+# Optimal environmental ranges for crop health scoring
+OPTIMAL_TEMP_C      = (18, 26)
+OPTIMAL_CO2_PPM     = (800, 1200)
+OPTIMAL_HUMIDITY    = (50, 70)
+OPTIMAL_LIGHT_HOURS = (12, 16)
+OPTIMAL_LIGHT_INT   = 0.9   # anything >= this is full health
+
+
+def _stress_factor(value, low, high, hard_low=None, hard_high=None):
+    """Return 0.0 (full stress) to 1.0 (no stress) based on how far value is from the optimal band.
+    Outside hard limits the factor bottoms out at 0.1."""
+    if low <= value <= high:
+        return 1.0
+    if value < low:
+        span = low - (hard_low if hard_low is not None else low * 0.5)
+        if span <= 0:
+            return 0.1
+        return max(0.1, (value - (hard_low if hard_low is not None else low * 0.5)) / span)
+    # value > high
+    span = (hard_high if hard_high is not None else high * 1.5) - high
+    if span <= 0:
+        return 0.1
+    return max(0.1, 1.0 - (value - high) / span)
+
+
+def compute_crop_health(crop: dict, env: dict, res: dict, total_crop_water_demand: float) -> dict:
+    """Compute per-crop health scores (0–1) for water, nutrient, and light stress.
+    Returns a dict with individual stress factors and a composite health score."""
+    # Water stress: how well-supplied is this crop given available water?
+    # If total demand > supply, all crops share the shortfall proportionally.
+    water_demand = crop.get("water_per_day_l", 0.3)
+    if total_crop_water_demand > 0 and res["water_l"] > 0:
+        supply_ratio = min(1.0, res["water_l"] / total_crop_water_demand)
+    elif res["water_l"] <= 0:
+        supply_ratio = 0.0
+    else:
+        supply_ratio = 1.0
+    water_stress = round(max(0.1, supply_ratio), 3)
+
+    # Nutrient stress: same proportional logic
+    nutrient_demand = crop.get("nutrient_per_day_kg", 0.015)
+    total_nutrient_demand = max(0.001, nutrient_demand)  # use per-crop for simplicity
+    if res["nutrients_kg"] > 0:
+        nutrient_supply = min(1.0, res["nutrients_kg"] / max(0.001, total_nutrient_demand * 30))
+    else:
+        nutrient_supply = 0.0
+    nutrient_stress = round(max(0.1, min(1.0, nutrient_supply)), 3)
+
+    # Light stress: intensity × hours proportion vs optimal
+    light_intensity = env.get("light_intensity", 1.0)
+    light_hours = env.get("light_hours", 12)
+    light_score = (light_intensity / OPTIMAL_LIGHT_INT) * _stress_factor(
+        light_hours, OPTIMAL_LIGHT_HOURS[0], OPTIMAL_LIGHT_HOURS[1], 6, 20
+    )
+    light_stress = round(max(0.1, min(1.0, light_score)), 3)
+
+    # Environmental stress: temp, CO2, humidity
+    temp_stress = _stress_factor(env.get("temp_c", 22), *OPTIMAL_TEMP_C, 5, 40)
+    co2_stress  = _stress_factor(env.get("co2_ppm", 800), *OPTIMAL_CO2_PPM, 350, 3000)
+    hum_stress  = _stress_factor(env.get("humidity_pct", 65), *OPTIMAL_HUMIDITY, 20, 95)
+    env_stress  = round((temp_stress + co2_stress + hum_stress) / 3, 3)
+
+    # Composite health: weighted average (water most important, then light, then nutrient, then env)
+    health = round(
+        water_stress    * 0.35 +
+        nutrient_stress * 0.20 +
+        light_stress    * 0.25 +
+        env_stress      * 0.20,
+        3,
+    )
+
+    return {
+        "water_stress":    water_stress,
+        "nutrient_stress": nutrient_stress,
+        "light_stress":    light_stress,
+        "env_stress":      env_stress,
+        "health":          health,
+    }
+
 
 def apply_mars_rules(state: dict) -> dict:
     if not state.get("setup_complete"):
@@ -28,11 +107,26 @@ def apply_mars_rules(state: dict) -> dict:
     crop_nutrient_use = sum(c.get("nutrient_per_day_kg", 0) for c in crops)
     res["nutrients_kg"] = max(0, res["nutrients_kg"] - crop_nutrient_use)
 
-    # --- Age crops ---
+    # --- Age crops and compute per-crop health ---
+    total_crop_water_demand = sum(c.get("water_per_day_l", 0) for c in crops)
     for crop in crops:
         crop["age_days"] = crop.get("age_days", 0) + 1
         if crop["age_days"] >= crop.get("maturity_days", 9999):
             crop["status"] = "ready_to_harvest"
+
+        # Compute today's health scores and accumulate stress
+        health_scores = compute_crop_health(crop, env, res, total_crop_water_demand)
+        crop["health"]          = health_scores["health"]
+        crop["water_stress"]    = health_scores["water_stress"]
+        crop["nutrient_stress"] = health_scores["nutrient_stress"]
+        crop["light_stress"]    = health_scores["light_stress"]
+        crop["env_stress"]      = health_scores["env_stress"]
+        # cumulative_stress: rolling average health across the crop's lifetime
+        prev_cum = crop.get("cumulative_health", 1.0)
+        age = crop["age_days"]
+        crop["cumulative_health"] = round(
+            (prev_cum * (age - 1) + health_scores["health"]) / age, 3
+        )
 
     # --- Auto-harvest mature crops; return seed to reserve ---
     base_yield_kg = {
@@ -47,7 +141,11 @@ def apply_mars_rules(state: dict) -> dict:
     for crop in crops:
         if crop["status"] == "ready_to_harvest":
             progress = crop["age_days"] / crop["maturity_days"] if crop.get("maturity_days", 0) > 0 else 0
-            yield_kg = round(base_yield_kg.get(crop["name"], 0.1) * min(progress, 1.0), 3)
+            # Yield is scaled by cumulative health — stress reduces actual output
+            cumulative_health = crop.get("cumulative_health", 1.0)
+            yield_kg = round(
+                base_yield_kg.get(crop["name"], 0.1) * min(progress, 1.0) * cumulative_health, 3
+            )
             seeds_gained = estimate_seed_return(crop["name"], yield_kg)
             state["harvested"].append({
                 "name": crop["name"],
@@ -55,6 +153,7 @@ def apply_mars_rules(state: dict) -> dict:
                 "harvested_on_day": day,
                 "age_at_harvest": crop["age_days"],
                 "seeds_gained": seeds_gained,
+                "cumulative_health": cumulative_health,
             })
             # Return crop-specific seed counts based on harvested output.
             reserve[crop["name"]] = reserve.get(crop["name"], 0) + seeds_gained
