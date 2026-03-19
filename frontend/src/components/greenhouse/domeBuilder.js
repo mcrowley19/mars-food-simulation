@@ -4,10 +4,18 @@ import { DOME_OPACITY, CROP_EMPTY_COLOR } from './constants'
 function buildDomeInterior(radius) {
   const g = new THREE.Group()
   const FLOOR_Y = 0.1
-  const floorMat = new THREE.MeshStandardMaterial({ color: '#f1f1f1', roughness: 0.82, metalness: 0.04 })
-  const planterMat = new THREE.MeshStandardMaterial({ color: '#6a4429', roughness: 0.8, metalness: 0.08 })
+  const floorMat = new THREE.MeshStandardMaterial({ color: '#f1f1f1', roughness: 0.82, metalness: 0.04, fog: false })
+  const planterMat = new THREE.MeshStandardMaterial({ color: '#6a4429', roughness: 0.8, metalness: 0.08, fog: false })
+
+  // Interior light so crops/planters stay visible during night and dust storms
+  const interiorLight = new THREE.PointLight('#ffe8cc', 1.5, radius * 3, 1)
+  interiorLight.position.set(0, radius * 0.55, 0)
+  g.add(interiorLight)
   const plantGeom = new THREE.SphereGeometry(1, 10, 8)
+  const hitGeom = new THREE.SphereGeometry(1, 6, 4)
+  const hitMat = new THREE.MeshBasicMaterial({ visible: false })
   const plantMeshes = []
+  const hitMeshes = []
   const soilMats = []
   const soilMeshes = []
   const planterMeshes = []
@@ -37,7 +45,7 @@ function buildDomeInterior(radius) {
     // Wooden border/rim around the planter
     const rimThickness = 0.08
     const rimHeight = boxH + soilH
-    const rimMat = new THREE.MeshStandardMaterial({ color: '#6a4429', roughness: 0.7, metalness: 0.12 })
+    const rimMat = new THREE.MeshStandardMaterial({ color: '#6a4429', roughness: 0.7, metalness: 0.12, fog: false })
     const rimY = FLOOR_Y + rimHeight / 2 + 0.02
     // Long sides (along Z)
     const sideL = new THREE.Mesh(new THREE.BoxGeometry(rimThickness, rimHeight, colLen), rimMat)
@@ -57,7 +65,7 @@ function buildDomeInterior(radius) {
     // Single continuous soil bed filling the planter
     const soilInnerW = colWidth - rimThickness
     const soilMat = new THREE.MeshStandardMaterial({
-      color: '#3f2a1d', emissive: '#000000', emissiveIntensity: 0, roughness: 0.9,
+      color: '#3f2a1d', emissive: '#000000', emissiveIntensity: 0, roughness: 0.9, fog: false,
     })
     const soil = new THREE.Mesh(new THREE.BoxGeometry(soilInnerW, boxH + soilH, colLen - rimThickness), soilMat)
     soil.position.set(x, FLOOR_Y + (boxH + soilH) / 2 + 0.02, 0)
@@ -75,7 +83,7 @@ function buildDomeInterior(radius) {
 
       const pBase = Math.max(0.08, colWidth * 0.16)
       const plantMat = new THREE.MeshStandardMaterial({
-        color: CROP_EMPTY_COLOR, emissive: '#000000', emissiveIntensity: 0, roughness: 0.55,
+        color: CROP_EMPTY_COLOR, emissive: '#000000', emissiveIntensity: 0, roughness: 0.55, fog: false,
       })
       const plant = new THREE.Mesh(plantGeom, plantMat)
       plant.position.set(x, FLOOR_Y + boxH + soilH + pBase + 0.02, z)
@@ -84,10 +92,18 @@ function buildDomeInterior(radius) {
       plant.userData.baseScale = pBase
       g.add(plant)
       plantMeshes.push(plant)
+
+      const hitScale = pBase * 2.5
+      const hit = new THREE.Mesh(hitGeom, hitMat)
+      hit.position.copy(plant.position)
+      hit.scale.set(hitScale, hitScale, hitScale)
+      hit.userData.plantIndex = plantMeshes.length - 1
+      g.add(hit)
+      hitMeshes.push(hit)
     }
   }
 
-  return { group: g, plantMeshes, soilMats, soilMeshes, planterMeshes }
+  return { group: g, plantMeshes, hitMeshes, soilMats, soilMeshes, planterMeshes }
 }
 
 export function buildSingleDome(def) {
@@ -168,12 +184,13 @@ export function buildSingleDome(def) {
   airlock.castShadow = true
   group.add(airlock)
 
-  const { group: interiorGroup, plantMeshes, soilMats, soilMeshes, planterMeshes } = buildDomeInterior(r)
+  const { group: interiorGroup, plantMeshes, hitMeshes, soilMats, soilMeshes, planterMeshes } = buildDomeInterior(r)
   interiorGroup.visible = true
   interiorGroup.name = 'interior'
   group.add(interiorGroup)
 
   group.userData.plantMeshes = plantMeshes
+  group.userData.hitMeshes = hitMeshes
   group.userData.soilMats = soilMats
   group.userData.soilMeshes = soilMeshes
   group.userData.planterMeshes = planterMeshes

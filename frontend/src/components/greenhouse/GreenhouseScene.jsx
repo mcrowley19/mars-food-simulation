@@ -180,32 +180,37 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
       raycaster.setFromCamera(pointer, camera)
 
-      const plantMeshes = []
+      const allHitMeshes = []
       for (const gh of greenhouses) {
-        const arr = gh.userData.plantMeshes || []
-        for (const m of arr) if (m.visible) plantMeshes.push(m)
+        const plants = gh.userData.plantMeshes || []
+        const hitArr = gh.userData.hitMeshes || []
+        for (let i = 0; i < hitArr.length; i++) {
+          if (plants[i]?.visible) allHitMeshes.push(hitArr[i])
+        }
       }
 
-      if (plantMeshes.length === 0) {
+      if (allHitMeshes.length === 0) {
         setPlantHover(null)
         return
       }
 
-      const hits = raycaster.intersectObjects(plantMeshes, false)
+      const hits = raycaster.intersectObjects(allHitMeshes, false)
       if (hits.length === 0) {
         setPlantHover(null)
         return
       }
 
-      const mesh = hits[0].object
+      const hitMesh = hits[0].object
+      const pi = hitMesh.userData.plantIndex
       const ss = simStateRef.current
       const domeCrops = distributeCrops(ss?.crops || [], DOME_DEFS)
       let foundCrop = null
 
       for (let di = 0; di < greenhouses.length && !foundCrop; di++) {
-        const plants = greenhouses[di].userData.plantMeshes || []
-        const pi = plants.indexOf(mesh)
-        if (pi !== -1) foundCrop = domeCrops[di]?.[pi] || null
+        const hitArr = greenhouses[di].userData.hitMeshes || []
+        if (hitArr.includes(hitMesh)) {
+          foundCrop = domeCrops[di]?.[pi] || null
+        }
       }
 
       if (!foundCrop) {
@@ -292,43 +297,30 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       lv.fogDensity = lerp(lv.fogDensity, tgtFogDensity, Math.min(1, dt * LERP_SPEED))
       lv.co2Tint = lerp(lv.co2Tint, tgtCo2Tint, Math.min(1, dt * LERP_SPEED))
 
-      const inside = !!insideDomeRef.current
+      const baseSunI = lerp(1.1, 2.75, dayFactor)
+      sun.intensity = baseSunI * lv.sunIntensityMul
+      sun.castShadow = elevation > -0.05
+      const baseAmbI = lerp(0.52, 0.6, twilight)
+      ambient.intensity = baseAmbI * lv.ambientTint
+      fill.intensity = lerp(0.44, 0.5, twilight)
 
-      if (inside) {
-        // Inside dome: bright interior lighting, no weather effects
-        sun.intensity = 2.75
-        sun.castShadow = true
-        ambient.intensity = 0.7
-        fill.intensity = 0.5
-        sun.color.copy(NOON_SUN)
-        scene.background.set('#1a1a2e')
+      sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor)
+      sun.color.copy(sunColor)
+
+      bgColor.copy(NIGHT_BG).lerp(DAY_BG, twilight)
+      if (Math.abs(lv.tempTint) > 0.01) {
+        const tintColor = lv.tempTint < 0
+          ? new THREE.Color('#2244ff')
+          : new THREE.Color('#ff3322')
+        bgColor.lerp(tintColor, Math.abs(lv.tempTint) * 0.15)
+      }
+      scene.background.copy(bgColor)
+
+      if (lv.fogDensity > 0.0001) {
+        if (!scene.fog) scene.fog = new THREE.FogExp2('#CC6633', lv.fogDensity)
+        else { scene.fog.color.set('#CC6633'); scene.fog.density = lv.fogDensity }
+      } else if (scene.fog) {
         scene.fog = null
-      } else {
-        const baseSunI = lerp(1.1, 2.75, dayFactor)
-        sun.intensity = baseSunI * lv.sunIntensityMul
-        sun.castShadow = elevation > -0.05
-        const baseAmbI = lerp(0.52, 0.6, twilight)
-        ambient.intensity = baseAmbI * lv.ambientTint
-        fill.intensity = lerp(0.44, 0.5, twilight)
-
-        sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor)
-        sun.color.copy(sunColor)
-
-        bgColor.copy(NIGHT_BG).lerp(DAY_BG, twilight)
-        if (Math.abs(lv.tempTint) > 0.01) {
-          const tintColor = lv.tempTint < 0
-            ? new THREE.Color('#2244ff')
-            : new THREE.Color('#ff3322')
-          bgColor.lerp(tintColor, Math.abs(lv.tempTint) * 0.15)
-        }
-        scene.background.copy(bgColor)
-
-        if (lv.fogDensity > 0.0001) {
-          if (!scene.fog) scene.fog = new THREE.FogExp2('#CC6633', lv.fogDensity)
-          else { scene.fog.color.set('#CC6633'); scene.fog.density = lv.fogDensity }
-        } else if (scene.fog) {
-          scene.fog = null
-        }
       }
 
       updateCropsAndBeds(greenhouses, DOME_DEFS, ss, lv, dt)
