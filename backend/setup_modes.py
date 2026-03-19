@@ -314,10 +314,10 @@ You must return ONLY a JSON object (no markdown, no explanation outside the JSON
 PRIORITY ORDER (allocate cargo in this order — water first):
 1. WATER (highest priority — without water everyone dies within days):
    Each crop consumes water daily: radish 0.15L, lettuce 0.2L, kale 0.25L, wheat/pea/carrot 0.3L, soybean 0.4L, potato 0.5L, tomato 0.6L.
-   Crew uses 10L/day but 85% is recycled (net 1.5L/day crew draw).
-   Calculate minimum water: sum(crop_water_per_day × count) × {mission_days} + 1.5 × {mission_days}.
-   Add 20% safety margin. This is the MINIMUM water_l. Do NOT reduce water to fit other supplies.
-   If cargo is tight, reduce seeds or food — never cut water.
+   Crew uses 10L/day each but 85% is recycled (net {round(astronaut_count * 10 * 0.15, 1)}L/day crew draw for {astronaut_count} astronauts).
+   Crops are replanted continuously so water draw is sustained the whole mission.
+   Calculate minimum water: (sum(crop_water_per_day × count) + {round(astronaut_count * 10 * 0.15, 1)}) × {mission_days} × 1.25.
+   This is the MINIMUM water_l. If cargo is tight, reduce food or seeds first — NEVER cut water.
 
 2. FUEL (second priority — no fuel means no lights, crops die):
    Grow lights use 0.3 kW/m² running ~12h/day. Life support uses 3 kW constant (24h).
@@ -336,7 +336,7 @@ PRIORITY ORDER (allocate cargo in this order — water first):
 Rules:
 - seed_amounts must only contain seeds from the valid list above
 - All numeric values must be greater than 0
-- TOTAL CARGO MUST NOT EXCEED {max_cargo_kg} kg. Add up: water_l (1 kg/L) + fertilizer_kg + soil_kg + fuel_kg + (food_supplies_kcal / 1500) + (total_seeds × 0.05). If it exceeds {max_cargo_kg}, cut seeds or food first, never water or fuel.
+- TOTAL CARGO MUST NOT EXCEED {max_cargo_kg} kg. Add up: water_l (1 kg/L) + fertilizer_kg + soil_kg + fuel_kg + (food_supplies_kcal / 1500) + (total_seeds × 0.05). If it exceeds {max_cargo_kg}, cut food_supplies_kcal first, then seeds. NEVER reduce water_l or fuel_kg below their calculated minimums.
 - Do NOT wrap the JSON in markdown code fences"""
 
     result = str(agent(prompt))
@@ -372,13 +372,14 @@ Rules:
     # Auto-correct all values so the AI's plan never fails validation
     import math as _math
 
-    # Water: must cover all crop draw + crew net draw for the full mission
+    # Water: must cover all crop draw + crew net draw for the full mission.
+    # Crops are replanted so peak draw ≈ initial planting draw sustained throughout.
     crop_water_day = sum(
         CROP_DEFAULTS.get(k, {}).get("water_per_day_l", 0.3) * v
         for k, v in valid_seeds.items()
     )
-    crew_water_net = 10 * (1 - 0.85)  # 85% recycling
-    min_water = _math.ceil((crop_water_day + crew_water_net) * mission_days * 1.2)
+    crew_water_net = astronaut_count * 10 * (1 - 0.85)  # 85% recycling per astronaut
+    min_water = _math.ceil((crop_water_day + crew_water_net) * mission_days * 1.25)
     water_l = max(float(parsed["water_l"]), min_water)
 
     total_plants = sum(valid_seeds.values())
