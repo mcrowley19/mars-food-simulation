@@ -54,6 +54,10 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const solStartTimeRef = useRef(0)
   const [domeDefs, setDomeDefs] = useState(null)
   const tickInFlightRef = useRef(false)
+  const [isPlaying, setIsPlaying] = useState(true)
+  const [isFastForward, setIsFastForward] = useState(false)
+  const isPlayingRef = useRef(true)
+  const isFastForwardRef = useRef(false)
 
   const simState = useGreenhouseState(true)
   const simStateRef = useRef(null)
@@ -283,12 +287,17 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           solStartTimeRef.current = now
           simDayFracRef.current = 0
         }
-        const elapsed = (now - solStartTimeRef.current) / SOL_TICK_MS
-        simDayFracRef.current = Math.max(0, Math.min(0.999, elapsed))
+        if (isPlayingRef.current) {
+          const tickMs = isFastForwardRef.current ? SOL_TICK_MS / 3 : SOL_TICK_MS
+          const elapsed = (now - solStartTimeRef.current) / tickMs
+          simDayFracRef.current = Math.max(0, Math.min(0.999, elapsed))
+        }
       } else {
         // Fallback visual loop before live state arrives.
-        simDayFracRef.current += dt / 10
-        if (simDayFracRef.current >= 1) simDayFracRef.current = 0
+        if (isPlayingRef.current) {
+          simDayFracRef.current += dt / 10
+          if (simDayFracRef.current >= 1) simDayFracRef.current = 0
+        }
       }
 
       const sunPhase = simDayFracRef.current
@@ -455,12 +464,15 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     }
   }, [cleanup, domeDefs])
 
+  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
+  useEffect(() => { isFastForwardRef.current = isFastForward }, [isFastForward])
+
   useEffect(() => {
-    if (!simState?.setup_complete) return
-    // Keep mission sols advancing for this user's isolated session.
-    const timer = setInterval(() => { simulateTick() }, SOL_TICK_MS)
+    if (!simState?.setup_complete || !isPlaying) return
+    const interval = isFastForward ? SOL_TICK_MS / 3 : SOL_TICK_MS
+    const timer = setInterval(() => { simulateTick() }, interval)
     return () => clearInterval(timer)
-  }, [simState?.setup_complete, simulateTick, SOL_TICK_MS])
+  }, [simState?.setup_complete, simulateTick, SOL_TICK_MS, isPlaying, isFastForward])
 
   const handleEnterDome = useCallback(() => {
     const s = stateRef.current
@@ -539,28 +551,27 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     onExit()
   }, [insideDome, handleExitDome, onExit])
 
-  const handleEnterAll = useCallback(() => {
+  const handleEnterFirstDome = useCallback(() => {
     const s = stateRef.current
     if (!s) return
     const { camera, anim, greenhouses } = s
-    if (anim.active) return
+    if (anim.active || greenhouses.length === 0) return
 
-    for (const gh of greenhouses) {
-      const shell = gh.getObjectByName('shell')
-      if (shell) { shell.visible = true; shell.material.opacity = DOME_OPACITY }
-    }
-
+    const domeGroup = greenhouses[0]
     anim.active = true
     anim.entering = true
-    anim.allMode = true
+    anim.allMode = false
     anim.progress = 0
-    anim.dome = null
+    anim.dome = domeGroup
     anim.startZoom = camera.zoom
-    anim.endZoom = ZOOM_ALL
+    anim.endZoom = ZOOM_ENTERED
     anim.startX = camera.position.x
     anim.startZ = camera.position.z
-    anim.endX = 0
-    anim.endZ = 0
+    anim.endX = domeGroup.position.x
+    anim.endZ = domeGroup.position.z
+
+    const shell = domeGroup.getObjectByName('shell')
+    if (shell) { shell.visible = true; shell.material.opacity = DOME_OPACITY }
 
     setEnterLabel(null)
   }, [])
@@ -591,8 +602,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       </button>
 
       {!insideDome && (
-        <button className="gh-enter-all" onClick={handleEnterAll}>
-          ⬡ Enter All Domes
+        <button className="gh-enter-all" onClick={handleEnterFirstDome}>
+          ⬡ Enter the Dome
         </button>
       )}
 
@@ -702,10 +713,17 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       <div className="gh-timeline">
         <button
           className="gh-timeline-play"
-          disabled
-          aria-label="Live backend time"
+          onClick={() => setIsPlaying(p => !p)}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
         >
-          LIVE
+          {isPlaying ? '❚❚' : '▶'}
+        </button>
+        <button
+          className={`gh-timeline-play gh-timeline-ff${isFastForward ? ' gh-timeline-ff--active' : ''}`}
+          onClick={() => setIsFastForward(f => !f)}
+          aria-label={isFastForward ? 'Normal speed' : 'Fast forward'}
+        >
+          ▶▶
         </button>
         <div className="gh-timeline-track">
           <span className="gh-timeline-label">Sol 1</span>

@@ -92,6 +92,17 @@
   border-color: rgba(120, 180, 160, 0.35);
 }
 
+.gh-timeline-ff {
+  font-size: 10px;
+  letter-spacing: -2px;
+}
+
+.gh-timeline-ff--active {
+  background: rgba(232, 120, 64, 0.3);
+  border-color: rgba(232, 120, 64, 0.8);
+  color: #e87840;
+}
+
 .gh-timeline-track {
   flex: 1;
   display: flex;
