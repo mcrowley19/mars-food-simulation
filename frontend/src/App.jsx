@@ -13,6 +13,7 @@ import "./App.css";
 function App() {
   const [screen, setScreen] = useState("landing");
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [awaitAgents, setAwaitAgents] = useState(false);
 
   const isDashboard = screen === "dashboard";
   const isGreenhouse = screen === "greenhouse";
@@ -55,23 +56,16 @@ function App() {
       fuel_kg: config?.fuelKg ?? 40000,
     };
 
-    let setupOk = false;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
         const res = await fetch(`${API_BASE_URL}/setup/manual`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-session-id": sessionId,
-          },
+          headers: { "Content-Type": "application/json", "x-session-id": sessionId },
           body: JSON.stringify(setupPayload),
         });
         if (res.ok) {
           const setupState = await res.json();
-          if (setupState?.setup_complete) {
-            setupOk = true;
-            break;
-          }
+          if (setupState?.setup_complete) break;
         }
       } catch {}
       await delay(700);
@@ -90,26 +84,12 @@ function App() {
       `Air composition: ${config?.airComp ?? "Hab Mix"}`,
     ].join(" ");
 
-    if (setupOk) {
-      fetch(`${API_BASE_URL}/invoke`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-id": sessionId,
-        },
-        body: JSON.stringify({ prompt }),
-      }).catch(() => {});
-    } else {
-      // Fallback: still try invoke once in case setup eventually completed server-side.
-      fetch(`${API_BASE_URL}/invoke`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-id": sessionId,
-        },
-        body: JSON.stringify({ prompt }),
-      }).catch(() => {});
-    }
+    setAwaitAgents(true);
+    fetch(`${API_BASE_URL}/invoke`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-session-id": sessionId },
+      body: JSON.stringify({ prompt }),
+    }).catch(() => {});
 
     setScreen("greenhouse");
   };
@@ -196,12 +176,10 @@ function App() {
       "Assess the initial state and begin managing the greenhouse.",
     ].filter(Boolean).join(" ");
 
+    setAwaitAgents(true);
     fetch(`${API_BASE_URL}/invoke`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-session-id": sessionId,
-      },
+      headers: { "Content-Type": "application/json", "x-session-id": sessionId },
       body: JSON.stringify({ prompt }),
     }).catch(() => {});
 
@@ -348,7 +326,7 @@ function App() {
       </div>
       {screen === "learn" && <LearnMore onClose={() => setScreen("landing")} />}
       {screen === "greenhouse" && (
-        <GreenhouseScene onExit={() => setScreen("landing")} />
+        <GreenhouseScene onExit={() => { setScreen("landing"); setAwaitAgents(false); }} awaitAgents={awaitAgents} />
       )}
     </div>
   );

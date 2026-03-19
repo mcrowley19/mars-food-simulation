@@ -181,7 +181,7 @@ function PanelChevron({ collapsed }) {
   );
 }
 
-export default function GreenhouseScene({ onExit, totalDays = 350 }) {
+export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents = false }) {
   const SOL_TICK_MS = 8000;
   const canvasRef = useRef(null);
   const exitButtonRef = useRef(null);
@@ -242,6 +242,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(1);
   const jumpInFlightRef = useRef(false);
+  const [agentInitTimedOut, setAgentInitTimedOut] = useState(false);
+  useEffect(() => {
+    if (agentInitTimedOut) return;
+    const t = setTimeout(() => setAgentInitTimedOut(true), 45000);
+    return () => clearTimeout(t);
+  }, [agentInitTimedOut]);
 
   const simState = useGreenhouseState(true);
   const simStateRef = useRef(null);
@@ -989,7 +995,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     insideDome,
   ]);
 
-  const agentReady = Boolean(simState?.agent_last_actions?.orchestrator);
+  const agentReady = !awaitAgents || Boolean(simState?.agent_last_actions?.orchestrator) || agentInitTimedOut;
 
   if (!domeDefs || !agentReady) {
     const loadingText = !domeDefs
