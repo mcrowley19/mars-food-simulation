@@ -697,6 +697,27 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
         scene.fog = null;
       }
 
+      // Drive per-dome interior lighting: bright at night so zoomed-in view stays lit
+      const nightFactor = 1 - dayFactor;
+      for (const gh of greenhouses) {
+        const iLight = gh.userData.interiorLight;
+        const sMat   = gh.userData.shellMat;
+        if (iLight) {
+          // Base intensity always on (grow lights), boosted at night
+          iLight.intensity = lerp(1.2, 3.2, nightFactor);
+        }
+        if (sMat) {
+          // Warm emissive glow on dome shell at night (visible from outside)
+          sMat.emissive = sMat.emissive || new THREE.Color(0, 0, 0);
+          sMat.emissive.setRGB(
+            nightFactor * 0.12,
+            nightFactor * 0.08,
+            nightFactor * 0.04,
+          );
+          sMat.emissiveIntensity = nightFactor * 0.6;
+        }
+      }
+
       updateCropsAndBeds(greenhouses, DOME_DEFS, ss, lv, dt);
 
       frameCount++;

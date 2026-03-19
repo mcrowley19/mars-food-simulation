@@ -247,6 +247,7 @@ export function buildSingleDome(def) {
   group.userData.soilMeshes = soilMeshes;
   group.userData.planterMeshes = planterMeshes;
   group.userData.shellMat = domeMat;
+  group.userData.interiorLight = interiorLight;
 
   return group;
 }
