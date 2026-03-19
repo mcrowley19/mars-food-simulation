@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import useGreenhouseState from '../../hooks/useGreenhouseState'
+import { getSessionId } from '../../utils/session'
 import { initScene, buildTerrain, setupLighting } from './sceneSetup'
 import { buildColony } from './domeBuilder'
 import { distributeCrops, updateCropsAndBeds } from './cropRenderer'
@@ -47,9 +48,11 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const [insideDome, setInsideDome] = useState(null)
   const simDayFracRef = useRef(0.25)
   const [domeDefs, setDomeDefs] = useState(null)
+  const tickInFlightRef = useRef(false)
 
   const simState = useGreenhouseState(true)
   const simStateRef = useRef(null)
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
   const lerpedRef = useRef({
     sunIntensityMul: 1.0,
@@ -61,6 +64,22 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   })
 
   useEffect(() => { simStateRef.current = simState }, [simState])
+
+  const simulateTick = useCallback(async () => {
+    if (tickInFlightRef.current) return
+    tickInFlightRef.current = true
+    try {
+      const sessionId = getSessionId()
+      await fetch(`${API}/simulate-tick`, {
+        method: 'POST',
+        headers: { 'x-session-id': sessionId },
+      })
+    } catch {
+      // ignore transient network/backend errors; polling will recover
+    } finally {
+      tickInFlightRef.current = false
+    }
+  }, [API])
 
   useEffect(() => {
     if (domeDefs) return
@@ -381,6 +400,13 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       cleanup()
     }
   }, [cleanup, domeDefs])
+
+  useEffect(() => {
+    if (!simState?.setup_complete) return
+    // Keep mission sols advancing for this user's isolated session.
+    const timer = setInterval(() => { simulateTick() }, 8000)
+    return () => clearInterval(timer)
+  }, [simState?.setup_complete, simulateTick])
 
   const handleEnterDome = useCallback(() => {
     const s = stateRef.current
