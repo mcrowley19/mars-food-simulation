@@ -32,15 +32,18 @@ export function initScene(canvas, w, h) {
 export function buildTerrain(scene) {
   const marsTexture = new THREE.TextureLoader().load('/mars-texture.jpg')
   marsTexture.colorSpace = THREE.SRGBColorSpace
-  // Moderate zoom: avoids noisy tiling without over-zooming.
-  marsTexture.repeat.set(0.5, 0.5)
-  marsTexture.offset.set(0.25, 0.25)
+  marsTexture.wrapS = THREE.RepeatWrapping
+  marsTexture.wrapT = THREE.RepeatWrapping
+  // Show more of the texture (less zoom).
+  marsTexture.repeat.set(1.5, 1.5)
+  marsTexture.offset.set(0, 0)
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(400, 400),
     new THREE.MeshStandardMaterial({ map: marsTexture, roughness: 0.95 })
   )
   ground.rotation.x = -Math.PI / 2
+  ground.position.y = 0.02
   ground.receiveShadow = true
   scene.add(ground)
 }

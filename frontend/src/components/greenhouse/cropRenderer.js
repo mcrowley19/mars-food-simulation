@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import {
-  CROP_COLORS, CROP_EMPTY_COLOR, CROP_DEAD_COLOR, CROP_HARVEST_EMISSIVE,
+  CROP_COLORS, CROP_DEAD_COLOR, CROP_HARVEST_EMISSIVE,
   INITIAL_WATER, lerp,
 } from './constants'
 
@@ -36,46 +36,41 @@ export function updateCropsAndBeds(greenhouses, domeDefs, ss, lv, dt, now) {
   for (let di = 0; di < greenhouses.length; di++) {
     const gh = greenhouses[di]
     const plants = gh.userData.plantMeshes || []
+    const planters = gh.userData.planterMeshes || []
+    const soilMeshes = gh.userData.soilMeshes || []
     const crops = domeCrops[di] || []
     for (let pi = 0; pi < plants.length; pi++) {
+      const hasCrop = pi < crops.length
+      if (planters[pi]) planters[pi].visible = hasCrop
+      if (soilMeshes[pi]) soilMeshes[pi].visible = hasCrop
       const mesh = plants[pi]
+      mesh.visible = hasCrop
+      if (!hasCrop) continue
       const mat = mesh.material
       const base = mesh.userData.baseScale || 0.12
-      if (pi < crops.length) {
-        const crop = crops[pi]
-        const progress = crop.maturity_days > 0
-          ? Math.min(1, crop.age_days / crop.maturity_days) : 0
-        const tgtScale = base * lerp(0.3, 1.0, progress)
+      const crop = crops[pi]
+      const progress = crop.maturity_days > 0
+        ? Math.min(1, crop.age_days / crop.maturity_days) : 0
+      const tgtScale = base * lerp(0.3, 1.0, progress)
 
-        const isDead = crop.status === 'dead' || crop.status === 'wilted'
-        const isHarvest = crop.status === 'ready_to_harvest'
-        const colorHex = isDead ? CROP_DEAD_COLOR
-          : (CROP_COLORS[crop.name] || '#33cc55')
-        mat.color.set(colorHex)
-        if (isHarvest) {
-          mat.emissive.set(CROP_HARVEST_EMISSIVE)
-          mat.emissiveIntensity = 0.6
-        } else {
-          mat.emissive.set(isDead ? '#000000' : colorHex)
-          mat.emissiveIntensity = isDead ? 0 : 0.25
-        }
-
-        mesh.scale.set(
-          lerp(mesh.scale.x, tgtScale, Math.min(1, dt * LERP_SPEED)),
-          lerp(mesh.scale.y, tgtScale * 1.3, Math.min(1, dt * LERP_SPEED)),
-          lerp(mesh.scale.z, tgtScale, Math.min(1, dt * LERP_SPEED)),
-        )
+      const isDead = crop.status === 'dead' || crop.status === 'wilted'
+      const isHarvest = crop.status === 'ready_to_harvest'
+      const colorHex = isDead ? CROP_DEAD_COLOR
+        : (CROP_COLORS[crop.name] || '#33cc55')
+      mat.color.set(colorHex)
+      if (isHarvest) {
+        mat.emissive.set(CROP_HARVEST_EMISSIVE)
+        mat.emissiveIntensity = 0.6
       } else {
-        mat.color.set(CROP_EMPTY_COLOR)
-        mat.emissive.set('#000000')
-        mat.emissiveIntensity = 0
-        const emptyScale = base * 0.15
-        mesh.scale.set(
-          lerp(mesh.scale.x, emptyScale, Math.min(1, dt * LERP_SPEED)),
-          lerp(mesh.scale.y, emptyScale, Math.min(1, dt * LERP_SPEED)),
-          lerp(mesh.scale.z, emptyScale, Math.min(1, dt * LERP_SPEED)),
-        )
+        mat.emissive.set(isDead ? '#000000' : colorHex)
+        mat.emissiveIntensity = isDead ? 0 : 0.25
       }
+
+      mesh.scale.set(
+        lerp(mesh.scale.x, tgtScale, Math.min(1, dt * LERP_SPEED)),
+        lerp(mesh.scale.y, tgtScale * 1.3, Math.min(1, dt * LERP_SPEED)),
+        lerp(mesh.scale.z, tgtScale, Math.min(1, dt * LERP_SPEED)),
+      )
     }
 
     const soils = gh.userData.soilMats || []
@@ -83,11 +78,9 @@ export function updateCropsAndBeds(greenhouses, domeDefs, ss, lv, dt, now) {
       ? ss.resources.water_l / INITIAL_WATER : 1
     const nPct = ss?.resources?.nutrients_kg != null
       ? ss.resources.nutrients_kg / 200 : 1
-    const PLANTS_PER_BED = 5
     for (let si = 0; si < soils.length; si++) {
       const sm = soils[si]
-      const bedStart = si * PLANTS_PER_BED
-      const bedCrops = crops.slice(bedStart, bedStart + PLANTS_PER_BED)
+      const bedCrops = si < crops.length ? [crops[si]] : []
       if (bedCrops.length === 0) {
         sm.color.set('#1a1a10')
         sm.emissive.set('#000000')
