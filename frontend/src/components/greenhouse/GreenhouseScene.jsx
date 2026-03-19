@@ -224,7 +224,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
   const solStartTimeRef = useRef(0);
   const [domeDefs, setDomeDefs] = useState(null);
   const tickInFlightRef = useRef(false);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isFastForward, setIsFastForward] = useState(false);
   const isPlayingRef = useRef(true);
   const isFastForwardRef = useRef(false);
@@ -996,6 +996,10 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
   ]);
 
   const agentReady = !awaitAgents || Boolean(simState?.agent_last_actions?.orchestrator) || agentInitTimedOut;
+
+  useEffect(() => {
+    if (agentReady && domeDefs) setIsPlaying(true);
+  }, [agentReady, domeDefs]);
 
   const showLoadingOverlay = !domeDefs || !agentReady;
   const loadingText = !domeDefs ? "Loading colony data…" : "Initialising AI agents…";
