@@ -16,6 +16,8 @@ from simulation import apply_mars_rules
 
 _lock_registry = {}
 _lock_registry_guard = threading.Lock()
+_ai_setup_registry = {}
+_ai_setup_registry_guard = threading.Lock()
 _orchestrator_call_lock = threading.Lock()
 _MAX_PARSED_LOG_ENTRIES_PER_AGENT = 12
 _MAX_PARSED_LINES_PER_TASK = 1
@@ -73,6 +75,15 @@ def _get_invoke_lock(session_key: str) -> threading.Lock:
         if lock is None:
             lock = threading.Lock()
             _lock_registry[session_key] = lock
+        return lock
+
+
+def _get_ai_setup_lock(session_key: str) -> threading.Lock:
+    with _ai_setup_registry_guard:
+        lock = _ai_setup_registry.get(session_key)
+        if lock is None:
+            lock = threading.Lock()
+            _ai_setup_registry[session_key] = lock
         return lock
 
 
@@ -376,9 +387,17 @@ def setup_status(x_session_id: str | None = Header(default=None, alias="x-sessio
             "setup_complete": state.get("setup_complete", False),
             "setup_mode": state.get("setup_mode"),
             "mission_day": state.get("mission_day", 1),
+            "ai_setup_in_progress": state.get("ai_setup_in_progress", False),
+            "ai_setup_error": state.get("ai_setup_error"),
         }
     except Exception:
-        return {"setup_complete": False, "setup_mode": None, "mission_day": 1}
+        return {
+            "setup_complete": False,
+            "setup_mode": None,
+            "mission_day": 1,
+            "ai_setup_in_progress": False,
+            "ai_setup_error": None,
+        }
 
 
 @app.post("/invoke")
@@ -437,14 +456,42 @@ def setup_manual(req: ManualSetupRequest, x_session_id: str | None = Header(defa
 @app.post("/setup/ai-optimised")
 def setup_ai_optimised(x_session_id: str | None = Header(default=None, alias="x-session-id")):
     session_key = normalize_session_key(x_session_id)
-    try:
-        from setup_modes import ai_optimised_setup
-        state = ai_optimised_setup()
-        state["setup_complete"] = True
-        update_state(state, session_key=session_key)
-        return state
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    current = get_state(session_key=session_key)
+
+    if current.get("setup_complete") and current.get("setup_mode") == "ai_optimised":
+        return {"status": "ready"}
+
+    if current.get("ai_setup_in_progress"):
+        return {"status": "in_progress"}
+
+    lock = _get_ai_setup_lock(session_key)
+    if not lock.acquire(blocking=False):
+        return {"status": "in_progress"}
+
+    current["ai_setup_in_progress"] = True
+    current["ai_setup_error"] = None
+    update_state(current, session_key=session_key)
+
+    def _run_ai_setup():
+        try:
+            with _session_context(session_key):
+                from setup_modes import ai_optimised_setup
+                state = ai_optimised_setup()
+                state["setup_complete"] = True
+                state["setup_mode"] = "ai_optimised"
+                state["ai_setup_in_progress"] = False
+                state["ai_setup_error"] = None
+                update_state(state, session_key=session_key)
+        except Exception as e:
+            s = get_state(session_key=session_key)
+            s["ai_setup_in_progress"] = False
+            s["ai_setup_error"] = str(e)
+            update_state(s, session_key=session_key)
+        finally:
+            lock.release()
+
+    threading.Thread(target=_run_ai_setup, daemon=True).start()
+    return {"status": "started"}
 
 
 @app.post("/simulate-tick")

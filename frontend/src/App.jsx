@@ -115,19 +115,70 @@ function App() {
   const handleBeginAI = async () => {
     const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const sessionId = getSessionId();
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    const res = await fetch(`${API}/setup/ai-optimised`, {
-      method: "POST",
-      headers: { "x-session-id": sessionId },
-    });
-
-    if (!res.ok) {
-      throw new Error("AI setup failed");
+    let startOk = false;
+    let startError = "AI setup failed to start.";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(`${API}/setup/ai-optimised`, {
+          method: "POST",
+          headers: { "x-session-id": sessionId },
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          startError = detail || `AI setup failed with HTTP ${res.status}`;
+        } else {
+          startOk = true;
+          break;
+        }
+      } catch (e) {
+        startError = e?.message || "Network error while starting AI setup.";
+      }
+      await delay(1200);
     }
 
-    const state = await res.json();
+    if (!startOk) {
+      throw new Error(startError);
+    }
+
+    const startedAt = Date.now();
+    const timeoutMs = 180000; // 3 minutes
+    let setupState = null;
+    while (Date.now() - startedAt < timeoutMs) {
+      await delay(2000);
+      let statusRes;
+      try {
+        statusRes = await fetch(`${API}/setup-status`, {
+          headers: { "x-session-id": sessionId },
+        });
+      } catch {
+        continue;
+      }
+      if (!statusRes.ok) continue;
+      const status = await statusRes.json().catch(() => null);
+      if (!status) continue;
+      if (status.ai_setup_error) {
+        throw new Error(`AI setup failed: ${status.ai_setup_error}`);
+      }
+      if (status.setup_complete && status.setup_mode === "ai_optimised") {
+        const stateRes = await fetch(`${API}/state`, {
+          headers: { "x-session-id": sessionId },
+        });
+        if (!stateRes.ok) {
+          throw new Error("AI setup completed, but state retrieval failed.");
+        }
+        setupState = await stateRes.json();
+        break;
+      }
+    }
+
+    if (!setupState) {
+      throw new Error("AI setup timed out. Please try again.");
+    }
+
     // Return state so InitialiseSession can show the summary card
-    return state;
+    return setupState;
   };
 
   const handleLaunchAI = (aiState) => {
