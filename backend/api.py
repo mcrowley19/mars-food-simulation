@@ -19,10 +19,10 @@ _lock_registry_guard = threading.Lock()
 _ai_setup_registry = {}
 _ai_setup_registry_guard = threading.Lock()
 _orchestrator_call_lock = threading.Lock()
-_MAX_PARSED_LOG_ENTRIES_PER_AGENT = 16
-_MAX_PARSED_LINES_PER_TASK = 1
-_MAX_PARSED_LINES_PER_RESPONSE = 8
-_MAX_LINE_LENGTH = 160
+_MAX_PARSED_LOG_ENTRIES_PER_AGENT = 48
+_MAX_PARSED_LINES_PER_TASK = 3
+_MAX_PARSED_LINES_PER_RESPONSE = 18
+_MAX_LINE_LENGTH = 280
 
 _AGENT_PRIORITY_KEYS = {
     "resource_manager": [

@@ -27,9 +27,9 @@ import {
 import "./GreenhouseScene.css";
 
 let DOME_DEFS = DOME_DEFS_BASE;
-const MAX_VISIBLE_AGENT_LOGS = 12;
-const MAX_VISIBLE_RESPONSE_LINES = 5;
-const MAX_VISIBLE_TASK_LINES = 1;
+const MAX_VISIBLE_AGENT_LOGS = 32;
+const MAX_VISIBLE_RESPONSE_LINES = 14;
+const MAX_VISIBLE_TASK_LINES = 3;
 const RESOURCE_HISTORY_LIMIT = 72;
 const RESOURCE_TREND_CHART_HEIGHT = 68;
 const RESOURCE_TREND_CHART_WIDTH = 320;
@@ -234,9 +234,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
   const [trendHover, setTrendHover] = useState(null);
   const [collapsedPanels, setCollapsedPanels] = useState({
     trends: false,
-    logs: false,
     resources: false,
   });
+  const [isLogsSidebarOpen, setIsLogsSidebarOpen] = useState(true);
   const [resourcesTab, setResourcesTab] = useState("overview");
 
   const [agentInitTimedOut, setAgentInitTimedOut] = useState(false);
@@ -976,8 +976,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
         exitRect.bottom > panelsRect.top;
       if (!intersects) return;
       setCollapsedPanels((prev) => {
-        if (prev.trends && prev.logs && prev.resources) return prev;
-        return { trends: true, logs: true, resources: true };
+        if (prev.trends && prev.resources) return prev;
+        return { trends: true, resources: true };
       });
     };
 
@@ -988,9 +988,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
     };
   }, [
     collapsedPanels.trends,
-    collapsedPanels.logs,
     collapsedPanels.resources,
-    visibleAgentEntries.length,
     resourceHistory.length,
     insideDome,
   ]);
@@ -1121,8 +1119,111 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
         </button>
       )}
 
-      <div className="gh-date">
-        <span className="gh-date-day">Sol {currentSol}</span>
+      <div className="gh-date-bar">
+        {hud.activeEvents.length > 0 && (
+          <div className="gh-date-alerts">
+            {hud.activeEvents.map((ev) => (
+              <span key={ev} className="gh-date-alert">
+                {ev.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="gh-date">
+          <span className="gh-date-day">Sol {currentSol}</span>
+        </div>
+      </div>
+
+      <div className={`gh-agent-sidebar-wrap${isLogsSidebarOpen ? " is-open" : " is-closed"}`}>
+        <aside
+          className={`gh-agent-sidebar-panel${isLogsSidebarOpen ? " is-open" : " is-closed"}`}
+          aria-label="Agent logs sidebar"
+        >
+          <div className="gh-agent-logs">
+          <div className="gh-agent-logs__header">Agent Logs</div>
+          {!hasLiveState ? (
+            <div className="gh-agent-logs__empty">
+              Waiting for simulation state…
+            </div>
+          ) : !agentTabs.length ? (
+            <div className="gh-agent-logs__empty">
+              No logs yet. Agents will appear here as they run.
+            </div>
+          ) : (
+            <>
+              <div className="gh-agent-logs__tabs">
+                {agentTabs.map((name) => (
+                  <button
+                    key={name}
+                    className={`gh-agent-logs__tab ${name === activeTab ? "is-active" : ""}`}
+                    onClick={() => setActiveAgentTab(name)}
+                    type="button"
+                  >
+                    {prettyAgentName(name)}
+                  </button>
+                ))}
+              </div>
+              <div className="gh-agent-logs__list" ref={logsListRef}>
+                {visibleAgentEntries.length === 0 ? (
+                  <div className="gh-agent-logs__empty">
+                    No entries for this agent yet.
+                  </div>
+                ) : (
+                  visibleAgentEntries.map((entry, idx) => (
+                    <div
+                      key={`${activeTab}-${idx}`}
+                      className="gh-agent-logs__entry"
+                    >
+                      <div className="gh-agent-logs__meta">
+                        Sol {entry?.day ?? "?"}
+                      </div>
+                      <div className="gh-agent-logs__block">
+                        {Array.isArray(entry?.task_lines) &&
+                        entry.task_lines.length > 0 ? (
+                          entry.task_lines
+                            .slice(0, MAX_VISIBLE_TASK_LINES)
+                            .map((line, i) => (
+                              <div key={`task-${i}`} className="gh-agent-logs__line gh-agent-logs__line--task">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {`Task: ${line}`}
+                                </ReactMarkdown>
+                              </div>
+                            ))
+                        ) : null}
+                        {Array.isArray(entry?.response_lines) &&
+                        entry.response_lines.length > 0 ? (
+                          entry.response_lines
+                            .slice(0, MAX_VISIBLE_RESPONSE_LINES)
+                            .map((line, i) => (
+                            <div key={`resp-${i}`} className="gh-agent-logs__line">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {String(line || "")}
+                              </ReactMarkdown>
+                            </div>
+                            ))
+                        ) : (
+                          <div className="gh-agent-logs__line">
+                            No response content.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    ))
+                )}
+              </div>
+            </>
+          )}
+          </div>
+        </aside>
+        <button
+          type="button"
+          className="gh-agent-sidebar__toggle"
+          onClick={() => setIsLogsSidebarOpen((v) => !v)}
+          aria-label={isLogsSidebarOpen ? "Hide agent logs" : "Show agent logs"}
+          title={isLogsSidebarOpen ? "Hide agent logs" : "Show agent logs"}
+        >
+          {isLogsSidebarOpen ? "›" : "‹"}
+        </button>
       </div>
 
       {enterLabel && !insideDome && (
@@ -1428,98 +1529,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
         </div>
         </div>
       </div>
-      <div className="gh-agent-logs">
-        <button
-          className="gh-agent-logs__header gh-panel-header-btn"
-          type="button"
-          onClick={() => togglePanel("logs")}
-          aria-label={collapsedPanels.logs ? "Expand agent logs" : "Collapse agent logs"}
-        >
-          <span className="gh-panel-heading">
-            <span className="gh-panel-arrow" aria-hidden="true">
-              <PanelChevron collapsed={collapsedPanels.logs} />
-            </span>
-            <span>Agent Logs</span>
-          </span>
-        </button>
-        <div
-          className={`gh-panel-body gh-panel-body--logs${collapsedPanels.logs ? " is-collapsed" : ""}`}
-        >
-        {!hasLiveState ? (
-          <div className="gh-agent-logs__empty">
-            Waiting for simulation state…
-          </div>
-        ) : !agentTabs.length ? (
-          <div className="gh-agent-logs__empty">
-            No logs yet. Agents will appear here as they run.
-          </div>
-        ) : (
-          <>
-            <div className="gh-agent-logs__tabs">
-              {agentTabs.map((name) => (
-                <button
-                  key={name}
-                  className={`gh-agent-logs__tab ${name === activeTab ? "is-active" : ""}`}
-                  onClick={() => setActiveAgentTab(name)}
-                  type="button"
-                >
-                  {prettyAgentName(name)}
-                </button>
-              ))}
-            </div>
-            <div className="gh-agent-logs__list" ref={logsListRef}>
-              {visibleAgentEntries.length === 0 ? (
-                <div className="gh-agent-logs__empty">
-                  No entries for this agent yet.
-                </div>
-              ) : (
-                visibleAgentEntries.map((entry, idx) => (
-                  <div
-                    key={`${activeTab}-${idx}`}
-                    className="gh-agent-logs__entry"
-                  >
-                    <div className="gh-agent-logs__meta">
-                      Sol {entry?.day ?? "?"}
-                    </div>
-                    <div className="gh-agent-logs__block">
-                      {Array.isArray(entry?.task_lines) &&
-                      entry.task_lines.length > 0 ? (
-                        entry.task_lines
-                          .slice(0, MAX_VISIBLE_TASK_LINES)
-                          .map((line, i) => (
-                            <div key={`task-${i}`} className="gh-agent-logs__line gh-agent-logs__line--task">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {`Task: ${line}`}
-                              </ReactMarkdown>
-                            </div>
-                          ))
-                      ) : null}
-                      {Array.isArray(entry?.response_lines) &&
-                      entry.response_lines.length > 0 ? (
-                        entry.response_lines
-                          .slice(0, MAX_VISIBLE_RESPONSE_LINES)
-                          .map((line, i) => (
-                          <div key={`resp-${i}`} className="gh-agent-logs__line">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {String(line || "")}
-                            </ReactMarkdown>
-                          </div>
-                          ))
-                      ) : (
-                        <div className="gh-agent-logs__line">
-                          No response content.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  ))
-              )}
-            </div>
-          </>
-        )}
-        </div>
-      </div>
-
       <div className="gh-resources">
         <button
           className="gh-resources__header gh-panel-header-btn"
