@@ -448,7 +448,7 @@ export function buildColony(scene, domeDefs) {
     greenhouses.push(dome);
 
     // Storage silos behind the dome (negative Z = top of screen = behind)
-    const siloR = def.r * 1;
+    const siloR = def.r * 0.7;
     const siloH = siloR * 4;
     const silo = buildSilo(siloR, siloH);
     silo.position.set(def.x - def.r * 1.8, 0, def.z - def.r * 2);

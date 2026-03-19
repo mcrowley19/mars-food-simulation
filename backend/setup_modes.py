@@ -32,6 +32,20 @@ KCAL_PER_KG = {
 CREW_KCAL_PER_DAY = 2500
 
 
+def min_food_supplies_kcal(astronaut_count: int, seed_amounts: dict) -> int:
+    """Minimum kcal of food supplies needed to survive until the first harvest."""
+    if not seed_amounts:
+        # No crops planted — need food for the entire mission, but we can't
+        # know mission length here so just require 30 days' worth.
+        return astronaut_count * CREW_KCAL_PER_DAY * 30
+    fastest_maturity = min(
+        CROP_DEFAULTS[s]["maturity_days"]
+        for s in seed_amounts
+        if s in CROP_DEFAULTS
+    )
+    return astronaut_count * CREW_KCAL_PER_DAY * fastest_maturity
+
+
 def _blank_state():
     return {
         "key": "unset",
@@ -60,6 +74,7 @@ def _blank_state():
         "mission_days": 0,
         "astronaut_count": 0,
         "seed_amounts": {},
+        "food_supplies_kcal": 0,
         "setup_complete": False,
         "setup_mode": None,
         "ai_setup_reasoning": None,
@@ -76,11 +91,15 @@ def manual_setup(params: dict) -> dict:
     mission_days = params["mission_days"]
     astronaut_count = params["astronaut_count"]
     seed_amounts = params["seed_amounts"]
+    food_supplies_kcal = params.get("food_supplies_kcal", 0)
 
     # Validate no negative numbers
     for field in ["water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "mission_days", "astronaut_count"]:
         if params[field] < 0:
             raise ValueError(f"{field} cannot be negative")
+
+    if food_supplies_kcal < 0:
+        raise ValueError("food_supplies_kcal cannot be negative")
 
     # Validate seed types
     for seed_type in seed_amounts:
@@ -98,6 +117,14 @@ def manual_setup(params: dict) -> dict:
             f"but only {floor_space_m2} m² available"
         )
 
+    # Validate food supplies cover the gap until first harvest
+    min_kcal = min_food_supplies_kcal(astronaut_count, seed_amounts)
+    if food_supplies_kcal < min_kcal:
+        raise ValueError(
+            f"Not enough food supplies: crew needs at least {min_kcal:,} kcal to survive "
+            f"until the first crop harvest. Provided: {food_supplies_kcal:,} kcal"
+        )
+
     state = _blank_state()
     state["water_l"] = water_l
     state["fertilizer_kg"] = fertilizer_kg
@@ -106,6 +133,8 @@ def manual_setup(params: dict) -> dict:
     state["mission_days"] = mission_days
     state["astronaut_count"] = astronaut_count
     state["seed_amounts"] = seed_amounts
+    state["food_supplies_kcal"] = food_supplies_kcal
+    state["calories_available"] = float(food_supplies_kcal)
     state["resources"]["water_l"] = water_l
     state["resources"]["nutrients_kg"] = fertilizer_kg
     state["setup_complete"] = True
@@ -181,6 +210,7 @@ You must return ONLY a JSON object (no markdown, no explanation outside the JSON
   "fertilizer_kg": 200,
   "soil_kg": 1000,
   "floor_space_m2": 50,
+  "food_supplies_kcal": 250000,
   "reasoning": "explanation of choices"
 }
 
@@ -189,6 +219,7 @@ Rules:
 - All numeric values must be greater than 0
 - floor_space_m2 must be enough for all plants (0.25 m² per plant)
 - water_l, fertilizer_kg, soil_kg must be enough for the full 450-day mission
+- food_supplies_kcal is the amount of pre-packed food (in kcal) the crew brings along. It must be enough to feed 4 astronauts (2500 kcal/day each) until the fastest crop matures. For example if the fastest crop takes 25 days: 4 × 2500 × 25 = 250000 kcal minimum. Include a safety margin.
 - Optimize for nutritional completeness for 4 astronauts
 - Do NOT wrap the JSON in markdown code fences"""
 
@@ -197,7 +228,7 @@ Rules:
 
     parsed = _extract_json(result)
 
-    required_keys = {"seed_amounts", "water_l", "fertilizer_kg", "soil_kg", "floor_space_m2"}
+    required_keys = {"seed_amounts", "water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "food_supplies_kcal"}
     missing = required_keys - set(parsed.keys())
     if missing:
         raise ValueError(f"AI response missing keys: {missing}")
@@ -207,7 +238,7 @@ Rules:
         parsed.pop("reasoning")
 
     # Validate that numeric fields are non-zero
-    for field in ["water_l", "fertilizer_kg", "soil_kg", "floor_space_m2"]:
+    for field in ["water_l", "fertilizer_kg", "soil_kg", "floor_space_m2", "food_supplies_kcal"]:
         val = float(parsed[field])
         if val <= 0:
             raise ValueError(f"AI returned {field}={val}, expected a positive number")
@@ -228,6 +259,7 @@ Rules:
         "fertilizer_kg": float(parsed["fertilizer_kg"]),
         "soil_kg": float(parsed["soil_kg"]),
         "floor_space_m2": float(parsed["floor_space_m2"]),
+        "food_supplies_kcal": float(parsed["food_supplies_kcal"]),
         "mission_days": 450,
         "astronaut_count": 4,
         "seed_amounts": valid_seeds,

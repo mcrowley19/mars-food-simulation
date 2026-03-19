@@ -5,6 +5,27 @@ const SEED_OPTIONS  = ['Potato', 'Wheat', 'Lettuce', 'Tomato', 'Soybean', 'Spina
 const WEATHER_OPTS  = ['Calm', 'Gusty', 'Dust Storm', 'Variable']
 const AIR_OPTS      = ['Earth Norm', 'Hab Mix', 'Mars Adapted', 'Experimental']
 
+// Kcal per kg for each crop and maturity days — used to compute minimum food supplies
+const CROP_DATA = {
+  Potato:  { maturity: 90 },
+  Wheat:   { maturity: 120 },
+  Lettuce: { maturity: 30 },
+  Tomato:  { maturity: 70 },
+  Soybean: { maturity: 80 },
+  Spinach: { maturity: 40 },
+  Radish:  { maturity: 25 },
+  Pea:     { maturity: 60 },
+  Kale:    { maturity: 55 },
+  Carrot:  { maturity: 75 },
+}
+const CREW_KCAL_PER_DAY = 2500
+
+function calcMinFoodKcal(astronauts, seedTypes) {
+  if (seedTypes.length === 0) return astronauts * CREW_KCAL_PER_DAY * 30
+  const fastest = Math.min(...seedTypes.map(s => CROP_DATA[s]?.maturity ?? 60))
+  return astronauts * CREW_KCAL_PER_DAY * fastest
+}
+
 const DEFAULTS = {
   fertilizer: 500,
   water:       2000,
@@ -17,6 +38,7 @@ const DEFAULTS = {
   timeframe:   350,
   weather:     'Calm',
   airComp:     'Hab Mix',
+  foodSupplies: 300000,
 }
 
 /* ── Stepper ── */
@@ -97,22 +119,32 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   const [aiLogs, setAiLogs]       = useState([])
   const [aiError, setAiError]     = useState('')
 
-  const set    = (key, val) => setCfg(prev => ({ ...prev, [key]: val }))
+  const set    = (key, val) => setCfg(prev => {
+    const next = { ...prev, [key]: val }
+    // Auto-clamp food supplies when astronauts or seed types change
+    if (key === 'astronauts' || key === 'seedTypes') {
+      const min = calcMinFoodKcal(next.astronauts, next.seedTypes)
+      if (next.foodSupplies < min) next.foodSupplies = min
+    }
+    return next
+  })
   const reset  = () => setCfg(DEFAULTS)
 
   const totalSupplies = cfg.fertilizer + cfg.water + cfg.soil
+  const minFoodKcal = calcMinFoodKcal(cfg.astronauts, cfg.seedTypes)
 
   const changedCount = [
-    cfg.fertilizer !== DEFAULTS.fertilizer,
-    cfg.water      !== DEFAULTS.water,
-    cfg.soil       !== DEFAULTS.soil,
-    cfg.space      !== DEFAULTS.space,
-    cfg.seedAmt    !== DEFAULTS.seedAmt,
-    cfg.bugs       !== DEFAULTS.bugs,
-    cfg.astronauts !== DEFAULTS.astronauts,
-    cfg.timeframe  !== DEFAULTS.timeframe,
-    cfg.weather    !== DEFAULTS.weather,
-    cfg.airComp    !== DEFAULTS.airComp,
+    cfg.fertilizer    !== DEFAULTS.fertilizer,
+    cfg.water         !== DEFAULTS.water,
+    cfg.soil          !== DEFAULTS.soil,
+    cfg.foodSupplies  !== DEFAULTS.foodSupplies,
+    cfg.space         !== DEFAULTS.space,
+    cfg.seedAmt       !== DEFAULTS.seedAmt,
+    cfg.bugs          !== DEFAULTS.bugs,
+    cfg.astronauts    !== DEFAULTS.astronauts,
+    cfg.timeframe     !== DEFAULTS.timeframe,
+    cfg.weather       !== DEFAULTS.weather,
+    cfg.airComp       !== DEFAULTS.airComp,
   ].filter(Boolean).length
 
   const handleBegin = async () => {
@@ -307,6 +339,10 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
                   <span className="is-ai-summary__label">Floor Space</span>
                   <span className="is-ai-summary__value">{(aiState.floor_space_m2 || 0).toLocaleString()} m²</span>
                 </div>
+                <div className="is-ai-summary__item">
+                  <span className="is-ai-summary__label">Food Supplies</span>
+                  <span className="is-ai-summary__value">{(aiState.food_supplies_kcal || 0).toLocaleString()} kcal</span>
+                </div>
               </div>
 
               <div className="is-ai-summary__seeds-section">
@@ -388,6 +424,12 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             <ParamRow label="Soil">
               <Stepper value={cfg.soil} onChange={v => set('soil', v)} step={100} unit="kg" />
             </ParamRow>
+            <ParamRow label="Food Supplies">
+              <Stepper value={cfg.foodSupplies} onChange={v => set('foodSupplies', Math.max(minFoodKcal, v))} step={10000} min={minFoodKcal} unit="kcal" />
+            </ParamRow>
+            {cfg.foodSupplies <= minFoodKcal && (
+              <div className="is-card__hint">Min {minFoodKcal.toLocaleString()} kcal to survive until first harvest</div>
+            )}
           </div>
 
           {/* Greenhouse */}
@@ -522,6 +564,10 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
               <div className="is-ov__row">
                 <span className="is-ov__row-key">Soil</span>
                 <span className="is-ov__row-val">{cfg.soil.toLocaleString()} kg</span>
+              </div>
+              <div className="is-ov__row">
+                <span className="is-ov__row-key">Food</span>
+                <span className="is-ov__row-val">{cfg.foodSupplies.toLocaleString()} kcal</span>
               </div>
             </div>
           </div>

@@ -51,6 +51,7 @@ function App() {
       mission_days: config?.timeframe ?? 350,
       astronaut_count: config?.astronauts ?? 4,
       seed_amounts: seedAmounts,
+      food_supplies_kcal: config?.foodSupplies ?? 300000,
     };
 
     let setupOk = false;
