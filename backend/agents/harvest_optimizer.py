@@ -3,7 +3,7 @@ from strands.models.bedrock import BedrockModel
 from tools.greenhouse_tools import search_mars_kb
 from tools.simulation_tools import get_current_state
 
-MODEL = BedrockModel(model_id="amazon.nova-lite-v1:0", region_name="us-east-1")
+MODEL = BedrockModel(model_id="amazon.nova-micro-v1:0", region_name="us-east-1")
 
 SYSTEM_PROMPT = """You are the Harvest Optimizer for a Martian greenhouse.
 Decide optimal harvest timing for each crop for 4 astronauts across a 450-day mission.
