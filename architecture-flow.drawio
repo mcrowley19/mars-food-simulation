@@ -1,0 +1,142 @@
+<mxfile host="app.diagrams.net" modified="2026-03-19T00:00:00.000Z" agent="codex" version="24.7.17" type="device">
+  <diagram id="mars-hand-sketch-remake" name="Mars Sketch - Draw.io Version">
+    <mxGraphModel dx="1670" dy="980" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Mars Food Simulation - Hand Sketch Recreated" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="700" height="34" as="geometry" />
+        </mxCell>
+
+        <mxCell id="backend-label" value="Backend" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="50" y="80" width="170" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dynamo" value="Dynamo DB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;strokeColor=#ca8a04;fontColor=#422006;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="80" width="180" height="58" as="geometry" />
+        </mxCell>
+
+        <mxCell id="frontend" value="Frontend&#xa;React / Vite + 3JS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#3b82f6;fontColor=#0b2447;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="80" width="250" height="92" as="geometry" />
+        </mxCell>
+
+        <mxCell id="amplify" value="Amplify" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#ef4444;fontColor=#450a0a;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="790" y="280" width="150" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="agent-core" value="5 AI Agents - Bedrock Agent Core" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontColor=#1e1b4b;fontStyle=1;align=center;verticalAlign=top;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="640" height="610" as="geometry" />
+        </mxCell>
+
+        <mxCell id="data-mcp" value="Data&#xa;MCP Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontColor=#1e293b;rotation=270;" vertex="1" parent="1">
+          <mxGeometry x="20" y="350" width="54" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="nova" value="Amazon / Nova Micro" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontColor=#1e293b;rotation=270;" vertex="1" parent="1">
+          <mxGeometry x="88" y="320" width="60" height="320" as="geometry" />
+        </mxCell>
+
+        <mxCell id="resource-manager" value="resource&#xa;manager" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="160" y="260" width="170" height="92" as="geometry" />
+        </mxCell>
+
+        <mxCell id="env-monitor" value="environment&#xa;monitor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="160" y="380" width="170" height="92" as="geometry" />
+        </mxCell>
+
+        <mxCell id="harvest-opt" value="harvest&#xa;optimizer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="160" y="500" width="170" height="92" as="geometry" />
+        </mxCell>
+
+        <mxCell id="crop-planner" value="crop&#xa;planner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="160" y="620" width="170" height="92" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fault-handler" value="fault&#xa;handler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1e40af;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="160" y="740" width="170" height="92" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bus" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#93c5fd;strokeColor=#2563eb;" vertex="1" parent="1">
+          <mxGeometry x="470" y="260" width="6" height="572" as="geometry" />
+        </mxCell>
+
+        <mxCell id="processing-label" value="Processing" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#1e293b;" vertex="1" parent="1">
+          <mxGeometry x="590" y="460" width="150" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="orchestrator" value="Orchestrator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontColor=#052e16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="560" y="520" width="180" height="74" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-backend-dynamo" style="endArrow=block;endFill=1;strokeColor=#334155;strokeWidth=2;" edge="1" parent="1" source="backend-label" target="dynamo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-dynamo-frontend" style="endArrow=block;endFill=1;strokeColor=#334155;strokeWidth=2;" edge="1" parent="1" source="dynamo" target="frontend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-frontend-amplify" style="endArrow=block;endFill=1;strokeColor=#334155;strokeWidth=2;" edge="1" parent="1" source="frontend" target="amplify">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-data-rm" style="endArrow=block;endFill=1;strokeColor=#1d4ed8;" edge="1" parent="1" source="data-mcp" target="resource-manager">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-data-env" style="endArrow=block;endFill=1;strokeColor=#1d4ed8;" edge="1" parent="1" source="data-mcp" target="env-monitor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-data-harvest" style="endArrow=block;endFill=1;strokeColor=#1d4ed8;" edge="1" parent="1" source="data-mcp" target="harvest-opt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-data-crop" style="endArrow=block;endFill=1;strokeColor=#1d4ed8;" edge="1" parent="1" source="data-mcp" target="crop-planner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-data-fault" style="endArrow=block;endFill=1;strokeColor=#1d4ed8;" edge="1" parent="1" source="data-mcp" target="fault-handler">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-nova-rm" style="endArrow=open;strokeColor=#475569;dashed=1;" edge="1" parent="1" source="nova" target="resource-manager">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-nova-env" style="endArrow=open;strokeColor=#475569;dashed=1;" edge="1" parent="1" source="nova" target="env-monitor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-nova-harvest" style="endArrow=open;strokeColor=#475569;dashed=1;" edge="1" parent="1" source="nova" target="harvest-opt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-nova-crop" style="endArrow=open;strokeColor=#475569;dashed=1;" edge="1" parent="1" source="nova" target="crop-planner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-nova-fault" style="endArrow=open;strokeColor=#475569;dashed=1;" edge="1" parent="1" source="nova" target="fault-handler">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-rm-bus" style="endArrow=block;endFill=1;strokeColor=#1e3a8a;" edge="1" parent="1" source="resource-manager" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-env-bus" style="endArrow=block;endFill=1;strokeColor=#1e3a8a;" edge="1" parent="1" source="env-monitor" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-harvest-bus" style="endArrow=block;endFill=1;strokeColor=#1e3a8a;" edge="1" parent="1" source="harvest-opt" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-crop-bus" style="endArrow=block;endFill=1;strokeColor=#1e3a8a;" edge="1" parent="1" source="crop-planner" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-fault-bus" style="endArrow=block;endFill=1;strokeColor=#1e3a8a;" edge="1" parent="1" source="fault-handler" target="bus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-bus-orch" style="endArrow=block;endFill=1;strokeColor=#166534;strokeWidth=2;" edge="1" parent="1" source="bus" target="orchestrator">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-return" value="Return" style="endArrow=block;endFill=1;strokeColor=#2563eb;curved=1;entryX=0.82;entryY=0.02;entryDx=0;entryDy=0;exitX=0.98;exitY=0.35;exitDx=0;exitDy=0;" edge="1" parent="1" source="orchestrator" target="agent-core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-core-frontend" style="endArrow=block;endFill=1;strokeColor=#2563eb;curved=1;exitX=0.93;exitY=0.02;exitDx=0;exitDy=0;entryX=0.1;entryY=0.9;entryDx=0;entryDy=0;" edge="1" parent="1" source="agent-core" target="frontend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
