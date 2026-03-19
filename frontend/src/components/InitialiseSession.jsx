@@ -130,7 +130,8 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   })
   const reset  = () => setCfg(DEFAULTS)
 
-  const totalSupplies = cfg.fertilizer + cfg.water + cfg.soil
+  const foodKg = Math.round(cfg.foodSupplies / 1500) // ~1.5 kcal/g for packed food
+  const totalSupplies = cfg.fertilizer + cfg.water + cfg.soil + foodKg
   const minFoodKcal = calcMinFoodKcal(cfg.astronauts, cfg.seedTypes)
 
   const changedCount = [
