@@ -93,7 +93,7 @@ function buildDomeInterior(radius) {
       g.add(plant)
       plantMeshes.push(plant)
 
-      const hitScale = pBase * 2.5
+      const hitScale = pBase * 4
       const hit = new THREE.Mesh(hitGeom, hitMat)
       hit.position.copy(plant.position)
       hit.scale.set(hitScale, hitScale, hitScale)

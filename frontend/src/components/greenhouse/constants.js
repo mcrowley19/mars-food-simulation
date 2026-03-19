@@ -1,7 +1,7 @@
 export const FRUSTUM = 80
 export const DOME_OPACITY = 0.4
 export const ZOOM_DEFAULT = 1.0
-export const ZOOM_ENTERED = 2.8
+export const ZOOM_ENTERED = 4.5
 export const ZOOM_ALL = 1.05
 export const ANIM_DURATION = 1.2
 

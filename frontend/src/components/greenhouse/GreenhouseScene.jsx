@@ -46,6 +46,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   })
   const [enterLabel, setEnterLabel] = useState(null)
   const [plantHover, setPlantHover] = useState(null)
+  const hoverRef = useRef(null) // { domeIndex, plantIndex, x, y }
   const [insideDome, setInsideDome] = useState(null)
   const insideDomeRef = useRef(null)
   const simDayFracRef = useRef(0.25)
@@ -203,12 +204,14 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
       if (allHitMeshes.length === 0) {
         setPlantHover(null)
+        hoverRef.current = null
         return
       }
 
       const hits = raycaster.intersectObjects(allHitMeshes, false)
       if (hits.length === 0) {
         setPlantHover(null)
+        hoverRef.current = null
         return
       }
 
@@ -217,19 +220,23 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       const ss = simStateRef.current
       const domeCrops = distributeCrops(ss?.crops || [], DOME_DEFS)
       let foundCrop = null
+      let foundDi = -1
 
       for (let di = 0; di < greenhouses.length && !foundCrop; di++) {
         const hitArr = greenhouses[di].userData.hitMeshes || []
         if (hitArr.includes(hitMesh)) {
           foundCrop = domeCrops[di]?.[pi] || null
+          foundDi = di
         }
       }
 
       if (!foundCrop) {
         setPlantHover(null)
+        hoverRef.current = null
         return
       }
 
+      hoverRef.current = { domeIndex: foundDi, plantIndex: pi, x: e.clientX + 14, y: e.clientY + 14 }
       setPlantHover({
         x: e.clientX + 14,
         y: e.clientY + 14,
@@ -237,7 +244,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       })
     }
 
-    const onMouseLeave = () => setPlantHover(null)
+    const onMouseLeave = () => { setPlantHover(null); hoverRef.current = null }
     canvas.addEventListener('mousemove', onMouseMove)
     canvas.addEventListener('mouseleave', onMouseLeave)
 
@@ -351,6 +358,16 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         const fps = Math.round(frameCount / fpsAccum)
         setHud(computeHud(sunPhase, fps, anim, camera, ss, events))
         frameCount = 0; fpsAccum = 0; lastFpsUpdate = now
+
+        // Live-update hovered plant tooltip with latest state
+        const hr = hoverRef.current
+        if (hr && ss?.crops) {
+          const domeCrops = distributeCrops(ss.crops, DOME_DEFS)
+          const crop = domeCrops[hr.domeIndex]?.[hr.plantIndex]
+          if (crop) {
+            setPlantHover({ x: hr.x, y: hr.y, crop })
+          }
+        }
       }
 
       if (anim.active) {
