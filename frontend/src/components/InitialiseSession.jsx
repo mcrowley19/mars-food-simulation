@@ -463,7 +463,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
               <Stepper value={cfg.fertilizer} onChange={v => set('fertilizer', v)} step={50} unit="kg" />
             </ParamRow>
             <ParamRow label="Water">
-              <Stepper value={cfg.water} onChange={v => set('water', v)} step={100} unit="L" />
+              <Stepper value={cfg.water} onChange={v => set('water', v)} step={1000} unit="L" />
             </ParamRow>
             <ParamRow label="Soil">
               <Stepper value={cfg.soil} onChange={v => set('soil', v)} step={100} unit="kg" />
