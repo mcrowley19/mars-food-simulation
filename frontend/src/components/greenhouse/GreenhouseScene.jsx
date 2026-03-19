@@ -1158,14 +1158,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                 <div className="gh-plant-tooltip__divider" />
                 <div className="gh-plant-tooltip__row">
                   <span>Health</span>
-                  <span style={{ color: health >= 75 ? "#6fcf97" : health >= 45 ? "#f2c94c" : "#eb5757" }}>{health}%</span>
+                  <span style={{ color: cumulative != null ? (cumulative >= 75 ? "#6fcf97" : cumulative >= 45 ? "#f2c94c" : "#eb5757") : (health >= 75 ? "#6fcf97" : health >= 45 ? "#f2c94c" : "#eb5757") }}>{cumulative ?? health}%</span>
                 </div>
-                {cumulative != null && (
-                  <div className="gh-plant-tooltip__row">
-                    <span>Cumulative</span>
-                    <span style={{ color: "rgba(200,190,180,0.6)" }}>{cumulative}%</span>
-                  </div>
-                )}
                 {stresses.map(({ label, val }) => {
                   if (val == null) return null;
                   const pct = Math.round(val * 100);
