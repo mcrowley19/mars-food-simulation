@@ -112,6 +112,40 @@ function App() {
     setScreen("greenhouse");
   };
 
+  const handleBeginAI = async () => {
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const sessionId = getSessionId();
+
+    const res = await fetch(`${API}/setup/ai-optimised`, {
+      method: "POST",
+      headers: { "x-session-id": sessionId },
+    });
+
+    if (!res.ok) {
+      throw new Error("AI setup failed");
+    }
+
+    const state = await res.json();
+
+    // Fire off an initial agent invocation with the AI reasoning
+    const prompt = [
+      "The AI has set up the greenhouse with optimal supplies for 4 astronauts over 450 sols.",
+      state.ai_setup_reasoning ? `Reasoning: ${state.ai_setup_reasoning}` : "",
+      "Assess the initial state and begin managing the greenhouse.",
+    ].filter(Boolean).join(" ");
+
+    fetch(`${API}/invoke`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-session-id": sessionId,
+      },
+      body: JSON.stringify({ prompt }),
+    }).catch(() => {});
+
+    setScreen("greenhouse");
+  };
+
   useEffect(() => {
     const handleKeyDown = (event) => {
       const target = event.target;
@@ -224,6 +258,7 @@ function App() {
           onBack={handleBackToLanding}
           disableBackdropClose={true}
           onBeginSimulation={handleBeginSimulation}
+          onBeginAI={handleBeginAI}
         />
       </div>
 

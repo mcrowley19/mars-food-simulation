@@ -653,3 +653,116 @@
     min-width: 0;
   }
 }
+
+/* ═══════════════════════════════════════════
+   MODE SELECTION SCREEN
+═══════════════════════════════════════════ */
+
+.is-panel--mode-select {
+  max-width: 760px;
+  min-height: auto;
+  align-items: center;
+}
+
+.is-mode-select {
+  display: flex;
+  gap: 20px;
+  padding: 40px 0 60px;
+  width: 100%;
+  justify-content: center;
+}
+
+.is-mode-card {
+  flex: 1;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px 26px 32px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  cursor: pointer;
+  transition: border-color 0.25s, background 0.25s, transform 0.2s, box-shadow 0.3s;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.is-mode-card:hover {
+  border-color: rgba(232, 120, 64, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(232, 120, 64, 0.15);
+}
+
+.is-mode-card__tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  color: #e87840;
+  background: rgba(232, 120, 64, 0.1);
+  border: 1px solid rgba(232, 120, 64, 0.2);
+  border-radius: 4px;
+  padding: 3px 8px;
+  align-self: flex-start;
+}
+
+.is-mode-card--ai .is-mode-card__tag {
+  color: #6cb4ee;
+  background: rgba(108, 180, 238, 0.1);
+  border-color: rgba(108, 180, 238, 0.25);
+}
+
+.is-mode-card__title {
+  font-family: var(--heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: #f5f0eb;
+  line-height: 1.2;
+}
+
+.is-mode-card__desc {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(200, 190, 180, 0.6);
+}
+
+/* ── AI loading state ── */
+.is-ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 60px 20px 80px;
+}
+
+.is-ai-loading__text {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: rgba(200, 190, 180, 0.7);
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.is-spinner--large {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+  border-color: rgba(108, 180, 238, 0.25);
+  border-top-color: #6cb4ee;
+}
+
+@media (max-width: 600px) {
+  .is-mode-select {
+    flex-direction: column;
+    align-items: center;
+  }
+  .is-mode-card {
+    max-width: 100%;
+  }
+}

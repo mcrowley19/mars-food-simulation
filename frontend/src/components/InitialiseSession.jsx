@@ -89,9 +89,11 @@ function ParamRow({ label, children }) {
 }
 
 /* ── Main component ── */
-export default function InitialiseSession({ onBack, disableBackdropClose = false, onBeginSimulation }) {
+export default function InitialiseSession({ onBack, disableBackdropClose = false, onBeginSimulation, onBeginAI }) {
+  const [mode, setMode]           = useState(null) // null = choosing, 'manual' = form, 'ai' = loading
   const [cfg, setCfg]             = useState(DEFAULTS)
   const [launching, setLaunching] = useState(false)
+  const [aiStatus, setAiStatus]   = useState('')
 
   const set    = (key, val) => setCfg(prev => ({ ...prev, [key]: val }))
   const reset  = () => setCfg(DEFAULTS)
@@ -124,6 +126,85 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
     }
   }
 
+  const handleAIBegin = async () => {
+    setMode('ai')
+    setAiStatus('AI is calculating the optimal supply loadout for a 450-sol mission…')
+    try {
+      if (onBeginAI) {
+        await onBeginAI()
+      }
+    } catch {
+      setAiStatus('Something went wrong. Please try again.')
+      setMode(null)
+    }
+  }
+
+  if (mode === null) {
+    return (
+      <div
+        className="is-overlay"
+        onClick={e => {
+          if (!disableBackdropClose && e.target === e.currentTarget) onBack()
+        }}
+      >
+        <div className="is-panel is-panel--mode-select">
+          <div className="is-topbar">
+            <button className="is-back" onClick={onBack}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
+            <div className="is-title">
+              <span className="is-title__mono">SYS · INIT</span>
+              <h1 className="is-title__h1">Choose Setup Mode</h1>
+            </div>
+            <div style={{ width: 160 }} />
+          </div>
+
+          <div className="is-mode-select">
+            <button className="is-mode-card" onClick={() => setMode('manual')}>
+              <span className="is-mode-card__tag">MANUAL</span>
+              <span className="is-mode-card__title">Custom Supplies</span>
+              <span className="is-mode-card__desc">
+                Configure every parameter yourself — water, seeds, crew size, floor space, and more.
+              </span>
+            </button>
+
+            <button className="is-mode-card is-mode-card--ai" onClick={handleAIBegin}>
+              <span className="is-mode-card__tag">AI OPTIMISED</span>
+              <span className="is-mode-card__title">Optimal Loadout</span>
+              <span className="is-mode-card__desc">
+                AI calculates the best supplies for 4 astronauts over 450 sols, maximising nutritional coverage and survival.
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'ai') {
+    return (
+      <div className="is-overlay">
+        <div className="is-panel is-panel--mode-select">
+          <div className="is-topbar">
+            <div style={{ width: 80 }} />
+            <div className="is-title">
+              <span className="is-title__mono">SYS · AI</span>
+              <h1 className="is-title__h1">AI Optimised Setup</h1>
+            </div>
+            <div style={{ width: 160 }} />
+          </div>
+          <div className="is-ai-loading">
+            <span className="is-spinner is-spinner--large" />
+            <p className="is-ai-loading__text">{aiStatus}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="is-overlay"
@@ -135,7 +216,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
 
         {/* ── Top bar ── */}
         <div className="is-topbar">
-          <button className="is-back" onClick={onBack}>
+          <button className="is-back" onClick={() => setMode(null)}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -143,8 +224,8 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
           </button>
 
           <div className="is-title">
-            <span className="is-title__mono">SYS · INIT</span>
-            <h1 className="is-title__h1">Initialise Session</h1>
+            <span className="is-title__mono">SYS · MANUAL</span>
+            <h1 className="is-title__h1">Custom Supplies</h1>
           </div>
 
           <div className="is-supply-pill">
