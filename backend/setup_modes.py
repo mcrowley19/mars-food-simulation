@@ -343,14 +343,27 @@ Rules:
     if not valid_seeds:
         raise ValueError(f"AI returned no valid seeds. Got: {seeds}")
 
+    # Auto-correct floor space and fuel so the AI's plan doesn't fail validation
+    import math as _math
+    total_plants = sum(valid_seeds.values())
+    min_floor = total_plants * SPACE_PER_PLANT_M2
+    floor_space = max(float(parsed["floor_space_m2"]), min_floor)
+
+    daily_kwh = GROW_LIGHT_KW_PER_M2 * floor_space * 12 + LIFE_SUPPORT_KW * 24
+    min_fuel = _math.ceil((daily_kwh * mission_days) / KWH_PER_KG_FUEL)
+    fuel_kg = max(float(parsed["fuel_kg"]), min_fuel)
+
+    min_kcal = min_food_supplies_kcal(astronaut_count, valid_seeds)
+    food_kcal = max(float(parsed["food_supplies_kcal"]), min_kcal)
+
     # Run through manual_setup for validation
     params = {
         "water_l": float(parsed["water_l"]),
         "fertilizer_kg": float(parsed["fertilizer_kg"]),
         "soil_kg": float(parsed["soil_kg"]),
-        "floor_space_m2": float(parsed["floor_space_m2"]),
-        "food_supplies_kcal": float(parsed["food_supplies_kcal"]),
-        "fuel_kg": float(parsed["fuel_kg"]),
+        "floor_space_m2": floor_space,
+        "food_supplies_kcal": food_kcal,
+        "fuel_kg": fuel_kg,
         "mission_days": mission_days,
         "astronaut_count": astronaut_count,
         "seed_amounts": valid_seeds,
