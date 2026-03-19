@@ -2,7 +2,7 @@ import json
 import re
 from agents.crop_planner import create_crop_planner
 
-VALID_SEEDS = {"potato", "wheat", "lettuce", "tomato", "soybean", "radish", "pea", "kale", "carrot"}
+VALID_SEEDS = {"potato", "wheat", "lettuce", "tomato", "soybean", "spinach", "radish", "pea", "kale", "carrot"}
 SPACE_PER_PLANT_M2 = 0.25
 
 CROP_DEFAULTS = {
@@ -11,6 +11,7 @@ CROP_DEFAULTS = {
     "lettuce": {"maturity_days": 30,  "water_per_day_l": 0.2, "nutrient_per_day_kg": 0.01},
     "tomato":  {"maturity_days": 70,  "water_per_day_l": 0.6, "nutrient_per_day_kg": 0.025},
     "soybean": {"maturity_days": 80,  "water_per_day_l": 0.4, "nutrient_per_day_kg": 0.02},
+    "spinach": {"maturity_days": 40,  "water_per_day_l": 0.22,"nutrient_per_day_kg": 0.011},
     "radish":  {"maturity_days": 25,  "water_per_day_l": 0.15,"nutrient_per_day_kg": 0.008},
     "pea":     {"maturity_days": 60,  "water_per_day_l": 0.3, "nutrient_per_day_kg": 0.015},
     "kale":    {"maturity_days": 55,  "water_per_day_l": 0.25,"nutrient_per_day_kg": 0.012},
@@ -23,6 +24,7 @@ KCAL_PER_KG = {
     "lettuce": 150,
     "tomato": 180,
     "soybean": 1470,
+    "spinach": 230,
     "radish": 160,
     "pea": 810,
     "kale": 490,
@@ -47,6 +49,7 @@ SHELF_LIFE_DAYS = {
     "lettuce": 7,
     "tomato": 14,
     "soybean": 120,
+    "spinach": 7,
     "radish": 14,
     "pea": 5,
     "kale": 10,
@@ -61,6 +64,7 @@ SEED_RETURN_PER_KG = {
     "lettuce": 90,
     "tomato": 220,
     "soybean": 95,
+    "spinach": 170,
     "radish": 140,
     "pea": 110,
     "kale": 160,
@@ -298,7 +302,7 @@ HARD CONSTRAINT: The total weight of ALL supplies (water_l + fertilizer_kg + soi
 Food weight in kg = food_supplies_kcal / 1500 (packed food is ~1.5 kcal per gram).
 Seeds weigh roughly 0.05 kg each. Keep this cargo limit in mind when choosing quantities.
 
-The ONLY valid seed types are: potato, wheat, lettuce, tomato, soybean, radish, pea, kale, carrot
+The ONLY valid seed types are: potato, wheat, lettuce, tomato, soybean, spinach, radish, pea, kale, carrot
 
 You must return ONLY a JSON object (no markdown, no explanation outside the JSON) in this exact shape:
 {{
@@ -314,7 +318,7 @@ You must return ONLY a JSON object (no markdown, no explanation outside the JSON
 
 PRIORITY ORDER (allocate cargo in this order — water first):
 1. WATER (highest priority — without water everyone dies within days):
-   Each crop consumes water daily: radish 0.15L, lettuce 0.2L, kale 0.25L, wheat/pea/carrot 0.3L, soybean 0.4L, potato 0.5L, tomato 0.6L.
+    Each crop consumes water daily: radish 0.15L, lettuce 0.2L, spinach 0.22L, kale 0.25L, wheat/pea/carrot 0.3L, soybean 0.4L, potato 0.5L, tomato 0.6L.
    Crew uses 10L/day each but 85% is recycled (net {round(astronaut_count * 10 * 0.15, 1)}L/day crew draw for {astronaut_count} astronauts).
    Crops are replanted continuously so water draw is sustained the whole mission.
    Calculate minimum water: (sum(crop_water_per_day × count) + {round(astronaut_count * 10 * 0.15, 1)}) × {mission_days} × 1.25.

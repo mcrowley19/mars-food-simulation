@@ -56,6 +56,8 @@ function App() {
       fuel_kg: config?.fuelKg ?? 40000,
     };
 
+    let setupOk = false;
+    let setupError = "Manual setup failed.";
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
         const res = await fetch(`${API_BASE_URL}/setup/manual`, {
@@ -65,10 +67,23 @@ function App() {
         });
         if (res.ok) {
           const setupState = await res.json();
-          if (setupState?.setup_complete) break;
+          if (setupState?.setup_complete) {
+            setupOk = true;
+            break;
+          }
+          setupError = "Setup did not complete successfully.";
+        } else {
+          const errorText = await res.text().catch(() => "");
+          setupError = errorText || `Manual setup failed with HTTP ${res.status}`;
         }
-      } catch {}
+      } catch (e) {
+        setupError = e?.message || "Network error while running manual setup.";
+      }
       await delay(700);
+    }
+
+    if (!setupOk) {
+      throw new Error(setupError);
     }
 
     const seedSummary = types.join(", ") || "mixed crops";

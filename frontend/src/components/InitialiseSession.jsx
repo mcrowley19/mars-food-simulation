@@ -98,6 +98,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   const [mode, setMode]           = useState(null) // null = choosing, 'manual' = form, 'ai' = loading, 'ai-review' = summary
   const [cfg, setCfg]             = useState(DEFAULTS)
   const [launching, setLaunching] = useState(false)
+  const [manualError, setManualError] = useState('')
   const [aiState, setAiState]     = useState(null)
   const [aiLogs, setAiLogs]       = useState([])
   const [aiError, setAiError]     = useState('')
@@ -140,12 +141,15 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
 
   const handleBegin = async () => {
     setLaunching(true)
+    setManualError('')
     try {
       if (onBeginSimulation) {
         await onBeginSimulation(cfg)
       } else {
         await new Promise(resolve => setTimeout(resolve, 1200))
       }
+    } catch (e) {
+      setManualError(e?.message || 'Something went wrong while starting the manual setup. Please try again.')
     } finally {
       setLaunching(false)
     }
@@ -159,7 +163,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
     const LOG_STEPS = [
       { delay: 0,    text: 'Initialising crop planner agent…' },
       { delay: 1200, text: 'Connecting to Mars Knowledge Base…' },
-      { delay: 2800, text: 'Querying crop yield data for 9 seed types…' },
+      { delay: 2800, text: 'Querying crop yield data for 10 seed types…' },
       { delay: 5000, text: 'Analysing nutritional coverage for 4 astronauts × 450 sols…' },
       { delay: 7500, text: 'Evaluating water & nutrient budgets under Mars constraints…' },
       { delay: 10000, text: 'Optimising seed ratios for caloric density and micronutrient diversity…' },
@@ -637,6 +641,9 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
           </div>
 
           <div className="is-ov__actions">
+            {manualError && (
+              <div className="is-card__hint">{manualError}</div>
+            )}
             <button className="is-btn-reset" onClick={reset}>Reset Defaults</button>
             <button
               className={`is-btn-begin${launching ? ' is-btn-begin--loading' : ''}`}
