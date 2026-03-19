@@ -565,12 +565,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           </div>
         )}
 
-        {hud.agentStatus && (
-          <div className="gh-resources__agent">
-            <span className="gh-resources__agent-label">AI</span>
-            <span className="gh-resources__agent-text">{hud.agentStatus}</span>
-          </div>
-        )}
       </div>
 
       <div className="gh-timeline">
@@ -590,10 +584,25 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             max={totalDays}
             value={simDay}
             onChange={e => {
-              const target = Number(e.target.value)
-              const current = simStateRef.current?.mission_day || simDay
-              setSimDay(target)
+              setSimDay(Number(e.target.value))
               simDayFracRef.current = 0
+            }}
+            onMouseUp={e => {
+              const target = Number(e.target.value)
+              const current = simStateRef.current?.mission_day || 1
+              if (target > current) {
+                const ticksNeeded = target - current
+                const runTicks = async () => {
+                  for (let i = 0; i < ticksNeeded; i++) {
+                    await simulateTick()
+                  }
+                }
+                runTicks()
+              }
+            }}
+            onTouchEnd={e => {
+              const target = Number(e.target.value)
+              const current = simStateRef.current?.mission_day || 1
               if (target > current) {
                 const ticksNeeded = target - current
                 const runTicks = async () => {
