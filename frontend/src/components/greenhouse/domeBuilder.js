@@ -145,6 +145,7 @@ function buildDomeInterior(radius) {
     soilMats,
     soilMeshes,
     planterMeshes,
+    interiorLight,
   };
 }
 
@@ -236,6 +237,7 @@ export function buildSingleDome(def) {
     soilMats,
     soilMeshes,
     planterMeshes,
+    interiorLight,
   } = buildDomeInterior(r);
   interiorGroup.visible = true;
   interiorGroup.name = "interior";

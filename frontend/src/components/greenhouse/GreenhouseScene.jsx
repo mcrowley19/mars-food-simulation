@@ -667,12 +667,15 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
       );
       lv.co2Tint = lerp(lv.co2Tint, tgtCo2Tint, Math.min(1, dt * LERP_SPEED));
 
+      const isInsideDome = Boolean(insideDomeRef.current);
       const baseSunI = lerp(0.35, 2.95, dayFactor);
       sun.intensity = baseSunI * lv.sunIntensityMul;
       sun.castShadow = dayFactor > 0.12;
-      const baseAmbI = lerp(0.2, 0.72, twilight);
+      // When zoomed into a dome, keep ambient bright (grow lights are always on)
+      const minAmb = isInsideDome ? 1.2 : 0;
+      const baseAmbI = Math.max(minAmb, lerp(0.2, 0.72, twilight));
       ambient.intensity = baseAmbI * lv.ambientTint;
-      fill.intensity = lerp(0.12, 0.52, twilight);
+      fill.intensity = isInsideDome ? 0.8 : lerp(0.12, 0.52, twilight);
 
       sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor);
       sun.color.copy(sunColor);
@@ -706,14 +709,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350, awaitAgents =
           // Base intensity always on (grow lights), boosted at night
           iLight.intensity = lerp(1.2, 3.2, nightFactor);
         }
-        if (sMat) {
+        if (sMat && sMat.emissive) {
           // Warm emissive glow on dome shell at night (visible from outside)
-          sMat.emissive = sMat.emissive || new THREE.Color(0, 0, 0);
-          sMat.emissive.setRGB(
-            nightFactor * 0.12,
-            nightFactor * 0.08,
-            nightFactor * 0.04,
-          );
+          sMat.emissive.setRGB(nightFactor * 0.12, nightFactor * 0.08, nightFactor * 0.04);
           sMat.emissiveIntensity = nightFactor * 0.6;
         }
       }
