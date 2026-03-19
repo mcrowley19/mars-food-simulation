@@ -131,17 +131,27 @@ def get_orchestrator():
     - set_environment_param: adjust temp, CO2, humidity, or light hours
     - add_alert: record alerts for the crew
 
-    IMPORTANT RULES:
+    CRITICAL RULES — SURVIVAL DEPENDS ON THESE:
     1. Always call get_current_state first to see exact crop indices and values
        before calling harvest_crop, replant_crop, or adjustment tools.
-    2. FOOD ROTS: Each harvested crop has a shelf life. Check seed_reserve and
-       plan staggered plantings to maintain steady calorie flow. Do NOT plant
-       all seeds at once — spread plantings so harvests are continuous.
+    2. RESOURCE CONSERVATION IS TOP PRIORITY. Water, fuel, and calories must
+       last the ENTIRE mission. Every tick, check if resources will last:
+       - Water: each crop uses water daily. If water days remaining < mission days remaining,
+         you MUST reduce crop count. Remove the most water-hungry crops first.
+         Prefer low-water crops (radish 0.15L/day, lettuce 0.2L/day) over
+         high-water crops (tomato 0.6L/day, potato 0.5L/day).
+       - Fuel: powers grow lights and life support. If fuel is running low,
+         reduce light_hours via set_environment_param to conserve.
+       - Calories: if food days < 10, plant fast-growing crops (radish 25d, lettuce 30d).
+    3. FOOD ROTS: Each harvested crop has a shelf life. Do NOT plant all seeds
+       at once — spread plantings so harvests are continuous.
        Shelf lives: lettuce 7d, pea 5d, kale 10d, tomato 14d, radish 14d,
        carrot 30d, potato 60d, soybean 120d, wheat 180d.
-    3. Use plant_from_reserve to plant seeds when needed. Check seed_reserve
-       in state to see available seeds. Plant in small batches timed so that
-       harvests overlap and the crew always has fresh, non-rotted food.""",
+    4. Use plant_from_reserve ONLY when resources can support more crops.
+       Before planting, calculate: will adding N crops cause water to run out
+       before the mission ends? If yes, do NOT plant.
+    5. When you see WARNING or CRITICAL messages about resources, act immediately.
+       Reducing crop count saves water. Lowering light hours saves fuel.""",
             tools=[
                 delegate_to_crop_planner,
                 delegate_to_env_monitor,

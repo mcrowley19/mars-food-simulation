@@ -99,9 +99,11 @@
 }
 
 .gh-timeline-ff--active {
-  background: rgba(232, 120, 64, 0.3);
-  border-color: rgba(232, 120, 64, 0.8);
+  background: transparent;
+  border: 2px solid #e87840;
+  border-radius: 50%;
   color: #e87840;
+  box-shadow: 0 0 6px rgba(232, 120, 64, 0.4);
 }
 
 .gh-timeline-track {

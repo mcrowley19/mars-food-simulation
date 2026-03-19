@@ -200,9 +200,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const [domeDefs, setDomeDefs] = useState(null);
   const tickInFlightRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [speedLevel, setSpeedLevel] = useState(0); // 0=1x, 1=3x, 2=6x
+  const [isFastForward, setIsFastForward] = useState(false);
   const isPlayingRef = useRef(true);
-  const speedLevelRef = useRef(0);
+  const isFastForwardRef = useRef(false);
   const [activeAgentTab, setActiveAgentTab] = useState("");
   const logsListRef = useRef(null);
   const [resourceHistory, setResourceHistory] = useState([]);
@@ -550,11 +550,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           simDayFracRef.current = 0;
         }
         if (isPlayingRef.current) {
-          const tickMs = speedLevelRef.current === 2
-            ? SOL_TICK_MS / 6
-            : speedLevelRef.current === 1
-              ? SOL_TICK_MS / 3
-              : SOL_TICK_MS;
+          const tickMs = isFastForwardRef.current
+            ? SOL_TICK_MS / 3
+            : SOL_TICK_MS;
           const elapsed = (now - solStartTimeRef.current) / tickMs;
           simDayFracRef.current = Math.max(0, Math.min(0.999, elapsed));
         }
@@ -764,12 +762,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
   useEffect(() => {
-    speedLevelRef.current = speedLevel;
-  }, [speedLevel]);
+    isFastForwardRef.current = isFastForward;
+  }, [isFastForward]);
 
   useEffect(() => {
     if (!simState?.setup_complete || !isPlaying) return;
-    const interval = speedLevel === 2 ? SOL_TICK_MS / 6 : speedLevel === 1 ? SOL_TICK_MS / 3 : SOL_TICK_MS;
+    const interval = isFastForward ? SOL_TICK_MS / 3 : SOL_TICK_MS;
     const timer = setInterval(() => {
       simulateTick();
     }, interval);
@@ -779,7 +777,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     simulateTick,
     SOL_TICK_MS,
     isPlaying,
-    speedLevel,
+    isFastForward,
   ]);
 
   const handleEnterDome = useCallback(() => {
@@ -1515,11 +1513,11 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           {isPlaying ? "❚❚" : "▶"}
         </button>
         <button
-          className={`gh-timeline-play gh-timeline-ff${speedLevel > 0 ? " gh-timeline-ff--active" : ""}`}
-          onClick={() => setSpeedLevel((s) => (s + 1) % 3)}
-          aria-label={speedLevel === 0 ? "Fast forward" : speedLevel === 1 ? "Faster" : "Normal speed"}
+          className={`gh-timeline-play gh-timeline-ff${isFastForward ? " gh-timeline-ff--active" : ""}`}
+          onClick={() => setIsFastForward((f) => !f)}
+          aria-label={isFastForward ? "Normal speed" : "Fast forward (3x)"}
         >
-          {speedLevel === 2 ? "6x" : speedLevel === 1 ? "3x" : "▶▶"}
+          {isFastForward ? "3x" : "▶▶"}
         </button>
         <div className="gh-timeline-track">
           <span className="gh-timeline-label">Sol 1</span>

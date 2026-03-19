@@ -615,20 +615,60 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                 cal_avail = s.get("calories_available", 0)
                 cal_need = s.get("calories_needed_per_day", 0)
                 cal_days = round(cal_avail / cal_need, 1) if cal_need > 0 else 0
+                mission_days = s.get("mission_days", 450)
+                days_left = max(0, mission_days - s["mission_day"])
+                fuel_kg = res.get("fuel_kg", 0)
+                fuel_per_day = s.get("fuel_used_today", 0)
+                fuel_days = round(fuel_kg / fuel_per_day, 1) if fuel_per_day > 0 else 999
+
+                # Compute daily water consumption for urgency signals
+                crop_water_day = sum(c.get("water_per_day_l", 0) for c in s["crops"])
+                net_crew_water = 10 * (1 - 0.85)  # 10L crew use, 85% recycled
+                total_water_day = crop_water_day + net_crew_water
+                water_days = round(res["water_l"] / total_water_day, 1) if total_water_day > 0 else 999
+
+                # Build urgency warnings
+                warnings = []
+                if water_days < days_left * 0.5:
+                    warnings.append(
+                        f"WATER CRITICAL: Only {water_days} days of water remain but {days_left} days left in mission. "
+                        f"Current draw: {total_water_day:.1f}L/day ({crop_water_day:.1f}L crops + {net_crew_water:.1f}L crew). "
+                        "REDUCE CROP COUNT IMMEDIATELY — remove water-hungry crops or stop planting new ones."
+                    )
+                elif water_days < days_left:
+                    warnings.append(
+                        f"WATER WARNING: {water_days} days of water for {days_left} remaining mission days. "
+                        "Conserve water — avoid planting water-heavy crops, prefer low-water options."
+                    )
+                if fuel_days < days_left:
+                    warnings.append(
+                        f"FUEL WARNING: {fuel_days} days of fuel for {days_left} remaining mission days. "
+                        "Reduce light hours if possible via set_environment_param."
+                    )
+                if cal_days < 10:
+                    warnings.append(
+                        f"CALORIE EMERGENCY: Only {cal_days} days of food! Plant fast-growing crops urgently."
+                    )
+
+                warning_block = " ".join(warnings) if warnings else ""
 
                 context = (
-                    f"Mission day {s['mission_day']}. "
+                    f"Mission day {s['mission_day']} of {mission_days} ({days_left} days remaining). "
                     f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
                     f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
-                    f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
+                    f"Resources: {res['water_l']:.1f}L water ({water_days} days remaining at {total_water_day:.1f}L/day), "
+                    f"{res['nutrients_kg']:.1f}kg nutrients, {fuel_kg:.0f}kg fuel ({fuel_days} days remaining). "
                     f"Crops: {crop_summary}. "
                     f"Seed reserve: {reserve_summary}. "
                     f"Calories: {cal_avail:.0f} kcal available ({cal_days} days of food remaining at {cal_need} kcal/day). "
                     f"Active events: {', '.join(events) if events else 'none'}. "
                     f"Alerts: {len(s['alerts'])} total. "
-                    "Assess the situation. If seed reserve is not empty and there is floor space, "
-                    "use plant_from_reserve to plant seeds in staggered batches to ensure continuous "
-                    "harvests. Remember food rots — spread plantings over time. Take any necessary actions."
+                    f"{warning_block} "
+                    "PRIORITY: Ensure water, fuel and calories last the entire mission. "
+                    "If any resource will run out before mission end, take corrective action NOW — "
+                    "reduce crop count, lower light hours, or stop planting. "
+                    "If resources are healthy and seed reserve is available, plant in staggered batches "
+                    "for continuous harvests. Remember food rots — spread plantings over time."
                 )
 
                 from agents.orchestrator import get_orchestrator
