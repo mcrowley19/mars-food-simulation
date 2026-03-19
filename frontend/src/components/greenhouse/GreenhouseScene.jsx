@@ -37,13 +37,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
   const simState = useGreenhouseState(true)
   const simStateRef = useRef(null)
-  const tickingRef = useRef(false)
-
   const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
   const simulateTick = useCallback(async () => {
-    if (tickingRef.current) return
-    tickingRef.current = true
     try {
       const res = await fetch(`${API}/simulate-tick`, { method: 'POST' })
       if (res.ok) {
@@ -52,8 +48,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       }
     } catch {
       // ignore network errors
-    } finally {
-      tickingRef.current = false
     }
   }, [API])
 

@@ -124,45 +124,52 @@ def setup_ai_optimised():
 
 @app.post("/simulate-tick")
 def simulate_tick():
-    if not _invoke_lock.acquire(blocking=False):
-        return {"error": "Agent is already running — try again shortly."}
+    state = get_state()
 
-    try:
-        state = get_state()
+    if not state.get("setup_complete"):
+        raise HTTPException(status_code=400, detail="Setup not complete")
 
-        if not state.get("setup_complete"):
-            raise HTTPException(status_code=400, detail="Setup not complete")
+    state = apply_mars_rules(state)
+    update_state(state)
 
-        state = apply_mars_rules(state)
+    # Invoke agent in background if not already running
+    def _run_agent():
+        try:
+            s = get_state()
+            env = s["environment"]
+            res = s["resources"]
+            events = s["active_events"]
+            crop_summary = ", ".join(
+                f"{c['name']} (day {c.get('age_days', '?')}/{c.get('maturity_days', '?')}, {c.get('status', 'growing')})"
+                for c in s["crops"]
+            ) or "No crops planted"
 
-        env = state["environment"]
-        res = state["resources"]
-        events = state["active_events"]
-        crop_summary = ", ".join(
-            f"{c['name']} (day {c.get('age_days', '?')}/{c.get('maturity_days', '?')}, {c.get('status', 'growing')})"
-            for c in state["crops"]
-        ) or "No crops planted"
+            context = (
+                f"Mission day {s['mission_day']}. "
+                f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
+                f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
+                f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
+                f"Crops: {crop_summary}. "
+                f"Active events: {', '.join(events) if events else 'none'}. "
+                f"Alerts: {len(s['alerts'])} total. "
+                "Assess the situation. Take any necessary actions."
+            )
 
-        context = (
-            f"Mission day {state['mission_day']}. "
-            f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
-            f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
-            f"Resources: {res['water_l']:.1f}L water, {res['nutrients_kg']:.1f}kg nutrients. "
-            f"Crops: {crop_summary}. "
-            f"Active events: {', '.join(events) if events else 'none'}. "
-            f"Alerts: {len(state['alerts'])} total. "
-            "Assess the situation. Take any necessary actions."
-        )
+            from agents.orchestrator import get_orchestrator
+            orchestrator = get_orchestrator()
+            result = orchestrator(context)
+            s = get_state()  # re-read in case ticks advanced
+            s["agent_last_actions"]["orchestrator"] = str(result)
+            update_state(s)
+        except Exception:
+            traceback.print_exc()
+        finally:
+            _invoke_lock.release()
 
-        from agents.orchestrator import get_orchestrator
-        orchestrator = get_orchestrator()
-        result = orchestrator(context)
-        state["agent_last_actions"]["orchestrator"] = str(result)
+    if _invoke_lock.acquire(blocking=False):
+        threading.Thread(target=_run_agent, daemon=True).start()
 
-        update_state(state)
-        return state
-    finally:
-        _invoke_lock.release()
+    return state
 
 
 @app.post("/reset")

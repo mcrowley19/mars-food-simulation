@@ -32,7 +32,7 @@ function buildDomeInterior(radius) {
 
       const planter = new THREE.Mesh(new THREE.BoxGeometry(boxW, boxH, boxW), planterMat)
       planter.position.set(x, boxH / 2 + 0.02, z)
-      planter.castShadow = true
+      planter.castShadow = false
       planter.receiveShadow = true
       g.add(planter)
       planterMeshes.push(planter)
