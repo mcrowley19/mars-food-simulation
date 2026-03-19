@@ -346,7 +346,7 @@
 
 .gh-resource-trends__chart {
   width: 100%;
-  height: 46px;
+  height: 68px;
   border-radius: 6px;
   border: 1px solid rgba(232, 120, 64, 0.2);
   background:
@@ -365,6 +365,47 @@
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.gh-resource-trends__axis {
+  stroke: rgba(245, 224, 204, 0.35);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.gh-resource-trends__tick {
+  stroke: rgba(232, 120, 64, 0.42);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.gh-resource-trends__tick-label,
+.gh-resource-trends__y-label {
+  fill: rgba(245, 224, 204, 0.72);
+  font-size: 6px;
+  letter-spacing: 0.2px;
+  paint-order: stroke;
+  stroke: rgba(10, 5, 2, 0.7);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.gh-resource-trends__value-label {
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  paint-order: stroke;
+  stroke: rgba(10, 5, 2, 0.85);
+  stroke-width: 1.2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.gh-resource-trends__value-label--water {
+  fill: rgba(88, 205, 250, 0.95);
+}
+
+.gh-resource-trends__value-label--nutrients {
+  fill: rgba(141, 230, 111, 0.95);
 }
 
 .gh-resource-trends__chart--water .gh-resource-trends__line {
