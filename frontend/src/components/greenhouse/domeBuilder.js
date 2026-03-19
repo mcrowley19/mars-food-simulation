@@ -182,6 +182,7 @@ export function buildSingleDome(def) {
   airlock.position.set(0, r * 0.18, r + r * 0.1)
   airlock.rotation.y = Math.PI / 2
   airlock.castShadow = true
+  airlock.name = 'airlock'
   group.add(airlock)
 
   const { group: interiorGroup, plantMeshes, hitMeshes, soilMats, soilMeshes, planterMeshes } = buildDomeInterior(r)
