@@ -37,6 +37,25 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
   const simState = useGreenhouseState(true)
   const simStateRef = useRef(null)
+  const tickingRef = useRef(false)
+
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+  const simulateTick = useCallback(async () => {
+    if (tickingRef.current) return
+    tickingRef.current = true
+    try {
+      const res = await fetch(`${API}/simulate-tick`, { method: 'POST' })
+      if (res.ok) {
+        const newState = await res.json()
+        simStateRef.current = newState
+      }
+    } catch {
+      // ignore network errors
+    } finally {
+      tickingRef.current = false
+    }
+  }, [API])
 
   const lerpedRef = useRef({
     sunIntensityMul: 1.0,
@@ -47,7 +66,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     co2Tint: 0,
   })
 
-  useEffect(() => { simStateRef.current = simState }, [simState])
+  useEffect(() => {
+    simStateRef.current = simState
+    if (simState?.mission_day && !isPlayingRef.current) {
+      setSimDay(simState.mission_day)
+    }
+  }, [simState])
 
   useEffect(() => {
     if (domeDefs) return
@@ -437,6 +461,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             }
             return prev + 1
           })
+          simulateTick()
         }
         lastFrac = curFrac
       }, 100)
@@ -444,7 +469,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       if (playIntervalRef.current) clearInterval(playIntervalRef.current)
     }
     return () => { if (playIntervalRef.current) clearInterval(playIntervalRef.current) }
-  }, [isPlaying, totalDays])
+  }, [isPlaying, totalDays, simulateTick])
 
   if (!domeDefs) {
     return (
@@ -570,7 +595,21 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             min={1}
             max={totalDays}
             value={simDay}
-            onChange={e => { setSimDay(Number(e.target.value)); simDayFracRef.current = 0 }}
+            onChange={e => {
+              const target = Number(e.target.value)
+              const current = simStateRef.current?.mission_day || simDay
+              setSimDay(target)
+              simDayFracRef.current = 0
+              if (target > current) {
+                const ticksNeeded = target - current
+                const runTicks = async () => {
+                  for (let i = 0; i < ticksNeeded; i++) {
+                    await simulateTick()
+                  }
+                }
+                runTicks()
+              }
+            }}
           />
           <span className="gh-timeline-label">Sol {totalDays}</span>
         </div>
