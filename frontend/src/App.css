@@ -223,7 +223,7 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 66%;
+  width: 54%;
   height: 100%;
   z-index: 4;
   transform: translateX(108%);
@@ -254,6 +254,12 @@
   max-width: none;
   min-height: 100%;
   padding: 0 clamp(16px, 2.6vw, 34px) 32px;
+}
+
+/* Keep the initial spacebar setup chooser intentionally narrow. */
+.dashboard-shell .is-panel--mode-select {
+  max-width: 620px;
+  margin: 0 auto;
 }
 
 /* Dashboard runs in a narrower 2/3 pane, so force a non-overlapping layout */

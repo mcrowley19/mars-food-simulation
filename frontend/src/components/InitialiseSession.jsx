@@ -248,13 +248,11 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
     return (
       <div className="is-overlay">
         <div className="is-panel is-panel--mode-select">
-          <div className="is-topbar">
-            <div style={{ width: 80 }} />
-            <div className="is-title">
+          <div className="is-topbar is-topbar--left">
+            <div className="is-title is-title--left">
               <span className="is-title__mono">SYS · AI</span>
               <h1 className="is-title__h1">AI Optimised Setup</h1>
             </div>
-            <div style={{ width: 160 }} />
           </div>
           <div className="is-ai-terminal">
             <div className="is-ai-terminal__header">
