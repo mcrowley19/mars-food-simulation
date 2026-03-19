@@ -34,8 +34,14 @@ export function buildTerrain(scene) {
   marsTexture.colorSpace = THREE.SRGBColorSpace
   marsTexture.wrapS = THREE.RepeatWrapping
   marsTexture.wrapT = THREE.RepeatWrapping
-  // Tile the texture across the vast terrain so Mars looks to-scale.
-  marsTexture.repeat.set(12, 12)
+  // Keep original image proportions so rocks/terrain details are not stretched.
+  // Tile cell ratio should match image ratio: cellW/cellH = imgW/imgH.
+  const tileY = 12
+  const imgW = marsTexture.image?.width || 1
+  const imgH = marsTexture.image?.height || 1
+  const aspect = imgW / imgH
+  const tileX = tileY / aspect
+  marsTexture.repeat.set(tileX, tileY)
   marsTexture.offset.set(0, 0)
 
   const ground = new THREE.Mesh(
