@@ -268,9 +268,7 @@ function App() {
         <header className="hero-header">
           <span className="tagline">Simulation Platform</span>
           <h1>
-            Mars Food
-            <br />
-            Simulation
+            Sol-450
           </h1>
           <p className="subtitle">
             Modeling sustainable agriculture for humanity's next frontier.
