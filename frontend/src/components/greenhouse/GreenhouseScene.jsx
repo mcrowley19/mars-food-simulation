@@ -30,6 +30,7 @@ let DOME_DEFS = DOME_DEFS_BASE;
 const MAX_VISIBLE_AGENT_LOGS = 12;
 const MAX_VISIBLE_RESPONSE_LINES = 5;
 const MAX_VISIBLE_TASK_LINES = 1;
+const RESOURCE_HISTORY_LIMIT = 72;
 
 function cropChipStyle(cropName) {
   const colorHex = CROP_COLORS[cropName?.toLowerCase()] || "#6ea07d";
@@ -51,6 +52,25 @@ function cropChipStyle(cropName) {
     borderColor: `rgba(${r}, ${g}, ${b}, 0.45)`,
     color: `rgba(${r}, ${g}, ${b}, 0.96)`,
   };
+}
+
+function sparklinePath(points, width, height, key) {
+  if (!Array.isArray(points) || points.length === 0) return "";
+  const vals = points.map((p) => Number(p?.[key]) || 0);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = Math.max(1, max - min);
+  if (points.length === 1) {
+    const y = height - ((vals[0] - min) / range) * height;
+    return `M 0 ${y.toFixed(2)} L ${width.toFixed(2)} ${y.toFixed(2)}`;
+  }
+  return vals
+    .map((val, idx) => {
+      const x = (idx / (vals.length - 1)) * width;
+      const y = height - ((val - min) / range) * height;
+      return `${idx === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
 }
 
 export default function GreenhouseScene({ onExit, totalDays = 350 }) {
@@ -97,6 +117,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const isFastForwardRef = useRef(false);
   const [activeAgentTab, setActiveAgentTab] = useState("");
   const logsListRef = useRef(null);
+  const [resourceHistory, setResourceHistory] = useState([]);
 
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(1);
@@ -130,6 +151,33 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   useEffect(() => {
     insideDomeRef.current = insideDome;
   }, [insideDome]);
+
+  useEffect(() => {
+    if (!simState?.setup_complete) return;
+    const water = Number(hud.waterL);
+    const nutrients = Number(hud.nutrientsKg);
+    if (!Number.isFinite(water) || !Number.isFinite(nutrients)) return;
+    const day = Number(hud.missionDay || simState?.mission_day || 0);
+    setResourceHistory((prev) => {
+      const next = [
+        ...prev,
+        {
+          water,
+          nutrients,
+          day: Number.isFinite(day) ? day : 0,
+        },
+      ];
+      return next.length > RESOURCE_HISTORY_LIMIT
+        ? next.slice(next.length - RESOURCE_HISTORY_LIMIT)
+        : next;
+    });
+  }, [
+    hud.waterL,
+    hud.nutrientsKg,
+    hud.missionDay,
+    simState?.mission_day,
+    simState?.setup_complete,
+  ]);
 
   const simulateTick = useCallback(async () => {
     if (tickInFlightRef.current) return;
@@ -790,6 +838,13 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const hasLiveState = Boolean(simState && simState.setup_complete);
   const currentSol = hud.missionDay || simState?.mission_day || 1;
   const prettyAgentName = (name) => String(name || "").replace(/_/g, " ");
+  const trendLast = resourceHistory[resourceHistory.length - 1] || null;
+  const trendWaterPath = sparklinePath(resourceHistory, 220, 46, "water");
+  const trendNutrientPath = sparklinePath(resourceHistory, 220, 46, "nutrients");
+  const trendWindow =
+    resourceHistory.length > 1
+      ? `Sol ${resourceHistory[0].day} to ${resourceHistory[resourceHistory.length - 1].day}`
+      : `Sol ${currentSol}`;
 
   return (
     <div className="gh-overlay">
@@ -853,6 +908,46 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       )}
 
       <div className="gh-left-panels">
+      <div className="gh-resource-trends">
+        <div className="gh-resource-trends__header">
+          <span>Resource Trends</span>
+          <span className="gh-resource-trends__window">{trendWindow}</span>
+        </div>
+        <div className="gh-resource-trends__chart-wrap">
+          <div className="gh-resource-trends__label-row">
+            <span>Water over time</span>
+            <span>{trendLast ? `${Math.round(trendLast.water)}L` : "..."}</span>
+          </div>
+          <svg
+            className="gh-resource-trends__chart gh-resource-trends__chart--water"
+            viewBox="0 0 220 46"
+            preserveAspectRatio="none"
+            aria-label="Water availability over time"
+          >
+            <polyline
+              className="gh-resource-trends__line"
+              points={trendWaterPath.replace(/M|L/g, "").trim()}
+            />
+          </svg>
+        </div>
+        <div className="gh-resource-trends__chart-wrap">
+          <div className="gh-resource-trends__label-row">
+            <span>Nutrients over time</span>
+            <span>{trendLast ? `${Math.round(trendLast.nutrients)}kg` : "..."}</span>
+          </div>
+          <svg
+            className="gh-resource-trends__chart gh-resource-trends__chart--nutrients"
+            viewBox="0 0 220 46"
+            preserveAspectRatio="none"
+            aria-label="Nutrient availability over time"
+          >
+            <polyline
+              className="gh-resource-trends__line"
+              points={trendNutrientPath.replace(/M|L/g, "").trim()}
+            />
+          </svg>
+        </div>
+      </div>
       <div className="gh-agent-logs">
         <div className="gh-agent-logs__header">Agent Logs</div>
         {!hasLiveState ? (

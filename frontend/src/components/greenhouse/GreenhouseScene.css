@@ -297,6 +297,84 @@
   gap: 10px;
 }
 
+.gh-resource-trends {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 12px;
+  background: rgba(10, 5, 2, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 120, 64, 0.2);
+  border-radius: 10px;
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+}
+
+.gh-resource-trends__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: #e8a36a;
+}
+
+.gh-resource-trends__window {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.7px;
+  color: rgba(245, 224, 204, 0.65);
+}
+
+.gh-resource-trends__chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.gh-resource-trends__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9.5px;
+  color: rgba(245, 224, 204, 0.86);
+  letter-spacing: 0.5px;
+}
+
+.gh-resource-trends__chart {
+  width: 100%;
+  height: 46px;
+  border-radius: 6px;
+  border: 1px solid rgba(232, 120, 64, 0.2);
+  background:
+    linear-gradient(
+      to top,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px,
+      transparent 25%
+    ),
+    rgba(255, 255, 255, 0.015);
+}
+
+.gh-resource-trends__line {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gh-resource-trends__chart--water .gh-resource-trends__line {
+  stroke: #58cdfa;
+}
+
+.gh-resource-trends__chart--nutrients .gh-resource-trends__line {
+  stroke: #8de66f;
+}
+
 .gh-agent-logs {
   width: 100%;
   max-height: min(34vh, 300px);
