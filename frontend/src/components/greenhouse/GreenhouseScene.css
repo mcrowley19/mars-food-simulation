@@ -1014,6 +1014,47 @@
   color: rgba(220, 205, 190, 0.9);
 }
 
+.gh-plant-tooltip__divider {
+  border: none;
+  border-top: 1px solid rgba(232, 120, 64, 0.2);
+  margin: 6px 0 4px;
+}
+
+.gh-plant-tooltip__stress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.gh-plant-tooltip__stress-label {
+  font-size: 9px;
+  color: rgba(200, 190, 180, 0.55);
+  width: 46px;
+  flex-shrink: 0;
+}
+
+.gh-plant-tooltip__bar-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.gh-plant-tooltip__bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.gh-plant-tooltip__stress-val {
+  font-size: 9px;
+  color: rgba(200, 190, 180, 0.7);
+  min-width: 28px;
+  text-align: right;
+}
+
 /* ── Crop Health Tab ─────────────────────────────────────────────────────── */
 .gh-resources__crop-health {
   display: flex;

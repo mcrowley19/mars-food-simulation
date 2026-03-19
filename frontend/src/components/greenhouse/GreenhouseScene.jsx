@@ -1123,35 +1123,67 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
         </button>
       )}
 
-      {plantHover && (
-        <div
-          className="gh-plant-tooltip"
-          style={{ left: plantHover.x, top: plantHover.y }}
-        >
-          <div className="gh-plant-tooltip__name">{plantHover.crop.name}</div>
-          <div className="gh-plant-tooltip__row">
-            <span>Status</span>
-            <span>
-              {String(plantHover.crop.status || "unknown").replace(/_/g, " ")}
-            </span>
+      {plantHover && (() => {
+        const c = plantHover.crop;
+        const health = c.health != null ? Math.round(c.health * 100) : null;
+        const cumulative = c.cumulative_health != null ? Math.round(c.cumulative_health * 100) : null;
+        const stresses = [
+          { label: "Water",    val: c.water_stress },
+          { label: "Nutrient", val: c.nutrient_stress },
+          { label: "Light",    val: c.light_stress },
+          { label: "Env",      val: c.env_stress },
+        ];
+        const stressCls = (pct) => pct >= 75 ? "gh-bar--ok" : pct >= 45 ? "gh-bar--warn" : "gh-bar--crit";
+        return (
+          <div className="gh-plant-tooltip" style={{ left: plantHover.x, top: plantHover.y }}>
+            <div className="gh-plant-tooltip__name">{c.name}</div>
+            <div className="gh-plant-tooltip__row">
+              <span>Status</span>
+              <span>{String(c.status || "unknown").replace(/_/g, " ")}</span>
+            </div>
+            <div className="gh-plant-tooltip__row">
+              <span>Age</span>
+              <span>{c.age_days ?? 0} / {c.maturity_days ?? 0} days</span>
+            </div>
+            <div className="gh-plant-tooltip__row">
+              <span>Water use</span>
+              <span>{c.water_per_day_l ?? 0} L/day</span>
+            </div>
+            <div className="gh-plant-tooltip__row">
+              <span>Nutrients</span>
+              <span>{c.nutrient_per_day_kg ?? 0} kg/day</span>
+            </div>
+            {health != null && (
+              <>
+                <div className="gh-plant-tooltip__divider" />
+                <div className="gh-plant-tooltip__row">
+                  <span>Health</span>
+                  <span style={{ color: health >= 75 ? "#6fcf97" : health >= 45 ? "#f2c94c" : "#eb5757" }}>{health}%</span>
+                </div>
+                {cumulative != null && (
+                  <div className="gh-plant-tooltip__row">
+                    <span>Cumulative</span>
+                    <span style={{ color: "rgba(200,190,180,0.6)" }}>{cumulative}%</span>
+                  </div>
+                )}
+                {stresses.map(({ label, val }) => {
+                  if (val == null) return null;
+                  const pct = Math.round(val * 100);
+                  return (
+                    <div key={label} className="gh-plant-tooltip__stress-row">
+                      <span className="gh-plant-tooltip__stress-label">{label}</span>
+                      <div className="gh-plant-tooltip__bar-track">
+                        <div className={`gh-plant-tooltip__bar-fill ${stressCls(pct)}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="gh-plant-tooltip__stress-val">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
-          <div className="gh-plant-tooltip__row">
-            <span>Age</span>
-            <span>
-              {plantHover.crop.age_days ?? 0} /{" "}
-              {plantHover.crop.maturity_days ?? 0} days
-            </span>
-          </div>
-          <div className="gh-plant-tooltip__row">
-            <span>Water</span>
-            <span>{plantHover.crop.water_per_day_l ?? 0} L/day</span>
-          </div>
-          <div className="gh-plant-tooltip__row">
-            <span>Nutrients</span>
-            <span>{plantHover.crop.nutrient_per_day_kg ?? 0} kg/day</span>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="gh-left-panels" ref={leftPanelsRef}>
       <div className="gh-resource-trends">
@@ -1520,13 +1552,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               >
                 Vitamins
               </button>
-              <button
-                type="button"
-                className={`gh-resources__tab ${resourcesTab === "health" ? "is-active" : ""}`}
-                onClick={() => setResourcesTab("health")}
-              >
-                Crop Health
-              </button>
             </div>
             {resourcesTab === "overview" ? (
               <>
@@ -1584,7 +1609,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </span>
             </div>
               </>
-            ) : resourcesTab === "vitamins" ? (
+            ) : (
               <div className="gh-resources__vitamins">
                 <div className="gh-resources__vitamins-title">
                   Essential Vitamins (from consumed food)
@@ -1608,51 +1633,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                         />
                       </div>
                       <span className="gh-resources__value">{Math.round(pct)}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="gh-resources__crop-health">
-                {Object.keys(hud.cropHealthByType).length === 0 ? (
-                  <div className="gh-resources__subtle">No crops growing yet.</div>
-                ) : Object.entries(hud.cropHealthByType).map(([name, h]) => {
-                  const overall = Math.round((h.health ?? 0) * 100);
-                  const cumulative = Math.round((h.cumulative ?? 0) * 100);
-                  const stresses = [
-                    { label: "Water",    val: h.waterStress },
-                    { label: "Nutrient", val: h.nutrientStress },
-                    { label: "Light",    val: h.lightStress },
-                    { label: "Env",      val: h.envStress },
-                  ];
-                  const healthBarCls = overall >= 75 ? "gh-bar--ok" : overall >= 45 ? "gh-bar--warn" : "gh-bar--crit";
-                  return (
-                    <div key={name} className="gh-resources__health-crop">
-                      <div className="gh-resources__health-crop-header">
-                        <span className="gh-resources__health-crop-name">{name}</span>
-                        <span className="gh-resources__health-crop-meta">{h.count} plants · cumulative {cumulative}%</span>
-                      </div>
-                      <div className="gh-resources__health-overall-row">
-                        <span className="gh-resources__health-label">Overall</span>
-                        <div className="gh-resources__bar-track">
-                          <div className={`gh-resources__bar-fill ${healthBarCls}`} style={{ width: `${overall}%` }} />
-                        </div>
-                        <span className="gh-resources__value">{overall}%</span>
-                      </div>
-                      {stresses.map(({ label, val }) => {
-                        if (val == null) return null;
-                        const pct = Math.round(val * 100);
-                        const cls = pct >= 75 ? "gh-bar--ok" : pct >= 45 ? "gh-bar--warn" : "gh-bar--crit";
-                        return (
-                          <div key={label} className="gh-resources__health-stress-row">
-                            <span className="gh-resources__health-stress-label">{label}</span>
-                            <div className="gh-resources__bar-track">
-                              <div className={`gh-resources__bar-fill ${cls}`} style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="gh-resources__value gh-resources__value--small">{pct}%</span>
-                          </div>
-                        );
-                      })}
                     </div>
                   );
                 })}
