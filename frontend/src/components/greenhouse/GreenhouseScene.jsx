@@ -32,6 +32,7 @@ function cropChipStyle(cropName) {
 }
 
 export default function GreenhouseScene({ onExit, totalDays = 350 }) {
+  const SOL_TICK_MS = 8000
   const canvasRef = useRef(null)
   const stateRef = useRef(null)
   const rafRef = useRef(null)
@@ -48,6 +49,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const [insideDome, setInsideDome] = useState(null)
   const insideDomeRef = useRef(null)
   const simDayFracRef = useRef(0.25)
+  const lastMissionDayRef = useRef(null)
+  const solStartTimeRef = useRef(0)
   const [domeDefs, setDomeDefs] = useState(null)
   const tickInFlightRef = useRef(false)
 
@@ -64,7 +67,16 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     co2Tint: 0,
   })
 
-  useEffect(() => { simStateRef.current = simState }, [simState])
+  useEffect(() => {
+    simStateRef.current = simState
+    const missionDay = simState?.mission_day
+    if (typeof missionDay !== 'number') return
+    if (lastMissionDayRef.current === null || missionDay !== lastMissionDayRef.current) {
+      lastMissionDayRef.current = missionDay
+      solStartTimeRef.current = performance.now()
+      simDayFracRef.current = 0
+    }
+  }, [simState])
   useEffect(() => { insideDomeRef.current = insideDome }, [insideDome])
 
   const simulateTick = useCallback(async () => {
@@ -241,7 +253,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
     const SUN_ORBIT_R = 140
     const SUN_MAX_H   = 80
-    const SOL_DURATION = 10
 
     const DAY_BG     = new THREE.Color('#28120a')
     const NIGHT_BG   = new THREE.Color('#3a2530')
@@ -258,9 +269,19 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       const dt = (now - lastTime) / 1000
       lastTime = now
 
-      simDayFracRef.current += dt / SOL_DURATION
-      if (simDayFracRef.current >= 1) {
-        simDayFracRef.current = 0
+      const missionDay = simStateRef.current?.mission_day
+      if (typeof missionDay === 'number') {
+        if (lastMissionDayRef.current === null || missionDay !== lastMissionDayRef.current) {
+          lastMissionDayRef.current = missionDay
+          solStartTimeRef.current = now
+          simDayFracRef.current = 0
+        }
+        const elapsed = (now - solStartTimeRef.current) / SOL_TICK_MS
+        simDayFracRef.current = Math.max(0, Math.min(0.999, elapsed))
+      } else {
+        // Fallback visual loop before live state arrives.
+        simDayFracRef.current += dt / 10
+        if (simDayFracRef.current >= 1) simDayFracRef.current = 0
       }
 
       const sunPhase = simDayFracRef.current
@@ -411,9 +432,9 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   useEffect(() => {
     if (!simState?.setup_complete) return
     // Keep mission sols advancing for this user's isolated session.
-    const timer = setInterval(() => { simulateTick() }, 8000)
+    const timer = setInterval(() => { simulateTick() }, SOL_TICK_MS)
     return () => clearInterval(timer)
-  }, [simState?.setup_complete, simulateTick])
+  }, [simState?.setup_complete, simulateTick, SOL_TICK_MS])
 
   const handleEnterDome = useCallback(() => {
     const s = stateRef.current
