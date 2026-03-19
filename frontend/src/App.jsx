@@ -149,7 +149,7 @@ function App() {
     }
 
     const startedAt = Date.now();
-    const timeoutMs = 120000; // 2 minutes
+    const timeoutMs = 240000; // 4 minutes
     let setupState = null;
     while (Date.now() - startedAt < timeoutMs) {
       await delay(2000);

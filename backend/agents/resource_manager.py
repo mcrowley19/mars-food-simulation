@@ -3,7 +3,7 @@ from strands.models.bedrock import BedrockModel
 from tools.greenhouse_tools import search_mars_kb
 from tools.simulation_tools import get_current_state
 
-MODEL = BedrockModel(model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0", region_name="us-east-1")
+MODEL = BedrockModel(model_id="amazon.nova-lite-v1:0", region_name="us-east-1")
 
 SYSTEM_PROMPT = """You are the Resource Manager for a Martian greenhouse.
 Your #1 job is to ensure water, nutrients, and fuel NEVER run out before the mission ends.
