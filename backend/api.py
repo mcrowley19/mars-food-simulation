@@ -545,14 +545,24 @@ def setup_ai_optimised(
         return {"status": "ready"}
 
     if current.get("ai_setup_in_progress"):
-        return {"status": "in_progress"}
+        # If stuck for over 4 minutes, reset so user can retry
+        import time
+        started_at = current.get("ai_setup_started_at", 0)
+        if time.time() - started_at > 240:
+            current["ai_setup_in_progress"] = False
+            current["ai_setup_error"] = "Previous AI setup timed out."
+            update_state(current, session_key=session_key)
+        else:
+            return {"status": "in_progress"}
 
     lock = _get_ai_setup_lock(session_key)
     if not lock.acquire(blocking=False):
         return {"status": "in_progress"}
 
+    import time as _time
     current["ai_setup_in_progress"] = True
     current["ai_setup_error"] = None
+    current["ai_setup_started_at"] = _time.time()
     update_state(current, session_key=session_key)
 
     ai_params = {
