@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getSessionId } from '../utils/session'
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_BASE_URL } from '../utils/api'
 
 export default function useGreenhouseState(setupComplete) {
   const [state, setState] = useState(null)
@@ -24,7 +23,7 @@ export default function useGreenhouseState(setupComplete) {
 
     const sessionId = getSessionId()
     const fetchState = () => {
-      fetch(`${API}/state`, {
+      fetch(`${API_BASE_URL}/state`, {
         headers: { 'x-session-id': sessionId },
       })
         .then(r => {

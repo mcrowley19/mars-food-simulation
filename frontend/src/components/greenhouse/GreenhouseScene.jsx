@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import useGreenhouseState from "../../hooks/useGreenhouseState";
 import { getSessionId } from "../../utils/session";
+import { API_BASE_URL } from "../../utils/api";
 import { initScene, buildTerrain, setupLighting } from "./sceneSetup";
 import { buildColony } from "./domeBuilder";
 import { distributeCrops, updateCropsAndBeds } from "./cropRenderer";
@@ -98,7 +99,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
   const simState = useGreenhouseState(true);
   const simStateRef = useRef(null);
-  const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   const lerpedRef = useRef({
     sunIntensityMul: 1.0,
@@ -131,7 +131,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     tickInFlightRef.current = true;
     try {
       const sessionId = getSessionId();
-      await fetch(`${API}/simulate-tick`, {
+      await fetch(`${API_BASE_URL}/simulate-tick`, {
         method: "POST",
         headers: { "x-session-id": sessionId },
       });
@@ -140,7 +140,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     } finally {
       tickInFlightRef.current = false;
     }
-  }, [API]);
+  }, []);
 
   useEffect(() => {
     if (domeDefs) return;

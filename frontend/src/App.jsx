@@ -7,6 +7,7 @@ import InitialiseSession from "./components/InitialiseSession";
 import LearnMore from "./components/LearnMore";
 import GreenhouseScene from "./components/greenhouse/GreenhouseScene";
 import { getSessionId } from "./utils/session";
+import { API_BASE_URL } from "./utils/api";
 import "./App.css";
 
 function App() {
@@ -30,7 +31,6 @@ function App() {
   };
 
   const handleBeginSimulation = async (config) => {
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     const sessionId = getSessionId();
 
@@ -57,7 +57,7 @@ function App() {
     let setupOk = false;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        const res = await fetch(`${API}/setup/manual`, {
+        const res = await fetch(`${API_BASE_URL}/setup/manual`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -90,7 +90,7 @@ function App() {
     ].join(" ");
 
     if (setupOk) {
-      fetch(`${API}/invoke`, {
+      fetch(`${API_BASE_URL}/invoke`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -100,7 +100,7 @@ function App() {
       }).catch(() => {});
     } else {
       // Fallback: still try invoke once in case setup eventually completed server-side.
-      fetch(`${API}/invoke`, {
+      fetch(`${API_BASE_URL}/invoke`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,7 +114,6 @@ function App() {
   };
 
   const handleBeginAI = async () => {
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const sessionId = getSessionId();
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -122,7 +121,7 @@ function App() {
     let startError = "AI setup failed to start.";
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const res = await fetch(`${API}/setup/ai-optimised`, {
+        const res = await fetch(`${API_BASE_URL}/setup/ai-optimised`, {
           method: "POST",
           headers: { "x-session-id": sessionId },
         });
@@ -150,7 +149,7 @@ function App() {
       await delay(2000);
       let statusRes;
       try {
-        statusRes = await fetch(`${API}/setup-status`, {
+        statusRes = await fetch(`${API_BASE_URL}/setup-status`, {
           headers: { "x-session-id": sessionId },
         });
       } catch {
@@ -163,7 +162,7 @@ function App() {
         throw new Error(`AI setup failed: ${status.ai_setup_error}`);
       }
       if (status.setup_complete && status.setup_mode === "ai_optimised") {
-        const stateRes = await fetch(`${API}/state`, {
+        const stateRes = await fetch(`${API_BASE_URL}/state`, {
           headers: { "x-session-id": sessionId },
         });
         if (!stateRes.ok) {
@@ -183,7 +182,6 @@ function App() {
   };
 
   const handleLaunchAI = (aiState) => {
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const sessionId = getSessionId();
 
     const prompt = [
@@ -192,7 +190,7 @@ function App() {
       "Assess the initial state and begin managing the greenhouse.",
     ].filter(Boolean).join(" ");
 
-    fetch(`${API}/invoke`, {
+    fetch(`${API_BASE_URL}/invoke`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
