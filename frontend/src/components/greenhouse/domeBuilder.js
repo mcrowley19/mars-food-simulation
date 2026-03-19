@@ -36,23 +36,70 @@ function buildDomeInterior(radius, targetPlantCount = 60) {
   g.add(floor);
 
   const usableRadius = radius * 0.78;
-  const MAX_PLANTERS = Math.max(targetPlantCount, 4);
+  const targetSlots = Math.max(0, Math.round(Number(targetPlantCount) || 0));
 
-  // Work out column count and plants-per-col so total slots ≈ targetPlantCount
-  const estCols = Math.max(2, Math.round(Math.sqrt(targetPlantCount * 0.6)));
+  // Work out columns, then distribute slots by planter length so total slots === target.
+  const estCols = Math.max(2, Math.round(Math.sqrt(Math.max(targetSlots, 1) * 0.7)));
   const colSpacing = Math.max(1.4, (usableRadius * 2) / estCols);
   const colWidth = colSpacing * 0.7;
   const boxH = colSpacing * 0.22;
   const soilH = 0.03;
-  const plantsPerCol = Math.max(2, Math.ceil(targetPlantCount / estCols));
 
-  for (let x = -usableRadius; x <= usableRadius; x += colSpacing) {
-    if (plantMeshes.length >= MAX_PLANTERS) break;
-
-    // Calculate the length of this column based on the circular dome footprint
+  const candidateCols = [];
+  for (let ci = 0; ci < estCols; ci++) {
+    const x = -usableRadius + ((ci + 0.5) / estCols) * usableRadius * 2;
     const halfLen = Math.sqrt(Math.max(0, usableRadius * usableRadius - x * x));
-    if (halfLen < colWidth) continue;
-    const colLen = halfLen * 2;
+    if (halfLen < colWidth * 0.55) continue;
+    candidateCols.push({ x, halfLen, colLen: halfLen * 2 });
+  }
+  if (candidateCols.length === 0) {
+    candidateCols.push({
+      x: 0,
+      halfLen: usableRadius,
+      colLen: usableRadius * 2,
+    });
+  }
+
+  const slotsByCol = candidateCols.map(() => 0);
+  if (targetSlots > 0) {
+    const weights = candidateCols.map((c) => Math.max(0.001, c.colLen));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    const remainders = [];
+    let assigned = 0;
+
+    for (let i = 0; i < candidateCols.length; i++) {
+      const raw = (weights[i] / totalWeight) * targetSlots;
+      const whole = Math.floor(raw);
+      slotsByCol[i] = whole;
+      assigned += whole;
+      remainders.push({ i, frac: raw - whole, weight: weights[i] });
+    }
+
+    // Keep one slot in each active column when possible for cleaner visual spread.
+    if (targetSlots >= candidateCols.length) {
+      for (let i = 0; i < candidateCols.length && assigned < targetSlots; i++) {
+        if (slotsByCol[i] === 0) {
+          slotsByCol[i] = 1;
+          assigned += 1;
+        }
+      }
+    }
+
+    let remainder = targetSlots - assigned;
+    remainders.sort((a, b) => b.frac - a.frac || b.weight - a.weight);
+    let ri = 0;
+    while (remainder > 0 && remainders.length > 0) {
+      const idx = remainders[ri % remainders.length].i;
+      slotsByCol[idx] += 1;
+      remainder -= 1;
+      ri += 1;
+    }
+  }
+
+  for (let colIndex = 0; colIndex < candidateCols.length; colIndex++) {
+    const slotsInCol = slotsByCol[colIndex];
+    if (slotsInCol <= 0) continue;
+    const { x, halfLen, colLen } = candidateCols[colIndex];
 
     // Wooden border/rim around the planter
     const rimThickness = 0.08;
@@ -107,11 +154,7 @@ function buildDomeInterior(radius, targetPlantCount = 60) {
     soil.position.set(x, FLOOR_Y + (boxH + soilH) / 2 + 0.02, 0);
     g.add(soil);
 
-    // Distribute individual plant slots along this column
-    const slotsInCol = Math.min(
-      plantsPerCol,
-      MAX_PLANTERS - plantMeshes.length,
-    );
+    // Distribute individual plant slots along this column.
     const slotSpacing = colLen / (slotsInCol + 1);
 
     for (let si = 0; si < slotsInCol; si++) {
