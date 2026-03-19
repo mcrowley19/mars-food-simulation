@@ -1531,13 +1531,6 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </span>
             </div>
             <div className="gh-resources__row">
-              <span className="gh-resources__label">Crops</span>
-              <span className="gh-resources__value gh-resources__value--wide">
-                {hud.cropsGrowing} growing / {hud.cropsReady} ready
-                {hud.harvestedCount > 0 && ` / ${hud.harvestedCount} harvested`}
-              </span>
-            </div>
-            <div className="gh-resources__row">
               <span className="gh-resources__label">Calories</span>
               <div className="gh-resources__bar-track">
                 <div
@@ -1567,6 +1560,13 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               </div>
               <span className="gh-resources__value">
                 {Math.round(hud.caloriesAvailable).toLocaleString()} kcal
+              </span>
+            </div>
+            <div className="gh-resources__row">
+              <span className="gh-resources__label">Crops</span>
+              <span className="gh-resources__value gh-resources__value--wide">
+                {hud.cropsGrowing} growing / {hud.cropsReady} ready
+                {hud.harvestedCount > 0 && ` / ${hud.harvestedCount} harvested`}
               </span>
             </div>
               </>

@@ -3,7 +3,7 @@ from strands.models.bedrock import BedrockModel
 from tools.greenhouse_tools import search_mars_kb
 from tools.simulation_tools import get_current_state
 
-MODEL = BedrockModel(model_id="amazon.nova-pro-v1:0", region_name="us-east-1")
+MODEL = BedrockModel(model_id="anthropic.claude-3-5-haiku-20241022-v1:0", region_name="us-east-1")
 
 SYSTEM_PROMPT = """You are the Fault Handler for a Martian greenhouse.
 Respond to system failures for 4 astronauts across a 450-day surface mission.
