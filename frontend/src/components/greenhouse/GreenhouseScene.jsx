@@ -1674,7 +1674,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
           onClick={() => setIsFastForward((f) => !f)}
           aria-label={isFastForward ? "Normal speed" : "Fast forward (3x)"}
         >
-          {isFastForward ? "3x" : "▶▶"}
+          ▶▶
         </button>
         <div className="gh-timeline-track">
           <span className="gh-timeline-label">Sol 1</span>
