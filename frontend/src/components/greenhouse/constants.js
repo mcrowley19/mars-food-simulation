@@ -52,3 +52,11 @@ export function scaleDomeDefs(floorSpaceM2) {
     return { ...def, r: clamped };
   });
 }
+
+export function enterZoomForRadius(radius) {
+  const baseRadius = DOME_DEFS_BASE[0]?.r || 24;
+  const r = Math.max(1, Number(radius) || baseRadius);
+  // Use a softer scale curve so entering larger domes keeps more context in view.
+  const scaled = ZOOM_ENTERED * (baseRadius / r) * 0.45;
+  return Math.max(0.95, Math.min(2.1, scaled));
+}

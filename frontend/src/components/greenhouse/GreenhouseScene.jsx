@@ -21,6 +21,7 @@ import {
   lerp,
   easeInOut,
   scaleDomeDefs,
+  enterZoomForRadius,
 } from "./constants";
 import "./GreenhouseScene.css";
 
@@ -334,8 +335,8 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     const SUN_ORBIT_R = 140;
     const SUN_MAX_H = 80;
 
-    const DAY_BG = new THREE.Color("#28120a");
-    const NIGHT_BG = new THREE.Color("#3a2530");
+    const DAY_BG = new THREE.Color("#5f3219");
+    const NIGHT_BG = new THREE.Color("#120b18");
     const DAWN_SUN = new THREE.Color("#ff8844");
     const NOON_SUN = new THREE.Color("#ffe8cc");
     const bgColor = new THREE.Color();
@@ -387,8 +388,20 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       sun.target.updateMatrixWorld();
 
       const elevation = sunY / SUN_MAX_H;
-      const dayFactor = Math.max(0, elevation);
-      const twilight = Math.max(0, Math.min(1, (elevation + 0.15) / 0.3));
+      // Explicitly day-dominant cycle: keep daylight for most of the sol.
+      const noonPhase = 0.25;
+      const phaseDist = Math.abs(sunPhase - noonPhase);
+      const circularDist = Math.min(phaseDist, 1 - phaseDist);
+      const blendWindow = (dist, span, feather) => {
+        const half = span * 0.5;
+        const inner = half - feather;
+        const outer = half + feather;
+        if (dist <= inner) return 1;
+        if (dist >= outer) return 0;
+        return 1 - (dist - inner) / (outer - inner);
+      };
+      const dayFactor = blendWindow(circularDist, 0.84, 0.05);
+      const twilight = blendWindow(circularDist, 0.94, 0.08);
 
       const ss = simStateRef.current;
       const env = ss?.environment || {};
@@ -435,12 +448,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       );
       lv.co2Tint = lerp(lv.co2Tint, tgtCo2Tint, Math.min(1, dt * LERP_SPEED));
 
-      const baseSunI = lerp(1.1, 2.75, dayFactor);
+      const baseSunI = lerp(0.35, 2.95, dayFactor);
       sun.intensity = baseSunI * lv.sunIntensityMul;
-      sun.castShadow = false;
-      const baseAmbI = lerp(0.52, 0.6, twilight);
+      sun.castShadow = dayFactor > 0.12;
+      const baseAmbI = lerp(0.2, 0.72, twilight);
       ambient.intensity = baseAmbI * lv.ambientTint;
-      fill.intensity = lerp(0.44, 0.5, twilight);
+      fill.intensity = lerp(0.12, 0.52, twilight);
 
       sunColor.copy(DAWN_SUN).lerp(NOON_SUN, dayFactor);
       sun.color.copy(sunColor);
@@ -596,7 +609,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     anim.progress = 0;
     anim.dome = domeGroup;
     anim.startZoom = camera.zoom;
-    anim.endZoom = ZOOM_ENTERED;
+    anim.endZoom = enterZoomForRadius(domeGroup.userData.radius);
     anim.startX = camera.position.x;
     anim.startZ = camera.position.z;
     anim.endX = domeGroup.position.x;
@@ -684,7 +697,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     anim.progress = 0;
     anim.dome = domeGroup;
     anim.startZoom = camera.zoom;
-    anim.endZoom = ZOOM_ENTERED;
+    anim.endZoom = enterZoomForRadius(domeGroup.userData.radius);
     anim.startX = camera.position.x;
     anim.startZ = camera.position.z;
     anim.endX = domeGroup.position.x;
