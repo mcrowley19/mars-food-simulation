@@ -35,16 +35,46 @@ const DAILY_VITAMIN_TARGETS = {
   B12: 2.4, // ug
 }
 
+// Nutrition quality of prepackaged rations by vitamin (0..1 of target at full calorie intake).
+const RATION_VITAMIN_QUALITY = {
+  A: 0.82,
+  C: 0.74,
+  D: 0.48,
+  E: 0.71,
+  K: 0.63,
+  B9: 0.77,
+  B12: 0.88,
+}
+
+// Approximate vitamin degradation in stored rations per 100 mission sols.
+const RATION_VITAMIN_DEGRADATION_PER_100_SOLS = {
+  A: 0.08,
+  C: 0.18,
+  D: 0.05,
+  E: 0.06,
+  K: 0.1,
+  B9: 0.12,
+  B12: 0.04,
+}
+
 function baselineVitaminCoverageFromConsumption(ss) {
   const consumed = Math.max(
     0,
     Number(ss?.calories_consumed_today ?? ss?.calories_needed_per_day ?? 0),
   )
   const needed = Math.max(1, Number(ss?.calories_needed_per_day) || 1)
+  const missionDay = Math.max(1, Number(ss?.mission_day) || 1)
   const intakeRatio = Math.max(0, Math.min(1.2, consumed / needed))
-  // Assume stored mission food packs are nutritionally balanced.
+  // Stored rations are calorie-complete but not vitamin-perfect across all micronutrients.
   return Object.fromEntries(
-    Object.keys(DAILY_VITAMIN_TARGETS).map((k) => [k, Math.round(intakeRatio * 1000) / 10]),
+    Object.keys(DAILY_VITAMIN_TARGETS).map((k) => {
+      const baseQuality = Number(RATION_VITAMIN_QUALITY[k] ?? 0.7)
+      const degradationPer100 = Number(RATION_VITAMIN_DEGRADATION_PER_100_SOLS[k] ?? 0.08)
+      const retention = Math.max(0.35, 1 - (missionDay / 100) * degradationPer100)
+      const quality = baseQuality * retention
+      const pct = intakeRatio * quality * 100
+      return [k, Math.round(Math.max(0, Math.min(160, pct)) * 10) / 10]
+    }),
   )
 }
 
@@ -94,15 +124,16 @@ function computeVitaminLevels(ss) {
     harvestCoverage[vitKey] = Math.round(Math.max(0, Math.min(200, pct)) * 10) / 10
   })
 
-  // Blend harvest-derived vitamins with baseline ration profile.
-  // This prevents hard 0% during phases where tracked intake is mostly packaged food.
-  const HARVEST_WEIGHT = 0.75
-  const BASELINE_WEIGHT = 1 - HARVEST_WEIGHT
+  // Blend harvest-derived vitamins with ration profile.
+  // Harvest influence scales with how much edible crop inventory exists relative to daily consumption.
+  const harvestCoverageDays = totalInventoryKcal / Math.max(1, caloriesConsumed)
+  const harvestWeight = Math.max(0.15, Math.min(0.9, harvestCoverageDays / 6))
+  const baselineWeight = 1 - harvestWeight
   const blendedCoverage = {}
   Object.keys(DAILY_VITAMIN_TARGETS).forEach((vitKey) => {
     const blended =
-      (harvestCoverage[vitKey] || 0) * HARVEST_WEIGHT +
-      (baselineCoverage[vitKey] || 0) * BASELINE_WEIGHT
+      (harvestCoverage[vitKey] || 0) * harvestWeight +
+      (baselineCoverage[vitKey] || 0) * baselineWeight
     blendedCoverage[vitKey] = Math.round(Math.max(0, Math.min(200, blended)) * 10) / 10
   })
   return blendedCoverage
