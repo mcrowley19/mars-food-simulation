@@ -23,6 +23,8 @@ import {
 import "./GreenhouseScene.css";
 
 let DOME_DEFS = DOME_DEFS_BASE;
+const MAX_VISIBLE_AGENT_LOGS = 8;
+const MAX_VISIBLE_RESPONSE_LINES = 3;
 
 function cropChipStyle(cropName) {
   const colorHex = CROP_COLORS[cropName?.toLowerCase()] || "#6ea07d";
@@ -713,6 +715,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
     ? activeAgentTab
     : agentTabs[0] || "";
   const activeTabEntries = activeTab ? parsedAgentLogs[activeTab] || [] : [];
+  const visibleAgentEntries = activeTabEntries.slice(-MAX_VISIBLE_AGENT_LOGS);
 
   useEffect(() => {
     if (!agentTabs.length) {
@@ -832,12 +835,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
               ))}
             </div>
             <div className="gh-agent-logs__list" ref={logsListRef}>
-              {activeTabEntries.length === 0 ? (
+              {visibleAgentEntries.length === 0 ? (
                 <div className="gh-agent-logs__empty">
                   No entries for this agent yet.
                 </div>
               ) : (
-                activeTabEntries.map((entry, idx) => (
+                visibleAgentEntries.map((entry, idx) => (
                   <div
                     key={`${activeTab}-${idx}`}
                     className="gh-agent-logs__entry"
@@ -845,26 +848,16 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
                     <div className="gh-agent-logs__meta">
                       Sol {entry?.day ?? "?"}
                     </div>
-                    {Array.isArray(entry?.task_lines) &&
-                    entry.task_lines.length > 0 ? (
-                      <div className="gh-agent-logs__block">
-                        <div className="gh-agent-logs__label">Task</div>
-                        {entry.task_lines.map((line, i) => (
-                          <div key={`task-${i}`} className="gh-agent-logs__line">
-                            {line}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
                     <div className="gh-agent-logs__block">
-                      <div className="gh-agent-logs__label">Response</div>
                       {Array.isArray(entry?.response_lines) &&
                       entry.response_lines.length > 0 ? (
-                        entry.response_lines.map((line, i) => (
+                        entry.response_lines
+                          .slice(0, MAX_VISIBLE_RESPONSE_LINES)
+                          .map((line, i) => (
                           <div key={`resp-${i}`} className="gh-agent-logs__line">
                             {line}
                           </div>
-                        ))
+                          ))
                       ) : (
                         <div className="gh-agent-logs__line">
                           No response content.

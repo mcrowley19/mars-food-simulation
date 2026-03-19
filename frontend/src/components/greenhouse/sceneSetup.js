@@ -30,7 +30,7 @@ export function initScene(canvas, w, h) {
 }
 
 export function buildTerrain(scene) {
-  const marsTexture = new THREE.TextureLoader().load('/mars-texture.jpg')
+  const marsTexture = new THREE.TextureLoader().load('/mars-ground.png')
   marsTexture.colorSpace = THREE.SRGBColorSpace
   marsTexture.wrapS = THREE.RepeatWrapping
   marsTexture.wrapT = THREE.RepeatWrapping
