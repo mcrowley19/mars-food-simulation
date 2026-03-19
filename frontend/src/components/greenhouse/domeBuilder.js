@@ -228,32 +228,6 @@ export function buildSingleDome(def) {
   foundation.receiveShadow = false;
   group.add(foundation);
 
-  const alockMat = new THREE.MeshPhysicalMaterial({
-    color: "#88ccbb",
-    transparent: true,
-    opacity: 0.35,
-    roughness: 0.15,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const airlock = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      r * 0.16,
-      r * 0.16,
-      r * 0.35,
-      16,
-      1,
-      false,
-      0,
-      Math.PI,
-    ),
-    alockMat,
-  );
-  airlock.position.set(0, r * 0.18, r + r * 0.1);
-  airlock.rotation.y = Math.PI / 2;
-  airlock.castShadow = false;
-  airlock.name = "airlock";
-  group.add(airlock);
 
   const {
     group: interiorGroup,

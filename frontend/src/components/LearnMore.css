@@ -6,7 +6,7 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(5, 2, 8, 0.78);
+  background: rgba(5, 2, 8, 0.96);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   display: flex;
