@@ -161,6 +161,26 @@ function layoutValueLabel(tick, value, chartWidth, chartHeight) {
   };
 }
 
+function PanelChevron({ collapsed }) {
+  return (
+    <svg
+      className={`gh-panel-arrow__icon${collapsed ? " is-collapsed" : ""}`}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+    >
+      <path
+        className="gh-panel-arrow__path"
+        d="M4 6.5 8 10.5 12 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const SOL_TICK_MS = 8000;
   const canvasRef = useRef(null);
@@ -207,6 +227,11 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
   const logsListRef = useRef(null);
   const [resourceHistory, setResourceHistory] = useState([]);
   const [trendHover, setTrendHover] = useState(null);
+  const [collapsedPanels, setCollapsedPanels] = useState({
+    trends: false,
+    logs: false,
+    resources: false,
+  });
 
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(1);
@@ -1015,6 +1040,12 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
       placeBelow: yPx < 18,
     });
   };
+  const togglePanel = (panelKey) => {
+    setCollapsedPanels((prev) => ({
+      ...prev,
+      [panelKey]: !prev[panelKey],
+    }));
+  };
 
   return (
     <div className="gh-overlay">
@@ -1079,10 +1110,25 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
 
       <div className="gh-left-panels">
       <div className="gh-resource-trends">
-        <div className="gh-resource-trends__header">
-          <span>Resource Trends</span>
-          <span className="gh-resource-trends__window">{trendWindow}</span>
-        </div>
+        <button
+          className="gh-resource-trends__header gh-panel-header-btn"
+          type="button"
+          onClick={() => togglePanel("trends")}
+          aria-label={collapsedPanels.trends ? "Expand resource trends" : "Collapse resource trends"}
+        >
+          <span className="gh-resource-trends__header-main">
+            <span className="gh-panel-arrow" aria-hidden="true">
+              <PanelChevron collapsed={collapsedPanels.trends} />
+            </span>
+            <span>Resource Trends</span>
+          </span>
+          {!collapsedPanels.trends && (
+            <span className="gh-resource-trends__window">{trendWindow}</span>
+          )}
+        </button>
+        <div
+          className={`gh-panel-body gh-panel-body--trends${collapsedPanels.trends ? " is-collapsed" : ""}`}
+        >
         <div className="gh-resource-trends__chart-wrap">
           <div className="gh-resource-trends__label-row">
             <span>Water over time</span>
@@ -1297,9 +1343,25 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             </div>
           )}
         </div>
+        </div>
       </div>
       <div className="gh-agent-logs">
-        <div className="gh-agent-logs__header">Agent Logs</div>
+        <button
+          className="gh-agent-logs__header gh-panel-header-btn"
+          type="button"
+          onClick={() => togglePanel("logs")}
+          aria-label={collapsedPanels.logs ? "Expand agent logs" : "Collapse agent logs"}
+        >
+          <span className="gh-panel-heading">
+            <span className="gh-panel-arrow" aria-hidden="true">
+              <PanelChevron collapsed={collapsedPanels.logs} />
+            </span>
+            <span>Agent Logs</span>
+          </span>
+        </button>
+        <div
+          className={`gh-panel-body gh-panel-body--logs${collapsedPanels.logs ? " is-collapsed" : ""}`}
+        >
         {!hasLiveState ? (
           <div className="gh-agent-logs__empty">
             Waiting for simulation state…
@@ -1372,9 +1434,26 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             </div>
           </>
         )}
+        </div>
       </div>
 
       <div className="gh-resources">
+        <button
+          className="gh-resources__header gh-panel-header-btn"
+          type="button"
+          onClick={() => togglePanel("resources")}
+          aria-label={collapsedPanels.resources ? "Expand resources panel" : "Collapse resources panel"}
+        >
+          <span className="gh-panel-heading">
+            <span className="gh-panel-arrow" aria-hidden="true">
+              <PanelChevron collapsed={collapsedPanels.resources} />
+            </span>
+            <span>Resources</span>
+          </span>
+        </button>
+        <div
+          className={`gh-panel-body gh-panel-body--resources${collapsedPanels.resources ? " is-collapsed" : ""}`}
+        >
         {!hasLiveState ? (
           <div className="gh-resources__sync">
             Syncing live simulation data...
@@ -1503,6 +1582,7 @@ export default function GreenhouseScene({ onExit, totalDays = 350 }) {
             )}
           </>
         )}
+        </div>
       </div>
       </div>
 
