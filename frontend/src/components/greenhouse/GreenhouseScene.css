@@ -283,6 +283,115 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Agent logs panel (above resources) ── */
+
+.gh-agent-logs {
+  position: fixed;
+  left: 20px;
+  bottom: 220px;
+  z-index: 102;
+  width: min(430px, 42vw);
+  max-height: min(40vh, 340px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(10, 5, 2, 0.86);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(232, 120, 64, 0.2);
+  border-radius: 10px;
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+}
+
+.gh-agent-logs__header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #e8a36a;
+}
+
+.gh-agent-logs__tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gh-agent-logs__tab {
+  border: 1px solid rgba(232, 120, 64, 0.2);
+  border-radius: 999px;
+  background: rgba(232, 120, 64, 0.07);
+  color: rgba(245, 224, 204, 0.7);
+  font-size: 9px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.gh-agent-logs__tab:hover {
+  border-color: rgba(232, 120, 64, 0.52);
+  color: #ffe4cc;
+}
+
+.gh-agent-logs__tab.is-active {
+  background: rgba(232, 120, 64, 0.2);
+  border-color: rgba(232, 120, 64, 0.6);
+  color: #ffe4cc;
+}
+
+.gh-agent-logs__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.gh-agent-logs__entry {
+  border: 1px solid rgba(232, 120, 64, 0.18);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gh-agent-logs__meta {
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(200, 160, 120, 0.68);
+}
+
+.gh-agent-logs__block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gh-agent-logs__label {
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(140, 220, 180, 0.82);
+}
+
+.gh-agent-logs__line {
+  font-size: 10px;
+  line-height: 1.35;
+  color: rgba(245, 224, 204, 0.9);
+  word-break: break-word;
+}
+
+.gh-agent-logs__empty {
+  font-size: 10px;
+  color: rgba(200, 190, 180, 0.7);
+}
+
 /* ── Resource HUD panel (bottom-left) ── */
 
 .gh-resources {
