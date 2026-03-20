@@ -30,7 +30,7 @@ function calcMinFoodKcal(astronauts, seedTypes) {
 
 const DEFAULTS = {
   fertilizer: 500,
-  water:       2000,
+  water:       15000,
   soil:        1500,
   space:       20,
   seedAmt:     40,

@@ -45,7 +45,7 @@ function App() {
     });
 
     const setupPayload = {
-      water_l: config?.water ?? 2000,
+      water_l: config?.water ?? 15000,
       fertilizer_kg: config?.fertilizer ?? 500,
       soil_kg: config?.soil ?? 1500,
       floor_space_m2: config?.space ?? 80,
@@ -91,7 +91,7 @@ function App() {
       "Create a Mars greenhouse startup plan.",
       `Crew: ${config?.astronauts ?? 4}`,
       `Mission days: ${config?.timeframe ?? 450}`,
-      `Water: ${config?.water ?? 2000}L`,
+      `Water: ${config?.water ?? 15000}L`,
       `Nutrients/Fertilizer: ${config?.fertilizer ?? 500}kg`,
       `Soil: ${config?.soil ?? 1500}kg`,
       `Selected crops: ${seedSummary}`,
