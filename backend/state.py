@@ -83,6 +83,12 @@ def update_state(state: dict, session_key: str | None = None):
     _table.put_item(Item=_native_to_decimals(state))
 
 
+def delete_state(session_key: str | None = None) -> None:
+    """Remove this session's item from DynamoDB (no-op if it does not exist)."""
+    key = _resolve_session_key(session_key)
+    _table.delete_item(Key={"key": key})
+
+
 def append_alert(alert: dict, session_key: str | None = None):
     state = get_state(session_key=session_key)
     state["alerts"].append(alert)
