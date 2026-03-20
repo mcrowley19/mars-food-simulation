@@ -10,12 +10,6 @@ function buildDomeInterior(radius, targetPlantCount = 60) {
     metalness: 0.04,
     fog: false,
   });
-  const planterMat = new THREE.MeshStandardMaterial({
-    color: "#6a4429",
-    roughness: 0.8,
-    metalness: 0.08,
-    fog: false,
-  });
 
   // Interior light so crops/planters stay visible during night and dust storms
   const interiorLight = new THREE.PointLight("#ffe8cc", 1.5, radius * 3, 1);

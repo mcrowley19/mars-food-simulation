@@ -183,7 +183,7 @@ function PanelChevron({ collapsed }) {
 }
 
 export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents = false }) {
-  const SOL_TICK_MS = 6000;
+  const SOL_TICK_MS = 4500;
   const canvasRef = useRef(null);
   const exitButtonRef = useRef(null);
   const leftPanelsRef = useRef(null);
@@ -238,6 +238,7 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
     resources: false,
   });
   const [isLogsSidebarOpen, setIsLogsSidebarOpen] = useState(true);
+  const isLogsSidebarOpenRef = useRef(isLogsSidebarOpen);
   const [resourcesTab, setResourcesTab] = useState("overview");
 
   const [agentInitTimedOut, setAgentInitTimedOut] = useState(false);
@@ -247,7 +248,11 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
     return () => clearTimeout(t);
   }, [agentInitTimedOut]);
 
-  const statePollMs = isLogsSidebarOpen ? 200 : 400;
+  useEffect(() => {
+    isLogsSidebarOpenRef.current = isLogsSidebarOpen;
+  }, [isLogsSidebarOpen]);
+
+  const statePollMs = isLogsSidebarOpen ? 350 : 800;
   const [simState, refreshSimState] = useGreenhouseState(true, statePollMs);
   const simStateRef = useRef(null);
   const logBurstTimeoutsRef = useRef([]);
@@ -333,15 +338,17 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
       });
       if (res.ok) {
         refreshSimState();
-        // Orchestrator runs after the tick response; pull /state a few times so logs land quickly.
-        const delaysMs = [100, 250, 500, 900, 1600, 2600];
-        delaysMs.forEach((ms) => {
-          const id = setTimeout(() => {
-            refreshSimState();
-            logBurstTimeoutsRef.current = logBurstTimeoutsRef.current.filter((t) => t !== id);
-          }, ms);
-          logBurstTimeoutsRef.current.push(id);
-        });
+        // Orchestrator runs after the tick; extra pulls only when logs are open (saves churn on main thread).
+        if (isLogsSidebarOpenRef.current) {
+          const delaysMs = [280, 900, 2200];
+          delaysMs.forEach((ms) => {
+            const id = setTimeout(() => {
+              refreshSimState();
+              logBurstTimeoutsRef.current = logBurstTimeoutsRef.current.filter((t) => t !== id);
+            }, ms);
+            logBurstTimeoutsRef.current.push(id);
+          });
+        }
       }
     } catch {
       // ignore transient network/backend errors; polling will recover
