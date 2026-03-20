@@ -254,6 +254,11 @@ def _line_importance_score(line: str, agent_name: str = "") -> int:
     if text.startswith(("note:", "info:", "summary:")):
         score -= 1
 
+    if agent_name == "orchestrator" and any(
+        w in text for w in ("error", "exception", "blocked", "denied", "timeout", "throttl")
+    ):
+        score += 25
+
     return score
 
 
@@ -336,17 +341,18 @@ def _compact_key_value_lines(raw: str) -> list[str]:
     return out
 
 
-def _hide_log_from_frontend(agent_name: str, response: str) -> bool:
+def _orchestrator_log_is_duplicate_noise(agent_name: str, response: str) -> bool:
+    """Only duplicate-run messages — not real failures (those must stay visible for debugging)."""
     if agent_name != "orchestrator":
         return False
     text = str(response or "").lower()
-    hidden_markers = (
-        "invocation error:",
-        "agent is already processing a request. concurrent invocations are not supported.",
-        "agent is already running — skipping duplicate invocation.",
-        "background run error:",
+    return any(
+        marker in text
+        for marker in (
+            "agent is already processing a request. concurrent invocations are not supported.",
+            "agent is already running — skipping duplicate invocation.",
+        )
     )
-    return any(marker in text for marker in hidden_markers)
 
 
 def _build_parsed_agent_logs(state: dict) -> dict:
@@ -360,13 +366,8 @@ def _build_parsed_agent_logs(state: dict) -> dict:
             if not isinstance(entry, dict):
                 continue
             response = entry.get("response", "")
-            if _hide_log_from_frontend(agent_name, response):
-                # Orchestrator-only: raw text is noisy IAM/duplicate-invocation noise, but an empty
-                # sidebar looks like a regression — show one line instead of dropping the entry.
-                response = (
-                    "Automated sol briefing did not complete (duplicate run, IAM block, or startup error). "
-                    "Check API logs if this persists."
-                )
+            if _orchestrator_log_is_duplicate_noise(agent_name, response):
+                response = "Briefing skipped — previous orchestrator run still in progress for this session."
             task_lines = _clip_lines(
                 _parse_readable_lines(entry.get("task", ""), agent_name),
                 _MAX_PARSED_LINES_PER_TASK,
@@ -397,10 +398,9 @@ def _build_parsed_agent_logs(state: dict) -> dict:
             for agent_name, action in last_actions.items():
                 if not action:
                     continue
-                if _hide_log_from_frontend(agent_name, action):
+                if _orchestrator_log_is_duplicate_noise(agent_name, action):
                     action = (
-                        "Automated sol briefing did not complete (duplicate run, IAM block, or startup error). "
-                        "Check API logs if this persists."
+                        "Briefing skipped — previous orchestrator run still in progress for this session."
                     )
                 parsed[agent_name] = [{
                     "day": state.get("mission_day"),
@@ -749,6 +749,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
         except Exception as e:
             flush_state_cache()
             err_text = str(e)
+            err_type = type(e).__name__
             if "AccessDeniedException" in err_text or "explicit deny" in err_text:
                 err_text = (
                     "Background orchestrator run blocked by AWS IAM policy "
@@ -758,7 +759,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                 session_key,
                 "orchestrator",
                 context,
-                f"Background run error: {err_text}",
+                f"Background run error ({err_type}): {err_text}",
             )
             traceback.print_exc()
         finally:
