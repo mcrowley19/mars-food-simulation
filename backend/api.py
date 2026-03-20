@@ -647,8 +647,11 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                 fuel_days = round(fuel_kg / fuel_per_day, 1) if fuel_per_day > 0 else 999
 
                 # Compute daily water consumption for urgency signals
+                sim_params = s.get("sim_params", {})
+                crew_water_l = sim_params.get("crew_water_l_per_day", 10.0)
+                urine_recovery = sim_params.get("urine_recovery_pct", 85.0) / 100.0
                 crop_water_day = sum(c.get("water_per_day_l", 0) for c in s["crops"])
-                net_crew_water = 10 * (1 - 0.85)  # 10L crew use, 85% recycled
+                net_crew_water = crew_water_l * (1 - urine_recovery)
                 total_water_day = crop_water_day + net_crew_water
                 water_days = round(res["water_l"] / total_water_day, 1) if total_water_day > 0 else 999
 
@@ -677,11 +680,20 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
 
                 warning_block = " ".join(warnings) if warnings else ""
 
+                astronaut_count = s.get("astronaut_count", 4)
+                floor_space = s.get("floor_space_m2", 0)
+                space_per_plant = 0.25
+                max_plants = int(floor_space / space_per_plant) if space_per_plant > 0 else 0
+                plant_slots_used = len(s.get("crops", []))
+
                 context = (
                     f"Mission day {s['mission_day']} of {mission_days} ({days_left} days remaining). "
+                    f"Crew: {astronaut_count} astronauts. "
+                    f"Floor space: {floor_space}m² ({plant_slots_used}/{max_plants} plant slots used). "
                     f"Environment: {env['temp_c']}°C, {env['co2_ppm']}ppm CO2, "
                     f"{env['humidity_pct']}% humidity, {env['light_hours']}h light at {env['light_intensity']}x intensity. "
-                    f"Resources: {res['water_l']:.1f}L water ({water_days} days remaining at {total_water_day:.1f}L/day), "
+                    f"Resources: {res['water_l']:.1f}L water ({water_days} days remaining at {total_water_day:.1f}L/day "
+                    f"— {crop_water_day:.1f}L crops + {net_crew_water:.1f}L crew net of {urine_recovery*100:.0f}% recycling), "
                     f"{res['nutrients_kg']:.1f}kg nutrients, {fuel_kg:.0f}kg fuel ({fuel_days} days remaining). "
                     f"Crops: {crop_summary}. "
                     f"Seed reserve: {reserve_summary}. "
