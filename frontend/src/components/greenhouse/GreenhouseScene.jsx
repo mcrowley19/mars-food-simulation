@@ -255,7 +255,10 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
   }, [isLogsSidebarOpen]);
 
   const statePollMs = isLogsSidebarOpen ? 250 : 600;
-  const [simState, refreshSimState] = useGreenhouseState(true, statePollMs);
+  const [simState, refreshSimState, applyAuthoritativeSnapshot] = useGreenhouseState(
+    true,
+    statePollMs,
+  );
   const simStateRef = useRef(null);
   const logBurstTimeoutsRef = useRef([]);
 
@@ -341,7 +344,19 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
         headers: { "x-session-id": sessionId },
       });
       if (res.ok) {
-        refreshSimState();
+        // Tick response already includes updated mission_day + events (e.g. dust storm). Applying it
+        // avoids waiting on a second GET /state round-trip, which caused long "stuck" sol transitions.
+        let tickState = null;
+        try {
+          tickState = await res.json();
+        } catch {
+          tickState = null;
+        }
+        if (tickState && typeof tickState === "object") {
+          applyAuthoritativeSnapshot(tickState);
+        } else {
+          refreshSimState();
+        }
         // Orchestrator runs after the tick; extra pulls only when logs are open (saves churn on main thread).
         if (isLogsSidebarOpenRef.current) {
           // Staggered pulls after orchestrator; useGreenhouseState merges late agent_logs without day flicker.
@@ -362,7 +377,7 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
     } finally {
       tickInFlightRef.current = false;
     }
-  }, [refreshSimState]);
+  }, [refreshSimState, applyAuthoritativeSnapshot]);
 
   useEffect(() => {
     return () => {
