@@ -183,8 +183,9 @@ function PanelChevron({ collapsed }) {
   );
 }
 
+const SOL_TICK_MS = 4500;
+
 export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DAYS, awaitAgents = false }) {
-  const SOL_TICK_MS = 4500;
   const canvasRef = useRef(null);
   const exitButtonRef = useRef(null);
   const leftPanelsRef = useRef(null);
@@ -861,7 +862,6 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
   }, [
     simState?.setup_complete,
     simulateTick,
-    SOL_TICK_MS,
     isPlaying,
     isFastForward,
   ]);
