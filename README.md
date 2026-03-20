@@ -1,5 +1,7 @@
 # Sol-450
 
+![Sol-450](sol-450.png)
+
 A full-stack, multi-agent greenhouse simulator for long-duration Mars missions. Configure a colony, launch AI-managed agricultural systems, and watch your crew survive — or not.
 
 ---
