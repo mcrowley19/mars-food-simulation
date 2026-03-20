@@ -188,7 +188,7 @@ mars-food-simulation/
 │       │   ├── InitialiseSession.jsx  # Setup screen
 │       │   └── greenhouse/            # 3D colony renderer
 │       ├── hooks/            # useGreenhouseState polling hook
-│       └── utils/            # API client, session ID management
+│       └── utils/            # API client, session ID, state merge + Vitest unit tests
 ├── scripts/                  # Dev setup and helper scripts
 ├── start.sh                  # One-command local startup
 └── amplify.yml               # Amplify build config for frontend deployment
@@ -198,12 +198,16 @@ mars-food-simulation/
 
 ## Testing
 
+**Full suite (recommended before demos / hackathon submit):**
+
 ```bash
 chmod +x scripts/run_all_tests.sh
 ./scripts/run_all_tests.sh
 ```
 
-Runs the frontend production build and `python -m unittest discover` in `backend/tests/` covering simulator tick invariants, `manual_setup` validation, JSON extraction, and orchestrator scheduling.
+Runs **frontend** `lint` + **Vitest** (`src/utils/*.test.js`) + **production build**, then **backend** `python -m unittest discover` in `backend/tests/` (simulator ticks, `manual_setup`, JSON extraction, orchestrator schedule).
+
+**Frontend only:** `cd frontend && npm run ci` (same as `lint`, `test`, `build` in sequence).
 
 ---
 

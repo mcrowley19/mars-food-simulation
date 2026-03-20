@@ -616,11 +616,28 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
 
     state = run_simulation_tick(state)
     update_state(state, session_key=session_key)
+    state = get_state(session_key=session_key)
 
     lock = _get_invoke_lock(session_key)
 
-    # Invoke agent in background if not already running
+    mission_day = state.get("mission_day", 0)
+    run_orchestrator = (
+        _ORCHESTRATOR_MISSION_DAY_INTERVAL <= 1
+        or mission_day % _ORCHESTRATOR_MISSION_DAY_INTERVAL == 0
+    )
+    # /invoke uses the same lock. While the startup orchestrator holds it, every tick used to skip
+    # silently — no per-sol logs until that call finished (often many mission days later).
+    if state.get("orchestrator_tick_pending"):
+        run_orchestrator = True
+
     def _run_agent():
+        try:
+            s0 = get_state(session_key=session_key)
+            if s0.get("orchestrator_tick_pending"):
+                s0["orchestrator_tick_pending"] = False
+                update_state(s0, session_key=session_key)
+        except Exception:
+            pass
         context = ""
         try:
             with _session_context(session_key):
@@ -740,14 +757,18 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
             clear_state_cache()
             lock.release()
 
-    mission_day = state.get("mission_day", 0)
-    run_orchestrator = (
-        _ORCHESTRATOR_MISSION_DAY_INTERVAL <= 1
-        or mission_day % _ORCHESTRATOR_MISSION_DAY_INTERVAL == 0
-    )
-    if run_orchestrator and lock.acquire(blocking=False):
-        threading.Thread(target=_run_agent, daemon=True).start()
+    if run_orchestrator:
+        if lock.acquire(blocking=False):
+            threading.Thread(target=_run_agent, daemon=True).start()
+        else:
+            try:
+                s_pending = get_state(session_key=session_key)
+                s_pending["orchestrator_tick_pending"] = True
+                update_state(s_pending, session_key=session_key)
+            except Exception:
+                pass
 
+    state = get_state(session_key=session_key)
     return _state_with_parsed_logs(state)
 
 
