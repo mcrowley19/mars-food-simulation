@@ -1,4 +1,4 @@
-import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,6 +33,8 @@ const MAX_VISIBLE_AGENT_LOGS = 32;
 const MAX_VISIBLE_RESPONSE_LINES = 14;
 const MAX_VISIBLE_TASK_LINES = 3;
 const RESOURCE_HISTORY_LIMIT = 72;
+/** Stable empty object so agent-tab effects do not re-run every render when logs are absent. */
+const EMPTY_AGENT_LOGS_PARSED = {};
 const RESOURCE_TREND_CHART_HEIGHT = 68;
 const RESOURCE_TREND_CHART_WIDTH = 320;
 
@@ -254,7 +256,8 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
     isLogsSidebarOpenRef.current = isLogsSidebarOpen;
   }, [isLogsSidebarOpen]);
 
-  const statePollMs = isLogsSidebarOpen ? 250 : 600;
+  // Aggressive polling (e.g. 250ms) + post-tick refresh bursts stacked requests and re-renders every sol.
+  const statePollMs = isLogsSidebarOpen ? 1400 : 2200;
   const [simState, refreshSimState, applyAuthoritativeSnapshot] = useGreenhouseState(
     true,
     statePollMs,
@@ -359,10 +362,8 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
         }
         // Orchestrator runs after the tick; extra pulls only when logs are open (saves churn on main thread).
         if (isLogsSidebarOpenRef.current) {
-          // Staggered pulls after orchestrator; useGreenhouseState merges late agent_logs without day flicker.
-          const delaysMs = [
-            100, 220, 400, 650, 1000, 1500, 2200, 3200, 4500, 6000,
-          ];
+          // Fewer staggered pulls: tick JSON is authoritative; coalesced GET /state handles overlap.
+          const delaysMs = [500, 2000, 5000];
           delaysMs.forEach((ms) => {
             const id = setTimeout(() => {
               refreshSimState();
@@ -600,6 +601,8 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
     const NIGHT_BG = new THREE.Color("#120b18");
     const DAWN_SUN = new THREE.Color("#ff8844");
     const NOON_SUN = new THREE.Color("#ffe8cc");
+    const TEMP_TINT_COLD = new THREE.Color("#2244ff");
+    const TEMP_TINT_HOT = new THREE.Color("#ff3322");
     const bgColor = new THREE.Color();
     const sunColor = new THREE.Color();
 
@@ -730,10 +733,7 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
 
       bgColor.copy(NIGHT_BG).lerp(DAY_BG, twilight);
       if (Math.abs(lv.tempTint) > 0.01) {
-        const tintColor =
-          lv.tempTint < 0
-            ? new THREE.Color("#2244ff")
-            : new THREE.Color("#ff3322");
+        const tintColor = lv.tempTint < 0 ? TEMP_TINT_COLD : TEMP_TINT_HOT;
         bgColor.lerp(tintColor, Math.abs(lv.tempTint) * 0.15);
       }
       scene.background.copy(bgColor);
@@ -1024,8 +1024,11 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
     simState?.agent_logs_parsed &&
     typeof simState.agent_logs_parsed === "object"
       ? simState.agent_logs_parsed
-      : {};
-  const agentTabs = Object.keys(parsedAgentLogs);
+      : EMPTY_AGENT_LOGS_PARSED;
+  const agentTabs = useMemo(
+    () => Object.keys(parsedAgentLogs),
+    [parsedAgentLogs],
+  );
   const activeTab = agentTabs.includes(activeAgentTab)
     ? activeAgentTab
     : agentTabs[0] || "";
