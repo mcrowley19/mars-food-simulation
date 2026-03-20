@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import traceback
 
 from state import (
-    get_state, update_state, normalize_session_key,
+    get_state, update_state, delete_state, normalize_session_key,
     set_request_session, reset_request_session,
 )
 from agents.simulator import run_simulation_tick, clear_kb_params_cache
@@ -723,12 +723,11 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
 
 @app.post("/reset")
 def reset_state(x_session_id: str | None = Header(default=None, alias="x-session-id")):
+    """Drop this session row from DynamoDB. Next use of this session id recreates blank state on first read."""
     session_key = normalize_session_key(x_session_id)
     clear_kb_params_cache(session_key)
-    from setup_modes import _blank_state
-    fresh = _blank_state()
-    update_state(fresh, session_key=session_key)
-    return fresh
+    delete_state(session_key=session_key)
+    return {"status": "deleted", "session_key": session_key}
 
 
 # Lambda handler for API Gateway deployment

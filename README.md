@@ -143,7 +143,7 @@ All endpoints accept an `x-session-id` header for session isolation.
 | `POST` | `/simulate-tick`      | Advance sim by one sol and trigger background agent run                      |
 | `POST` | `/simulate-jump`      | Fast-forward to a target sol (capped at 500 ticks)                           |
 | `GET`  | `/state`              | Full session state + parsed agent logs                                       |
-| `POST` | `/reset`              | Reset session state to blank                                                 |
+| `POST` | `/reset`              | Delete this session’s row in DynamoDB (recreated blank on next read for that id) |
 
 ---
 
