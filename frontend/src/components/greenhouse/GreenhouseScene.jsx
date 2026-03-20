@@ -226,8 +226,6 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
   const solStartTimeRef = useRef(0);
   const [domeDefs, setDomeDefs] = useState(null);
   const tickInFlightRef = useRef(false);
-  /** Intervals that fire while POST /simulate-tick is in flight; drained so sols are not skipped. */
-  const pendingTicksRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFastForward, setIsFastForward] = useState(false);
   const isPlayingRef = useRef(true);
@@ -330,7 +328,6 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
 
   const simulateTick = useCallback(async () => {
     if (tickInFlightRef.current) {
-      pendingTicksRef.current += 1;
       return;
     }
     tickInFlightRef.current = true;
@@ -363,12 +360,6 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
       // ignore transient network/backend errors; polling will recover
     } finally {
       tickInFlightRef.current = false;
-      if (pendingTicksRef.current > 0) {
-        pendingTicksRef.current -= 1;
-        queueMicrotask(() => {
-          simulateTick();
-        });
-      }
     }
   }, [refreshSimState]);
 
