@@ -11,7 +11,6 @@ export const CROP_COLORS = {
   wheat: "#DAA520",
   tomato: "#FF6347",
   soybean: "#9ACD32",
-  spinach: "#33cc55",
   radish: "#FF4500",
   pea: "#90EE90",
   kale: "#228B22",

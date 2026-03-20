@@ -22,7 +22,7 @@ The frontend is a React + Vite app with Three.js rendering for both the landing 
 1. User configures mission in `InitialiseSession`.
 2. `App.jsx` submits setup payload to backend.
 3. Greenhouse view mounts `GreenhouseScene`.
-4. `useGreenhouseState` polls `/state` every ~2s.
+4. `useGreenhouseState` polls `/state` on an interval from `GreenhouseScene` (faster when the agent logs sidebar is open).
 5. `GreenhouseScene` maps state into:
    - 3D visuals (domes, crops, lighting/fog)
    - HUD stats (water, nutrients, crops, env)

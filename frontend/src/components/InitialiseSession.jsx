@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './InitialiseSession.css'
 
-const SEED_OPTIONS  = ['Potato', 'Wheat', 'Lettuce', 'Tomato', 'Soybean', 'Spinach', 'Radish', 'Pea', 'Kale', 'Carrot']
+const SEED_OPTIONS  = ['Potato', 'Wheat', 'Lettuce', 'Tomato', 'Soybean', 'Radish', 'Pea', 'Kale', 'Carrot']
 
 // Kcal per kg for each crop and maturity days — used to compute minimum food supplies
 const CROP_DATA = {
@@ -10,7 +10,6 @@ const CROP_DATA = {
   Lettuce: { maturity: 30 },
   Tomato:  { maturity: 70 },
   Soybean: { maturity: 80 },
-  Spinach: { maturity: 40 },
   Radish:  { maturity: 25 },
   Pea:     { maturity: 60 },
   Kale:    { maturity: 55 },
@@ -163,7 +162,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
     const LOG_STEPS = [
       { delay: 0,    text: 'Initialising crop planner agent…' },
       { delay: 1200, text: 'Connecting to Mars Knowledge Base…' },
-      { delay: 2800, text: 'Querying crop yield data for 10 seed types…' },
+      { delay: 2800, text: 'Querying crop yield data for 9 seed types…' },
       { delay: 5000, text: 'Analysing nutritional coverage for 4 astronauts × 450 sols…' },
       { delay: 7500, text: 'Evaluating water & nutrient budgets under Mars constraints…' },
       { delay: 10000, text: 'Optimising seed ratios for caloric density and micronutrient diversity…' },
