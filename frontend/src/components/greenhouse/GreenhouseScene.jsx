@@ -252,7 +252,7 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
     isLogsSidebarOpenRef.current = isLogsSidebarOpen;
   }, [isLogsSidebarOpen]);
 
-  const statePollMs = isLogsSidebarOpen ? 350 : 800;
+  const statePollMs = isLogsSidebarOpen ? 250 : 600;
   const [simState, refreshSimState] = useGreenhouseState(true, statePollMs);
   const simStateRef = useRef(null);
   const logBurstTimeoutsRef = useRef([]);
@@ -340,7 +340,9 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
         refreshSimState();
         // Orchestrator runs after the tick; extra pulls only when logs are open (saves churn on main thread).
         if (isLogsSidebarOpenRef.current) {
-          const delaysMs = [280, 900, 2200];
+          const delaysMs = [
+            80, 160, 280, 450, 700, 1000, 1400, 1900, 2600, 3600, 5200,
+          ];
           delaysMs.forEach((ms) => {
             const id = setTimeout(() => {
               refreshSimState();
