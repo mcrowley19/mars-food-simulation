@@ -455,6 +455,93 @@ function buildSilo(radius, height) {
   return group;
 }
 
+function buildDecorativeDome(radius) {
+  const group = new THREE.Group();
+
+  const ribMat = new THREE.MeshStandardMaterial({
+    color: "#aaaaaa",
+    roughness: 0.4,
+    metalness: 0.6,
+  });
+  const domeMat = new THREE.MeshPhysicalMaterial({
+    color: "#88ccbb",
+    transparent: true,
+    opacity: DOME_OPACITY,
+    roughness: 0.1,
+    transmission: 0.5,
+    thickness: 0.3,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+
+  // Interior floor — same approach as buildDomeInterior
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: "#f1f1f1",
+    roughness: 0.82,
+    metalness: 0.04,
+    fog: false,
+  });
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.1;
+  floor.receiveShadow = false;
+  group.add(floor);
+
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    domeMat,
+  );
+  shell.name = "shell";
+  group.add(shell);
+
+  // Latitude ribs
+  for (const deg of [20, 45, 70]) {
+    const a = (deg * Math.PI) / 180;
+    const rib = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * Math.sin(a), 0.05, 6, 48),
+      ribMat,
+    );
+    rib.position.y = radius * Math.cos(a);
+    rib.rotation.x = Math.PI / 2;
+    group.add(rib);
+  }
+
+  // Longitude ribs
+  for (let i = 0; i < 8; i++) {
+    const rib = new THREE.Mesh(
+      new THREE.TorusGeometry(radius, 0.05, 6, 48, Math.PI / 2),
+      ribMat,
+    );
+    rib.rotation.set(0, (i / 8) * Math.PI * 2, 0);
+    group.add(rib);
+  }
+
+  // Base ring
+  const baseRing = new THREE.Mesh(
+    new THREE.TorusGeometry(radius, 0.1, 8, 48),
+    ribMat,
+  );
+  baseRing.rotation.x = Math.PI / 2;
+  baseRing.position.y = 0.01;
+  group.add(baseRing);
+
+  // Foundation ring
+  const foundMat = new THREE.MeshStandardMaterial({
+    color: "#666666",
+    roughness: 0.5,
+    metalness: 0.4,
+  });
+  const foundation = new THREE.Mesh(
+    new THREE.TorusGeometry(radius + 0.2, 0.22, 8, 48),
+    foundMat,
+  );
+  foundation.rotation.x = Math.PI / 2;
+  foundation.position.y = -0.05;
+  group.add(foundation);
+
+  return group;
+}
+
 export function buildColony(scene, domeDefs, cropCounts = {}) {
   const greenhouses = [];
 
@@ -475,6 +562,25 @@ export function buildColony(scene, domeDefs, cropCounts = {}) {
     const silo2 = buildSilo(siloR, siloH);
     silo2.position.set(def.x - def.r * 1.8 - siloR * 2, 0, def.z - def.r * 2);
     scene.add(silo2);
+
+
+    // Decorative smaller domes in a semi-circle on the bottom-right of the main dome
+    // Bottom-right = +X/+Z direction. Arc centred at π/4 (45°) in XZ plane.
+    const decR = def.r * 0.28;
+    const count = 5;
+    const arcHalf = Math.PI * 0.3;
+    const arcCentre = Math.PI * 0.25; // bottom-right diagonal
+    const offset = def.r + decR * 4.0;
+    for (let i = 0; i < count; i++) {
+      const t = i / (count - 1);
+      const angle = arcCentre - arcHalf + t * arcHalf * 2;
+      const dx = Math.cos(angle) * offset;
+      const dz = Math.sin(angle) * offset;
+      const decDome = buildDecorativeDome(decR);
+      decDome.position.set(def.x + dx, 0, def.z + dz);
+      scene.add(decDome);
+
+    }
   }
 
   return greenhouses;
