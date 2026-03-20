@@ -613,7 +613,16 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
             ? SOL_TICK_MS / 3
             : SOL_TICK_MS;
           const elapsed = (now - solStartTimeRef.current) / tickMs;
-          simDayFracRef.current = Math.max(0, Math.min(0.999, elapsed));
+          if (elapsed < 1) {
+            simDayFracRef.current = Math.max(0, elapsed);
+          } else {
+            // Tick /state often lands after elapsed passes 1; old clamp(0.999) froze the sun for hundreds of ms.
+            // Breathe slowly near end-of-sol until mission_day advances and the timer resets.
+            const over = elapsed - 1;
+            simDayFracRef.current =
+              0.9984 +
+              0.00145 * Math.sin(now * 0.0031 + over * 2.2);
+          }
         }
       } else {
         // Fallback visual loop before live state arrives.
