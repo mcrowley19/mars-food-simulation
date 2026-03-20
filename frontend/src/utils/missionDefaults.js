@@ -11,14 +11,10 @@ const DEFAULT_SUPPLY_BUFFER_SOLS = 50
 
 const SUPPLY_PLANNING_DAYS = DEFAULT_MISSION_DAYS + DEFAULT_SUPPLY_BUFFER_SOLS
 
-/** KB / simulator can sample crew kcal up to ~3800; use worst case for packed reserves. */
-const CREW_KCAL_WORST_CASE = 3800
 const DEFAULT_ASTRONAUTS = 4
 
-/** Packed food: worst-case daily kcal × supply planning horizon (450 + buffer) + margin. */
-export const DEFAULT_PACKED_FOOD_KCAL = Math.ceil(
-  DEFAULT_ASTRONAUTS * CREW_KCAL_WORST_CASE * SUPPLY_PLANNING_DAYS * 1.12,
-)
+/** Default packed food reserves for manual setup (custom supplies). */
+export const DEFAULT_PACKED_FOOD_KCAL = 5_000_000
 
 /** Grow lights scale with floor area in backend fuel validation (≥ seeds × 0.25 m²/plant). */
 export const DEFAULT_FLOOR_SPACE_M2 = 20
