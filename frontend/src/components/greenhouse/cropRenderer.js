@@ -9,23 +9,19 @@ const MODEL_VISUAL_SCALE  = 2.8
 const MIN_GROWTH_FACTOR   = 0.6
 const MAX_GROWTH_FACTOR   = 1.25
 
-const SPHERE_GEOM = new THREE.SphereGeometry(0.5, 12, 8)
+const CIRCLE_GEOM = new THREE.CircleGeometry(0.5, 24)
 
-/* ── sphere visual ────────────────────────────────────────────────────────── */
+/* ── circle visual ────────────────────────────────────────────────────────── */
 
 function _buildCropVisual(cropName) {
   const kind  = String(cropName || '').toLowerCase()
   const color = CROP_COLORS[kind] || LEAF_FALLBACK_COLOR
-  const mat   = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.65,
-    metalness: 0.03,
-    emissive: '#000000',
-    emissiveIntensity: 0,
-    fog: false,
-  })
+  const mat   = new THREE.MeshBasicMaterial({ color, fog: false })
+  const mesh  = new THREE.Mesh(CIRCLE_GEOM, mat)
+  // Rotate flat to face up (camera looks straight down)
+  mesh.rotation.x = -Math.PI / 2
   const g = new THREE.Group()
-  g.add(new THREE.Mesh(SPHERE_GEOM, mat))
+  g.add(mesh)
   g.userData.materials = [mat]
   return g
 }
@@ -55,17 +51,10 @@ function _setPlantVisualState(plantGroup, crop, isDead, isHarvest) {
     if (!mat?.color) continue
     if (isDead) {
       mat.color.set(CROP_DEAD_COLOR)
-      mat.emissive?.set('#000000')
-      mat.emissiveIntensity = 0
-      continue
-    }
-    mat.color.set(liveColor)
-    if (isHarvest) {
-      mat.emissive?.set(CROP_HARVEST_EMISSIVE)
-      mat.emissiveIntensity = 0.4
+    } else if (isHarvest) {
+      mat.color.set(CROP_HARVEST_EMISSIVE)
     } else {
-      mat.emissive?.set('#000000')
-      mat.emissiveIntensity = 0
+      mat.color.set(liveColor)
     }
   }
 }

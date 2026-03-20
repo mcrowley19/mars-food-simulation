@@ -19,7 +19,7 @@ _lock_registry = {}
 _lock_registry_guard = threading.Lock()
 _ai_setup_registry = {}
 _ai_setup_registry_guard = threading.Lock()
-_orchestrator_call_lock = threading.Lock()
+
 # Orchestrator = Bedrock + optional sub-agents. Simulation still advances every tick; this only throttles LLM runs.
 _ORCHESTRATOR_MISSION_DAY_INTERVAL = 2  # every 2 sols; reduces DB contention from concurrent tool calls
 _MAX_PARSED_LOG_ENTRIES_PER_AGENT = 48
@@ -494,8 +494,7 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
                 _set_cache(s)
                 from agents.orchestrator import get_orchestrator
                 orchestrator = get_orchestrator()
-                with _orchestrator_call_lock:
-                    result = orchestrator(req.prompt)
+                result = orchestrator(req.prompt)
                 flush_state_cache()
                 _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
         except Exception as e:
@@ -711,8 +710,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
 
                 from agents.orchestrator import get_orchestrator
                 orchestrator = get_orchestrator()
-                with _orchestrator_call_lock:
-                    result = orchestrator(context)
+                result = orchestrator(context)
                 flush_state_cache()
                 _append_state_agent_log(session_key, "orchestrator", context, str(result))
         except Exception as e:
