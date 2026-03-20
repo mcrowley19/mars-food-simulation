@@ -225,6 +225,8 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
   const solStartTimeRef = useRef(0);
   const [domeDefs, setDomeDefs] = useState(null);
   const tickInFlightRef = useRef(false);
+  /** Intervals that fire while POST /simulate-tick is in flight; drained so sols are not skipped. */
+  const pendingTicksRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFastForward, setIsFastForward] = useState(false);
   const isPlayingRef = useRef(true);
@@ -326,7 +328,10 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
   ]);
 
   const simulateTick = useCallback(async () => {
-    if (tickInFlightRef.current) return;
+    if (tickInFlightRef.current) {
+      pendingTicksRef.current += 1;
+      return;
+    }
     tickInFlightRef.current = true;
     logBurstTimeoutsRef.current.forEach(clearTimeout);
     logBurstTimeoutsRef.current = [];
@@ -340,8 +345,9 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
         refreshSimState();
         // Orchestrator runs after the tick; extra pulls only when logs are open (saves churn on main thread).
         if (isLogsSidebarOpenRef.current) {
+          // Staggered pulls after orchestrator; useGreenhouseState merges late agent_logs without day flicker.
           const delaysMs = [
-            80, 160, 280, 450, 700, 1000, 1400, 1900, 2600, 3600, 5200,
+            100, 220, 400, 650, 1000, 1500, 2200, 3200, 4500, 6000,
           ];
           delaysMs.forEach((ms) => {
             const id = setTimeout(() => {
@@ -356,6 +362,12 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
       // ignore transient network/backend errors; polling will recover
     } finally {
       tickInFlightRef.current = false;
+      if (pendingTicksRef.current > 0) {
+        pendingTicksRef.current -= 1;
+        queueMicrotask(() => {
+          simulateTick();
+        });
+      }
     }
   }, [refreshSimState]);
 
