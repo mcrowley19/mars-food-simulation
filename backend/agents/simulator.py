@@ -374,46 +374,12 @@ def run_simulation_tick(state: dict) -> dict:
     if rotted_kcal > 0:
         state["calories_available"] = max(0, state.get("calories_available", 0) - rotted_kcal)
 
-    # --- Smart auto-planting ---
-    floor_space    = state.get("floor_space_m2", 0)
-    space_per_plant = 0.25
-    max_plants     = int(floor_space / space_per_plant) if space_per_plant > 0 else 0
-
-    if reserve and len(crops) < max_plants:
-        for crop_name in list(reserve.keys()):
-            if reserve[crop_name] <= 0:
-                continue
-            shelf    = SHELF_LIFE_DAYS.get(crop_name, 30)
-            maturity = CROP_DEFAULTS.get(crop_name, {}).get("maturity_days", 60)
-            seedlings = [c for c in crops if c["name"] == crop_name and c["age_days"] < 3]
-            if seedlings:
-                continue
-            slots_available = max_plants - len(crops)
-            if slots_available <= 0:
-                break
-            batch    = min(reserve[crop_name], slots_available, 8)
-            defaults = CROP_DEFAULTS.get(crop_name, {})
-            for _ in range(batch):
-                crops.append({
-                    "name":               crop_name,
-                    "age_days":           0,
-                    "maturity_days":      defaults.get("maturity_days", 60),
-                    "water_per_day_l":    defaults.get("water_per_day_l", 0.3),
-                    "nutrient_per_day_kg": defaults.get("nutrient_per_day_kg", 0.015),
-                    "status":             "growing",
-                })
-            reserve[crop_name] -= batch
-            if reserve[crop_name] <= 0:
-                del reserve[crop_name]
-
-    state["crops"]        = crops
-    state["seed_reserve"] = reserve
-
     # --- Light variation on ~30-day Mars sol cycle ---
     env["light_hours"]    = round(12 + 2 * math.sin(2 * math.pi * day / 30), 1)
     env["light_intensity"] = 1.0
 
     # --- Energy / fuel consumption ---
+    floor_space     = state.get("floor_space_m2", 0)
     light_hours     = env["light_hours"]
     light_intensity = env["light_intensity"]
     light_kwh       = GROW_LIGHT_KW_PER_M2 * floor_space * light_hours * light_intensity
