@@ -10,16 +10,42 @@ import time
 import zipfile
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, ".."))
+AGENTCORE_ARN_FILE = os.path.join(BACKEND_DIR, ".agentcore-arn.txt")
 
 REGION = os.environ.get("AWS_DEFAULT_REGION", "us-west-2")
-ACCOUNT_ID = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
+# Set in main() after optional .env load — avoids import-time STS and gives clearer credential errors.
+ACCOUNT_ID = None
+
+
+def _load_backend_dotenv():
+    env_path = os.path.join(BACKEND_DIR, ".env")
+    if not os.path.isfile(env_path):
+        return
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(env_path)
+    except ImportError:
+        pass
+
+
+def _die_no_credentials():
+    print("\nERROR: Unable to locate AWS credentials (NoCredentialsError).\n", file=sys.stderr)
+    print("Configure one of the following, then retry:\n", file=sys.stderr)
+    print("  1) backend/.env — copy backend/.env.example and set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY", file=sys.stderr)
+    print("     (and AWS_SESSION_TOKEN if using temporary credentials).\n", file=sys.stderr)
+    print("  2) AWS CLI — run: aws configure\n", file=sys.stderr)
+    print("  3) Named profile — export AWS_PROFILE=your-profile", file=sys.stderr)
+    print("     (with SSO: aws sso login --profile your-profile)\n", file=sys.stderr)
+    sys.exit(1)
 
 FUNCTION_NAME = "mars-greenhouse-api"
 ROLE_NAME = "mars-greenhouse-api-lambda-role"
 API_NAME = "mars-greenhouse-api"
-AGENTCORE_ARN_FILE = os.path.join(os.path.dirname(__file__), "..", ".agentcore-arn.txt")
-BACKEND_DIR = os.path.join(os.path.dirname(__file__), "..")
 
 SKIP_DIRS = {".venv", "__pycache__", ".git", "node_modules", "infrastructure",
              "amplify", ".amplify", "Pipfile", "Pipfile.lock"}
@@ -327,6 +353,15 @@ def ensure_api_gateway(apigw, lambda_arn):
 
 
 def main():
+    global REGION, ACCOUNT_ID
+
+    _load_backend_dotenv()
+    REGION = os.environ.get("AWS_DEFAULT_REGION", REGION)
+    try:
+        ACCOUNT_ID = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
+    except NoCredentialsError:
+        _die_no_credentials()
+
     agentcore_arn = get_agentcore_arn()
     print(f"AgentCore ARN: {agentcore_arn}")
 
