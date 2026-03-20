@@ -68,7 +68,17 @@ def _append_agent_log(agent_name: str, task: str, response: str):
 @tool
 def delegate_to_crop_planner(task: str) -> str:
     """Delegate a crop planning or scheduling task."""
-    result = str(_lazy("crop_planner")(task))
+    st = get_state()
+    md = st.get("mission_day") or 1
+    mlast = st.get("mission_days") or 450
+    prefix = (
+        "[TIMELINE — use only these bounds for all sol numbers] "
+        f"Current mission_day: {md}. Last sol of mission: {mlast}. "
+        f"Every planting_sol and harvest_sol must be integers with {md} <= planting_sol <= {mlast}, "
+        f"harvest_sol >= planting_sol + maturity_days for that crop, and harvest_sol <= {mlast}. "
+        "Do not use sol numbers from unrelated examples.\n\n"
+    )
+    result = str(_lazy("crop_planner")(prefix + task))
     _append_agent_log("crop_planner", task, result)
     return result
 
