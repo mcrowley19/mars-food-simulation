@@ -8,6 +8,15 @@ import LearnMore from "./components/LearnMore";
 import GreenhouseScene from "./components/greenhouse/GreenhouseScene";
 import { getSessionId } from "./utils/session";
 import { API_BASE_URL } from "./utils/api";
+import {
+  DEFAULT_FERTILIZER_KG,
+  DEFAULT_FLOOR_SPACE_M2,
+  DEFAULT_FUEL_KG,
+  DEFAULT_MISSION_DAYS,
+  DEFAULT_PACKED_FOOD_KCAL,
+  DEFAULT_SOIL_KG,
+  DEFAULT_WATER_L,
+} from "./utils/missionDefaults";
 import "./App.css";
 
 function App() {
@@ -45,15 +54,15 @@ function App() {
     });
 
     const setupPayload = {
-      water_l: config?.water ?? 15000,
-      fertilizer_kg: config?.fertilizer ?? 500,
-      soil_kg: config?.soil ?? 1500,
-      floor_space_m2: config?.space ?? 80,
-      mission_days: config?.timeframe ?? 450,
+      water_l: config?.water ?? DEFAULT_WATER_L,
+      fertilizer_kg: config?.fertilizer ?? DEFAULT_FERTILIZER_KG,
+      soil_kg: config?.soil ?? DEFAULT_SOIL_KG,
+      floor_space_m2: config?.space ?? DEFAULT_FLOOR_SPACE_M2,
+      mission_days: config?.timeframe ?? DEFAULT_MISSION_DAYS,
       astronaut_count: config?.astronauts ?? 4,
       seed_amounts: seedAmounts,
-      food_supplies_kcal: config?.foodSupplies ?? 1500000,
-      fuel_kg: config?.fuelKg ?? 40000,
+      food_supplies_kcal: config?.foodSupplies ?? DEFAULT_PACKED_FOOD_KCAL,
+      fuel_kg: config?.fuelKg ?? DEFAULT_FUEL_KG,
     };
 
     let setupOk = false;
@@ -90,10 +99,10 @@ function App() {
     const prompt = [
       "Create a Mars greenhouse startup plan.",
       `Crew: ${config?.astronauts ?? 4}`,
-      `Mission days: ${config?.timeframe ?? 450}`,
-      `Water: ${config?.water ?? 15000}L`,
-      `Nutrients/Fertilizer: ${config?.fertilizer ?? 500}kg`,
-      `Soil: ${config?.soil ?? 1500}kg`,
+      `Mission days: ${config?.timeframe ?? DEFAULT_MISSION_DAYS}`,
+      `Water: ${config?.water ?? DEFAULT_WATER_L}L`,
+      `Nutrients/Fertilizer: ${config?.fertilizer ?? DEFAULT_FERTILIZER_KG}kg`,
+      `Soil: ${config?.soil ?? DEFAULT_SOIL_KG}kg`,
       `Selected crops: ${seedSummary}`,
       `Weather profile: ${config?.weather ?? "Calm"}`,
       `Air composition: ${config?.airComp ?? "Hab Mix"}`,
@@ -122,7 +131,7 @@ function App() {
           headers: { "Content-Type": "application/json", "x-session-id": sessionId },
           body: JSON.stringify({
             astronaut_count: aiCfg?.astronauts ?? 4,
-            mission_days: aiCfg?.timeframe ?? 450,
+            mission_days: aiCfg?.timeframe ?? DEFAULT_MISSION_DAYS,
             max_cargo_kg: aiCfg?.maxCargoKg ?? 50000,
           }),
         });
@@ -186,7 +195,7 @@ function App() {
     const sessionId = getSessionId();
 
     const prompt = [
-      "The AI has set up the greenhouse with optimal supplies for 4 astronauts over 450 sols.",
+      `The AI has set up the greenhouse with optimal supplies for 4 astronauts over ${aiState.mission_days ?? DEFAULT_MISSION_DAYS} sols.`,
       aiState.ai_setup_reasoning ? `Reasoning: ${aiState.ai_setup_reasoning}` : "",
       "Assess the initial state and begin managing the greenhouse.",
     ].filter(Boolean).join(" ");

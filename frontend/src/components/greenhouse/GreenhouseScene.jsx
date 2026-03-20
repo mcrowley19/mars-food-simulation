@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import useGreenhouseState from "../../hooks/useGreenhouseState";
 import { getSessionId, clearSessionId } from "../../utils/session";
 import { API_BASE_URL } from "../../utils/api";
+import { DEFAULT_MISSION_DAYS } from "../../utils/missionDefaults";
 import { initScene, buildTerrain, setupLighting } from "./sceneSetup";
 import { buildColony } from "./domeBuilder";
 import { distributeCrops, updateCropsAndBeds } from "./cropRenderer";
@@ -182,7 +183,7 @@ function PanelChevron({ collapsed }) {
   );
 }
 
-export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents = false }) {
+export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DAYS, awaitAgents = false }) {
   const SOL_TICK_MS = 4500;
   const canvasRef = useRef(null);
   const exitButtonRef = useRef(null);
@@ -1067,6 +1068,10 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
   const vitaminOrder = ["A", "C", "D", "E", "K", "B9", "B12"];
   const hasLiveState = Boolean(simState && simState.setup_complete);
   const currentSol = hud.missionDay || simState?.mission_day || 1;
+  const missionDaysTotal =
+    typeof simState?.mission_days === "number" && simState.mission_days > 0
+      ? simState.mission_days
+      : totalDays;
   const prettyAgentName = (name) => String(name || "").replace(/_/g, " ");
   const trendLast = resourceHistory[resourceHistory.length - 1] || null;
   const trendWaterPath = sparklinePath(
@@ -1796,10 +1801,12 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
           <div className="gh-timeline-bar">
             <div
               className="gh-timeline-bar__fill"
-              style={{ width: `${Math.max(0, Math.min(100, ((currentSol - 1) / Math.max(1, totalDays - 1)) * 100))}%` }}
+              style={{
+                width: `${Math.max(0, Math.min(100, ((currentSol - 1) / Math.max(1, missionDaysTotal - 1)) * 100))}%`,
+              }}
             />
           </div>
-          <span className="gh-timeline-label">Sol {totalDays}</span>
+          <span className="gh-timeline-label">Sol {missionDaysTotal}</span>
         </div>
       </div>
     </div>
