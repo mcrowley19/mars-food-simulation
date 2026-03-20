@@ -298,8 +298,14 @@
   .lm-daily-grid {
     grid-template-columns: 1fr;
   }
+  .lm-daily-grid--3col {
+    grid-template-columns: 1fr;
+  }
   .lm-overlay {
     padding: 24px 16px 48px;
+  }
+  .lm-table-wrap {
+    margin: 0 -8px;
   }
 }
 @media (max-width: 500px) {
@@ -310,4 +316,60 @@
     align-self: flex-end;
     margin-top: -8px;
   }
+}
+
+/* ── 3-column agent grid ── */
+.lm-daily-grid--3col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* ── Crop reference table ── */
+.lm-table-wrap {
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.lm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--sans);
+  font-size: 13px;
+}
+
+.lm-table th {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #e87840;
+  text-align: left;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.lm-table td {
+  padding: 10px 16px;
+  color: rgba(200, 192, 183, 0.78);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.lm-table tr:last-child td {
+  border-bottom: none;
+}
+
+.lm-table tbody tr {
+  transition: background 0.15s;
+}
+
+.lm-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lm-table td:first-child {
+  color: rgba(245, 240, 235, 0.92);
+  font-weight: 500;
 }
