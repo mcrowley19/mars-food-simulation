@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { useFrame, useLoader, useThree, extend } from '@react-three/fiber'
 import * as THREE from 'three'
 import { shaderMaterial } from '@react-three/drei'
@@ -57,10 +57,14 @@ export default function Mars({ dashboardActive = false }) {
   const introRef = useRef(0)
   const { gl } = useThree()
 
-  const marsTexture = useLoader(THREE.TextureLoader, '/mars-texture.jpg')
-  marsTexture.colorSpace = THREE.SRGBColorSpace
-  marsTexture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy())
-  marsTexture.needsUpdate = true
+  const loaded = useLoader(THREE.TextureLoader, '/mars-texture.jpg')
+  const marsTexture = useMemo(() => {
+    const t = loaded.clone()
+    t.colorSpace = THREE.SRGBColorSpace
+    t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy())
+    t.needsUpdate = true
+    return t
+  }, [loaded, gl])
 
   useFrame((_, delta) => {
     if (spinRef.current) {

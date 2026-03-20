@@ -256,7 +256,7 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
     isLogsSidebarOpenRef.current = isLogsSidebarOpen;
   }, [isLogsSidebarOpen]);
 
-  // Aggressive polling (e.g. 250ms) + post-tick refresh bursts stacked requests and re-renders every sol.
+  // Lighter than 250ms polling + huge bursts (main-thread hitches). Logs sidebar open = slightly faster poll + extra tick refreshes.
   const statePollMs = isLogsSidebarOpen ? 1400 : 2200;
   const [simState, refreshSimState, applyAuthoritativeSnapshot] = useGreenhouseState(
     true,
@@ -360,18 +360,17 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
         } else {
           refreshSimState();
         }
-        // Orchestrator runs after the tick; extra pulls only when logs are open (saves churn on main thread).
-        if (isLogsSidebarOpenRef.current) {
-          // Fewer staggered pulls: tick JSON is authoritative; coalesced GET /state handles overlap.
-          const delaysMs = [500, 2000, 5000];
-          delaysMs.forEach((ms) => {
-            const id = setTimeout(() => {
-              refreshSimState();
-              logBurstTimeoutsRef.current = logBurstTimeoutsRef.current.filter((t) => t !== id);
-            }, ms);
-            logBurstTimeoutsRef.current.push(id);
-          });
-        }
+        // One cheap delayed pull when logs closed; a few more when open (orchestrator is async after tick).
+        const delaysMs = isLogsSidebarOpenRef.current
+          ? [450, 2000, 4800]
+          : [1200];
+        delaysMs.forEach((ms) => {
+          const id = setTimeout(() => {
+            refreshSimState();
+            logBurstTimeoutsRef.current = logBurstTimeoutsRef.current.filter((t) => t !== id);
+          }, ms);
+          logBurstTimeoutsRef.current.push(id);
+        });
       }
     } catch {
       // ignore transient network/backend errors; polling will recover

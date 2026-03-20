@@ -1,43 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { getSessionId } from '../utils/session'
 import { API_BASE_URL } from '../utils/api'
-
-function countAgentLogEntries(agentLogs) {
-  if (!agentLogs || typeof agentLogs !== 'object') return 0
-  return Object.values(agentLogs).reduce(
-    (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
-    0,
-  )
-}
-
-/** Merge richer agent_logs from a late / stale response without regressing mission_day or dropping sim fields. */
-function applyStateResponse(prev, data, seqStale) {
-  if (!data || typeof data !== 'object') return prev
-  if (!prev) return data
-
-  const pDay = Number(prev.mission_day)
-  const nDay = Number(data.mission_day)
-  const pDayOk = Number.isFinite(pDay)
-  const nDayOk = Number.isFinite(nDay)
-
-  if (nDayOk && pDayOk && nDay < pDay) return prev
-  if (nDayOk && pDayOk && nDay > pDay) return data
-
-  if (seqStale) {
-    const pc = countAgentLogEntries(prev.agent_logs)
-    const nc = countAgentLogEntries(data.agent_logs)
-    if (nc > pc) {
-      return {
-        ...prev,
-        agent_logs: data.agent_logs,
-        agent_logs_parsed: data.agent_logs_parsed,
-      }
-    }
-    return prev
-  }
-
-  return data
-}
+import { applyStateResponse, mergeTickSnapshot } from '../utils/greenhouseStateMerge'
 
 export default function useGreenhouseState(setupComplete, pollMs = 1000) {
   const [state, setState] = useState(null)
@@ -48,6 +12,7 @@ export default function useGreenhouseState(setupComplete, pollMs = 1000) {
   /** Coalesce overlapping refreshSimState calls (e.g. post-tick burst + poll) into one in-flight request + at most one follow-up. */
   const stateFetchInFlightRef = useRef(false)
   const stateFetchQueuedRef = useRef(false)
+  const fetchStateRef = useRef(() => {})
 
   /**
    * Apply a full snapshot from POST /simulate-tick (same shape as GET /state).
@@ -56,7 +21,7 @@ export default function useGreenhouseState(setupComplete, pollMs = 1000) {
   const applyAuthoritativeSnapshot = useCallback((data) => {
     if (!data || typeof data !== 'object') return
     fetchSeqRef.current += 1
-    setState(data)
+    setState((prev) => mergeTickSnapshot(prev, data))
   }, [])
 
   const fetchState = useCallback(() => {
@@ -73,7 +38,7 @@ export default function useGreenhouseState(setupComplete, pollMs = 1000) {
       stateFetchInFlightRef.current = false
       if (stateFetchQueuedRef.current) {
         stateFetchQueuedRef.current = false
-        fetchState()
+        fetchStateRef.current()
       }
     }
 
@@ -93,12 +58,16 @@ export default function useGreenhouseState(setupComplete, pollMs = 1000) {
         if (!retryTimeoutRef.current) {
           retryTimeoutRef.current = setTimeout(() => {
             retryTimeoutRef.current = null
-            fetchState()
+            fetchStateRef.current()
           }, 1200)
         }
       })
       .finally(releaseAndDrain)
   }, [])
+
+  useLayoutEffect(() => {
+    fetchStateRef.current = fetchState
+  }, [fetchState])
 
   useEffect(() => {
     if (!setupComplete) {
