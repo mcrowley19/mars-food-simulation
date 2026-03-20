@@ -1,4 +1,13 @@
 import { useState } from 'react'
+import {
+  DEFAULT_FERTILIZER_KG,
+  DEFAULT_FLOOR_SPACE_M2,
+  DEFAULT_FUEL_KG,
+  DEFAULT_MISSION_DAYS,
+  DEFAULT_PACKED_FOOD_KCAL,
+  DEFAULT_SOIL_KG,
+  DEFAULT_WATER_L,
+} from '../utils/missionDefaults'
 import './InitialiseSession.css'
 
 const SEED_OPTIONS  = ['Potato', 'Wheat', 'Lettuce', 'Tomato', 'Soybean', 'Radish', 'Pea', 'Kale', 'Carrot']
@@ -29,17 +38,17 @@ function calcMinFoodKcal(astronauts, seedTypes) {
 }
 
 const DEFAULTS = {
-  fertilizer: 500,
-  water:       15000,
-  soil:        1500,
-  space:       20,
+  fertilizer: DEFAULT_FERTILIZER_KG,
+  water:       DEFAULT_WATER_L,
+  soil:        DEFAULT_SOIL_KG,
+  space:       DEFAULT_FLOOR_SPACE_M2,
   seedAmt:     40,
   seedTypes:   ['Potato', 'Wheat', 'Lettuce'],
   bugs:        20,
   astronauts:  4,
-  timeframe:   450,
-  foodSupplies: 1500000,
-  fuelKg:       40000,
+  timeframe:   DEFAULT_MISSION_DAYS,
+  foodSupplies: DEFAULT_PACKED_FOOD_KCAL,
+  fuelKg:       DEFAULT_FUEL_KG,
 }
 
 /* ── Stepper ── */
@@ -101,7 +110,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   const [aiState, setAiState]     = useState(null)
   const [aiLogs, setAiLogs]       = useState([])
   const [aiError, setAiError]     = useState('')
-  const [aiCfg, setAiCfg]         = useState({ astronauts: 4, timeframe: 450, maxCargoKg: 50000 })
+  const [aiCfg, setAiCfg]         = useState({ astronauts: 4, timeframe: DEFAULT_MISSION_DAYS, maxCargoKg: 50000 })
   const setAi = (key, val) => setAiCfg(prev => ({ ...prev, [key]: val }))
 
   const set    = (key, val) => setCfg(prev => {
@@ -163,7 +172,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
       { delay: 0,    text: 'Initialising crop planner agent…' },
       { delay: 1200, text: 'Connecting to Mars Knowledge Base…' },
       { delay: 2800, text: 'Querying crop yield data for 9 seed types…' },
-      { delay: 5000, text: 'Analysing nutritional coverage for 4 astronauts × 450 sols…' },
+      { delay: 5000, text: `Analysing nutritional coverage for 4 astronauts × ${DEFAULT_MISSION_DAYS} sols…` },
       { delay: 7500, text: 'Evaluating water & nutrient budgets under Mars constraints…' },
       { delay: 10000, text: 'Optimising seed ratios for caloric density and micronutrient diversity…' },
       { delay: 13000, text: 'Computing floor space and staggered planting schedule…' },
