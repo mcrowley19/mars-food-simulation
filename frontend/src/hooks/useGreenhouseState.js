@@ -46,6 +46,16 @@ export default function useGreenhouseState(setupComplete, pollMs = 1000) {
   /** When many /state requests overlap, only the latest-started "wins" for full snapshots; older bodies may still carry new agent_logs. */
   const fetchSeqRef = useRef(0)
 
+  /**
+   * Apply a full snapshot from POST /simulate-tick (same shape as GET /state).
+   * Bumps fetch sequence so slower in-flight GETs cannot overwrite with older mission_day.
+   */
+  const applyAuthoritativeSnapshot = useCallback((data) => {
+    if (!data || typeof data !== 'object') return
+    fetchSeqRef.current += 1
+    setState(data)
+  }, [])
+
   const fetchState = useCallback(() => {
     const doFetch = () => {
       const seq = ++fetchSeqRef.current
@@ -106,5 +116,5 @@ export default function useGreenhouseState(setupComplete, pollMs = 1000) {
     }
   }, [setupComplete, pollMs, fetchState])
 
-  return [state, fetchState]
+  return [state, fetchState, applyAuthoritativeSnapshot]
 }
