@@ -9,6 +9,7 @@ from agents.simulator import run_simulation_tick, _kb_params_cache
 from state import set_request_session, reset_request_session
 
 # Deterministic params — random events disabled for stable assertions.
+from setup_modes import CROP_DEFAULTS, KCAL_PER_KG, SHELF_LIFE_DAYS
 STUB_KB_PARAMS = {
     "crew_kcal_per_day": 2500,
     "crew_water_l_per_day": 9.0,
@@ -21,6 +22,9 @@ STUB_KB_PARAMS = {
     "dust_storm_prob": 0.0,
     "water_fault_prob": 0.0,
     "co2_spike_prob": 0.0,
+    "crop_defaults": CROP_DEFAULTS,
+    "kcal_per_kg": KCAL_PER_KG,
+    "shelf_life_days": SHELF_LIFE_DAYS,
 }
 
 

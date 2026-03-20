@@ -45,6 +45,12 @@ def _get_kb_params(session_key: str) -> dict:
     if session_key in _kb_params_cache:
         return _kb_params_cache[session_key]
 
+    from setup_modes import (
+        CROP_DEFAULTS as _CROP_DEFAULTS,
+        KCAL_PER_KG as _KCAL_PER_KG,
+        SHELF_LIFE_DAYS as _SHELF_LIFE_DAYS,
+    )
+
     # Query KB for the key parameter ranges
     try:
         nutrition_raw = search_mars_kb("astronaut daily calorie water requirements mission")
@@ -85,21 +91,90 @@ def _get_kb_params(session_key: str) -> dict:
         water_fault_prob = 0.02
         co2_spike_prob   = 0.03
 
+    # --- Crop biology from KB ---
+    crop_defaults  = {}
+    kcal_per_kg    = {}
+    shelf_life_days = {}
+    for crop in ["potato", "wheat", "lettuce", "tomato", "soybean",
+                 "spinach", "radish", "pea", "kale", "carrot"]:
+        try:
+            raw = search_mars_kb(
+                f"{crop} maturity days water requirements calories per kg shelf life"
+            )
+            maturity   = _parse_crop_value(raw, "maturity", _CROP_DEFAULTS[crop]["maturity_days"])
+            water      = _parse_crop_value(raw, "water",    _CROP_DEFAULTS[crop]["water_per_day_l"])
+            kcal       = _parse_crop_value(raw, "kcal",     _KCAL_PER_KG[crop])
+            shelf      = _parse_crop_value(raw, "shelf",    _SHELF_LIFE_DAYS[crop])
+            crop_defaults[crop]   = {
+                "maturity_days":       int(maturity),
+                "water_per_day_l":     round(water, 3),
+                "nutrient_per_day_kg": _CROP_DEFAULTS[crop]["nutrient_per_day_kg"],
+            }
+            kcal_per_kg[crop]    = int(kcal)
+            shelf_life_days[crop] = int(shelf)
+        except Exception:
+            crop_defaults[crop]   = _CROP_DEFAULTS[crop]
+            kcal_per_kg[crop]    = _KCAL_PER_KG[crop]
+            shelf_life_days[crop] = _SHELF_LIFE_DAYS[crop]
+
     params = {
-        "crew_kcal_per_day":   crew_kcal,
+        "crew_kcal_per_day":    crew_kcal,
         "crew_water_l_per_day": crew_water,
-        "urine_recovery":      urine_recovery,
-        "opt_temp":            (opt_temp_low, opt_temp_high),
-        "opt_co2":             (opt_co2_low, opt_co2_high),
-        "opt_humidity":        (50, 70),
-        "opt_light_hours":     (12, 16),
-        "opt_light_int":       0.9,
-        "dust_storm_prob":     dust_storm_prob,
-        "water_fault_prob":    water_fault_prob,
-        "co2_spike_prob":      co2_spike_prob,
+        "urine_recovery":       urine_recovery,
+        "opt_temp":             (opt_temp_low, opt_temp_high),
+        "opt_co2":              (opt_co2_low, opt_co2_high),
+        "opt_humidity":         (50, 70),
+        "opt_light_hours":      (12, 16),
+        "opt_light_int":        0.9,
+        "dust_storm_prob":      dust_storm_prob,
+        "water_fault_prob":     water_fault_prob,
+        "co2_spike_prob":       co2_spike_prob,
+        "crop_defaults":        crop_defaults,
+        "kcal_per_kg":          kcal_per_kg,
+        "shelf_life_days":      shelf_life_days,
     }
     _kb_params_cache[session_key] = params
     return params
+
+
+def _parse_crop_value(text: str, field: str, default: float) -> float:
+    """
+    Extract a single numeric value relevant to a crop field from KB response text.
+    Uses field-specific heuristics to find the right number, falls back to default.
+    """
+    try:
+        raw = text if isinstance(text, str) else json.dumps(text)
+
+        # Field-specific keyword windows to search near
+        keywords = {
+            "maturity": ["days to maturity", "maturity", "days"],
+            "water":    ["water", "L/day", "litres", "liters"],
+            "kcal":     ["kcal", "calories", "kcal/kg", "energy"],
+            "shelf":    ["shelf life", "shelf", "storage", "days"],
+        }
+        anchors = keywords.get(field, [field])
+
+        # Search for a number near any anchor keyword (within 120 chars)
+        for anchor in anchors:
+            idx = raw.lower().find(anchor.lower())
+            if idx == -1:
+                continue
+            window = raw[max(0, idx - 30): idx + 120]
+            nums = re.findall(r"\b(\d+(?:\.\d+)?)\b", window)
+            for n in nums:
+                val = float(n)
+                # Sanity bounds per field type
+                if field == "maturity" and 5 <= val <= 365:
+                    return val
+                if field == "water" and 0.05 <= val <= 5.0:
+                    return val
+                if field == "kcal" and 50 <= val <= 5000:
+                    return val
+                if field == "shelf" and 1 <= val <= 365:
+                    return val
+    except Exception:
+        pass
+    return default
 
 
 def _sample_range_from_text(text: str, unit_hint: str, default_low: float, default_high: float) -> float:
@@ -253,8 +328,10 @@ def run_simulation_tick(state: dict) -> dict:
         "potato": 0.3, "wheat": 0.15, "lettuce": 0.25, "tomato": 0.2,
         "soybean": 0.12, "radish": 0.1, "pea": 0.08, "kale": 0.2, "carrot": 0.15,
     }
-    from setup_modes import estimate_seed_return, SHELF_LIFE_DAYS, CROP_DEFAULTS, KCAL_PER_KG
-    from setup_modes import GROW_LIGHT_KW_PER_M2, LIFE_SUPPORT_KW, KWH_PER_KG_FUEL
+    from setup_modes import estimate_seed_return, GROW_LIGHT_KW_PER_M2, LIFE_SUPPORT_KW, KWH_PER_KG_FUEL
+    CROP_DEFAULTS  = params.get("crop_defaults",   {}) or {}
+    KCAL_PER_KG    = params.get("kcal_per_kg",     {}) or {}
+    SHELF_LIFE_DAYS = params.get("shelf_life_days", {}) or {}
 
     if "harvested" not in state:
         state["harvested"] = []

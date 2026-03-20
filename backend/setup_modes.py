@@ -5,6 +5,10 @@ from agents.crop_planner import create_crop_planner
 VALID_SEEDS = {"potato", "wheat", "lettuce", "tomato", "soybean", "spinach", "radish", "pea", "kale", "carrot"}
 SPACE_PER_PLANT_M2 = 0.25
 
+# ---------------------------------------------------------------------------
+# Hardcoded fallback tables — used when the KB is unreachable
+# ---------------------------------------------------------------------------
+
 CROP_DEFAULTS = {
     "potato":  {"maturity_days": 90,  "water_per_day_l": 0.5, "nutrient_per_day_kg": 0.02},
     "wheat":   {"maturity_days": 120, "water_per_day_l": 0.3, "nutrient_per_day_kg": 0.015},
@@ -71,6 +75,77 @@ SEED_RETURN_PER_KG = {
     "carrot": 180,
 }
 
+# ---------------------------------------------------------------------------
+# KB-enriched crop tables — fetched once at first use, cached in-process
+# ---------------------------------------------------------------------------
+
+_kb_crop_cache: dict | None = None
+
+
+def _get_kb_crop_tables() -> tuple[dict, dict, dict]:
+    """
+    Return (crop_defaults, kcal_per_kg, shelf_life_days) enriched from the KB.
+    Falls back to the hardcoded tables if the KB is unreachable or parsing fails.
+    Result is cached in-process so it is only fetched once per server lifetime.
+    """
+    global _kb_crop_cache
+    if _kb_crop_cache is not None:
+        return _kb_crop_cache["crop_defaults"], _kb_crop_cache["kcal_per_kg"], _kb_crop_cache["shelf_life_days"]
+
+    crop_defaults  = {}
+    kcal_per_kg    = {}
+    shelf_life_days = {}
+
+    for crop in VALID_SEEDS:
+        try:
+            from tools.greenhouse_tools import search_mars_kb
+            raw = search_mars_kb(
+                f"{crop} maturity days water requirements calories per kg shelf life"
+            )
+            maturity = _kb_extract(raw, "maturity", 5,   365,  CROP_DEFAULTS[crop]["maturity_days"])
+            water    = _kb_extract(raw, "water",    0.05, 5.0,  CROP_DEFAULTS[crop]["water_per_day_l"])
+            kcal     = _kb_extract(raw, "kcal",     50,   5000, KCAL_PER_KG[crop])
+            shelf    = _kb_extract(raw, "shelf",    1,    365,  SHELF_LIFE_DAYS[crop])
+            crop_defaults[crop]  = {
+                "maturity_days":       int(maturity),
+                "water_per_day_l":     round(float(water), 3),
+                "nutrient_per_day_kg": CROP_DEFAULTS[crop]["nutrient_per_day_kg"],
+            }
+            kcal_per_kg[crop]    = int(kcal)
+            shelf_life_days[crop] = int(shelf)
+        except Exception:
+            crop_defaults[crop]  = CROP_DEFAULTS[crop]
+            kcal_per_kg[crop]    = KCAL_PER_KG[crop]
+            shelf_life_days[crop] = SHELF_LIFE_DAYS[crop]
+
+    _kb_crop_cache = {
+        "crop_defaults":   crop_defaults,
+        "kcal_per_kg":     kcal_per_kg,
+        "shelf_life_days": shelf_life_days,
+    }
+    return crop_defaults, kcal_per_kg, shelf_life_days
+
+
+def _kb_extract(text: str, field: str, lo_bound: float, hi_bound: float, default: float) -> float:
+    """Pull a single plausible number for a crop field out of KB response text."""
+    keywords = {
+        "maturity": ["days to maturity", "maturity", "days"],
+        "water":    ["water", "L/day", "litres", "liters"],
+        "kcal":     ["kcal", "calories", "kcal/kg", "energy"],
+        "shelf":    ["shelf life", "shelf", "storage", "days"],
+    }
+    raw = text if isinstance(text, str) else json.dumps(text)
+    for anchor in keywords.get(field, [field]):
+        idx = raw.lower().find(anchor.lower())
+        if idx == -1:
+            continue
+        window = raw[max(0, idx - 30): idx + 120]
+        for n in re.findall(r"\b(\d+(?:\.\d+)?)\b", window):
+            val = float(n)
+            if lo_bound <= val <= hi_bound:
+                return val
+    return default
+
 
 def estimate_seed_return(crop_name: str, yield_kg: float) -> int:
     """
@@ -88,14 +163,13 @@ def estimate_seed_return(crop_name: str, yield_kg: float) -> int:
 
 def min_food_supplies_kcal(astronaut_count: int, seed_amounts: dict) -> int:
     """Minimum kcal of food supplies needed to survive until the first harvest."""
+    kb_defaults, _, _ = _get_kb_crop_tables()
     if not seed_amounts:
-        # No crops planted — need food for the entire mission, but we can't
-        # know mission length here so just require 30 days' worth.
         return astronaut_count * CREW_KCAL_PER_DAY * 30
     fastest_maturity = min(
-        CROP_DEFAULTS[s]["maturity_days"]
+        kb_defaults[s]["maturity_days"]
         for s in seed_amounts
-        if s in CROP_DEFAULTS
+        if s in kb_defaults
     )
     return astronaut_count * CREW_KCAL_PER_DAY * fastest_maturity
 
@@ -219,12 +293,13 @@ def manual_setup(params: dict) -> dict:
 
     # Plant an initial batch (2/3 of seeds) and reserve the rest for staggered planting
     import math as _math
+    kb_defaults, _, _ = _get_kb_crop_tables()
     crops = []
     reserve = {}
     for seed_type, count in seed_amounts.items():
         initial = max(1, _math.ceil(count * 2 / 3))
         to_reserve = count - initial
-        defaults = CROP_DEFAULTS.get(seed_type, {})
+        defaults = kb_defaults.get(seed_type, CROP_DEFAULTS.get(seed_type, {}))
         for _ in range(initial):
             crops.append({
                 "name": seed_type,
@@ -376,11 +451,12 @@ Rules:
 
     # Auto-correct all values so the AI's plan never fails validation
     import math as _math
+    kb_defaults, _, _ = _get_kb_crop_tables()
 
     # Water: must cover all crop draw + crew net draw for the full mission.
     # Crops are replanted so peak draw ≈ initial planting draw sustained throughout.
     crop_water_day = sum(
-        CROP_DEFAULTS.get(k, {}).get("water_per_day_l", 0.3) * v
+        kb_defaults.get(k, CROP_DEFAULTS.get(k, {})).get("water_per_day_l", 0.3) * v
         for k, v in valid_seeds.items()
     )
     crew_water_net = astronaut_count * 10 * (1 - 0.85)  # 85% recycling per astronaut
