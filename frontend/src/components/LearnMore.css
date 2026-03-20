@@ -72,6 +72,22 @@
   line-height: 1.05;
 }
 
+.lm-github-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #e87840;
+  text-decoration: none;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+.lm-github-link:hover {
+  color: #f09560;
+  text-decoration: underline;
+}
+
 .lm-lead {
   font-family: var(--sans);
   font-size: clamp(15px, 1.8vw, 17px);
