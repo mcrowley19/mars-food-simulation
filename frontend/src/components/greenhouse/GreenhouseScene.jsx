@@ -1087,7 +1087,7 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
     RESOURCE_TREND_CHART_HEIGHT,
     "calories",
   );
-  const xTicks = buildXTicks(resourceHistory, RESOURCE_TREND_CHART_WIDTH, 5);
+  const xTicks = buildXTicks(resourceHistory, RESOURCE_TREND_CHART_WIDTH, 10);
   const maxWater = Math.max(
     1,
     ...resourceHistory.map((p) => Number(p?.water) || 0),

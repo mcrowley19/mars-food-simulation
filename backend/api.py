@@ -46,6 +46,8 @@ _AGENT_PRIORITY_KEYS = {
     ],
     "crop_planner": [
         "crop_name",
+        "planting_sol",
+        "harvest_sol",
         "planting_date",
         "harvest_date",
         "expected_yield_kg",
