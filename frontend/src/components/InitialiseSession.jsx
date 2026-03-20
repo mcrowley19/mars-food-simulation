@@ -49,7 +49,7 @@ const DEFAULTS = {
   bugs:        20,
   astronauts:  DEFAULT_ASTRONAUTS_COUNT,
   timeframe:   DEFAULT_MISSION_DAYS,
-  foodSupplies: calcMinFoodKcal(DEFAULT_ASTRONAUTS_COUNT, DEFAULT_SEED_TYPES),
+  foodSupplies: DEFAULT_ASTRONAUTS_COUNT * 1_000_000,
   fuelKg:       DEFAULT_FUEL_KG,
 }
 
@@ -117,7 +117,11 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
 
   const set    = (key, val) => setCfg(prev => {
     const next = { ...prev, [key]: val }
-    // Auto-clamp food supplies when astronauts or seed types change
+    // Auto-update food supplies when astronaut count changes
+    if (key === 'astronauts') {
+      next.foodSupplies = next.astronauts * 1_000_000
+    }
+    // Auto-clamp food supplies to minimum needed until first harvest
     if (key === 'astronauts' || key === 'seedTypes') {
       const min = calcMinFoodKcal(next.astronauts, next.seedTypes)
       if (next.foodSupplies < min) next.foodSupplies = min

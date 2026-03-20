@@ -21,7 +21,7 @@ _ai_setup_registry = {}
 _ai_setup_registry_guard = threading.Lock()
 
 # Orchestrator = Bedrock + optional sub-agents. Simulation still advances every tick; this only throttles LLM runs.
-_ORCHESTRATOR_MISSION_DAY_INTERVAL = 2  # every 2 sols; reduces DB contention from concurrent tool calls
+_ORCHESTRATOR_MISSION_DAY_INTERVAL = 1  # every sol
 _MAX_PARSED_LOG_ENTRIES_PER_AGENT = 48
 _MAX_PARSED_LINES_PER_TASK = 3
 _MAX_PARSED_LINES_PER_RESPONSE = 18
@@ -676,6 +676,14 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                 if cal_days < 10:
                     warnings.append(
                         f"CALORIE EMERGENCY: Only {cal_days} days of food! Plant fast-growing crops urgently."
+                    )
+
+                empty_slots = max_plants - plant_slots_used
+                if empty_slots > 0 and reserve:
+                    plantable = ", ".join(f"{k}: {v} seeds" for k, v in reserve.items())
+                    warnings.append(
+                        f"EMPTY SLOTS: {empty_slots} plant slots are empty and seeds are available ({plantable}). "
+                        "Call plant_from_reserve immediately to fill them."
                     )
 
                 warning_block = " ".join(warnings) if warnings else ""
