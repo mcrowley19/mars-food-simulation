@@ -1706,7 +1706,9 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
                           }}
                         />
                       </div>
-                      <span className="gh-resources__value">{Math.round(pct)}%</span>
+                      <span className="gh-resources__value">
+                        {pct.toFixed(1)}%
+                      </span>
                     </div>
                   );
                 })}

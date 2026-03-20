@@ -1,5 +1,7 @@
 import './LearnMore.css'
 
+const GITHUB_REPO_URL = 'https://github.com/mcrowley19/mars-food-simulation'
+
 const FEATURES = [
   {
     tag: 'SIM',
@@ -71,6 +73,14 @@ export default function LearnMore({ onClose }) {
               educators, and space-agriculture enthusiasts who want to stress-test
               survival strategies before humanity needs them for real.
             </p>
+            <a
+              href={GITHUB_REPO_URL}
+              className="lm-github-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Source on GitHub — mcrowley19/mars-food-simulation
+            </a>
           </div>
           <button className="lm-close" onClick={onClose} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
