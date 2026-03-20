@@ -412,6 +412,7 @@ def _state_with_parsed_logs(state: dict) -> dict:
 
 
 @contextmanager
+@contextmanager
 def _session_context(session_key: str):
     token = set_request_session(session_key)
     try:

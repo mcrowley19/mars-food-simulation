@@ -4,7 +4,6 @@ import {
   DEFAULT_FLOOR_SPACE_M2,
   DEFAULT_FUEL_KG,
   DEFAULT_MISSION_DAYS,
-  DEFAULT_PACKED_FOOD_KCAL,
   DEFAULT_SOIL_KG,
   DEFAULT_WATER_L,
 } from '../utils/missionDefaults'
@@ -37,17 +36,20 @@ function calcMinFoodKcal(astronauts, seedTypes) {
   return astronauts * CREW_KCAL_PER_DAY * fastest
 }
 
+const DEFAULT_SEED_TYPES = ['Potato', 'Wheat', 'Lettuce']
+const DEFAULT_ASTRONAUTS_COUNT = 4
+
 const DEFAULTS = {
   fertilizer: DEFAULT_FERTILIZER_KG,
   water:       DEFAULT_WATER_L,
   soil:        DEFAULT_SOIL_KG,
   space:       DEFAULT_FLOOR_SPACE_M2,
   seedAmt:     40,
-  seedTypes:   ['Potato', 'Wheat', 'Lettuce'],
+  seedTypes:   DEFAULT_SEED_TYPES,
   bugs:        20,
-  astronauts:  4,
+  astronauts:  DEFAULT_ASTRONAUTS_COUNT,
   timeframe:   DEFAULT_MISSION_DAYS,
-  foodSupplies: DEFAULT_PACKED_FOOD_KCAL,
+  foodSupplies: calcMinFoodKcal(DEFAULT_ASTRONAUTS_COUNT, DEFAULT_SEED_TYPES),
   fuelKg:       DEFAULT_FUEL_KG,
 }
 
