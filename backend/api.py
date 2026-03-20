@@ -654,6 +654,12 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                 total_water_day = crop_water_day + net_crew_water
                 water_days = round(res["water_l"] / total_water_day, 1) if total_water_day > 0 else 999
 
+                astronaut_count = s.get("astronaut_count", 4)
+                floor_space = s.get("floor_space_m2", 0)
+                space_per_plant = 0.25
+                max_plants = int(floor_space / space_per_plant) if space_per_plant > 0 else 0
+                plant_slots_used = len(s.get("crops", []))
+
                 # Build urgency warnings
                 warnings = []
                 if water_days < days_left * 0.5:
@@ -686,12 +692,6 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                     )
 
                 warning_block = " ".join(warnings) if warnings else ""
-
-                astronaut_count = s.get("astronaut_count", 4)
-                floor_space = s.get("floor_space_m2", 0)
-                space_per_plant = 0.25
-                max_plants = int(floor_space / space_per_plant) if space_per_plant > 0 else 0
-                plant_slots_used = len(s.get("crops", []))
 
                 context = (
                     f"Mission day {s['mission_day']} of {mission_days} ({days_left} days remaining). "
