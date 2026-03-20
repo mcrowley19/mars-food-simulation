@@ -291,6 +291,11 @@ def run_simulation_tick(state: dict) -> dict:
     # --- Clear previous tick's events ---
     state["active_events"] = []
 
+    # --- Keep a rolling 5-sol event history so agents see faults even if they run late ---
+    recent = state.get("recent_events", [])
+    recent = [e for e in recent if day - e.get("day", 0) <= 5]
+    state["recent_events"] = recent
+
     # --- Resource depletion (KB-informed rates) ---
     crew_water_use       = params["crew_water_l_per_day"]
     recovered_water      = crew_water_use * params["urine_recovery"]
@@ -394,17 +399,21 @@ def run_simulation_tick(state: dict) -> dict:
         state["active_events"].append("fuel_depleted")
 
     # --- Random events (KB-informed probabilities) ---
+    def _add_event(name):
+        state["active_events"].append(name)
+        state["recent_events"].append({"event": name, "day": day})
+
     if random.random() < params["dust_storm_prob"]:
         env["light_intensity"] = 0.4
-        state["active_events"].append("dust_storm")
+        _add_event("dust_storm")
 
     if random.random() < params["water_fault_prob"]:
         res["water_l"] = round(res["water_l"] * 0.7, 1)
-        state["active_events"].append("water_recycler_fault")
+        _add_event("water_recycler_fault")
 
     if random.random() < params["co2_spike_prob"]:
         env["co2_ppm"] = env["co2_ppm"] + 200
-        state["active_events"].append("co2_spike")
+        _add_event("co2_spike")
 
     # --- Calorie tracking (KB-informed crew need) ---
     astronaut_count         = state.get("astronaut_count", 4)

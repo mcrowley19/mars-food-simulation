@@ -49,5 +49,6 @@ def create_crop_planner():
     return Agent(
         system_prompt=SYSTEM_PROMPT,
         model=MODEL,
+        max_iterations=5,
         tools=[search_mars_kb, get_current_state],
     )
