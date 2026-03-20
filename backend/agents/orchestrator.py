@@ -1,5 +1,7 @@
-from strands import Agent, tool
+from strands import tool
 from strands.models.bedrock import BedrockModel
+
+from agents.agent_factory import build_agent
 from state import get_state, update_state
 from tools.simulation_tools import (
     get_current_state,
@@ -112,7 +114,7 @@ def delegate_to_fault_handler(task: str) -> str:
 
 def get_orchestrator():
     """Return a fresh orchestrator each call — avoids stale conversation history bloating the context."""
-    return Agent(
+    return build_agent(
         model=BedrockModel(model_id="amazon.nova-micro-v1:0", region_name="us-east-1"),
         max_iterations=10,
         system_prompt="""You are the Mission Orchestrator for a Martian greenhouse.

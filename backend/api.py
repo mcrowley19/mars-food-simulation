@@ -361,7 +361,12 @@ def _build_parsed_agent_logs(state: dict) -> dict:
                 continue
             response = entry.get("response", "")
             if _hide_log_from_frontend(agent_name, response):
-                continue
+                # Orchestrator-only: raw text is noisy IAM/duplicate-invocation noise, but an empty
+                # sidebar looks like a regression — show one line instead of dropping the entry.
+                response = (
+                    "Automated sol briefing did not complete (duplicate run, IAM block, or startup error). "
+                    "Check API logs if this persists."
+                )
             task_lines = _clip_lines(
                 _parse_readable_lines(entry.get("task", ""), agent_name),
                 _MAX_PARSED_LINES_PER_TASK,
@@ -393,7 +398,10 @@ def _build_parsed_agent_logs(state: dict) -> dict:
                 if not action:
                     continue
                 if _hide_log_from_frontend(agent_name, action):
-                    continue
+                    action = (
+                        "Automated sol briefing did not complete (duplicate run, IAM block, or startup error). "
+                        "Check API logs if this persists."
+                    )
                 parsed[agent_name] = [{
                     "day": state.get("mission_day"),
                     "task_lines": [],

@@ -296,6 +296,10 @@ def run_simulation_tick(state: dict) -> dict:
     recent = [e for e in recent if day - e.get("day", 0) <= 5]
     state["recent_events"] = recent
 
+    def _add_event(name):
+        state["active_events"].append(name)
+        state["recent_events"].append({"event": name, "day": day})
+
     # --- Resource depletion (KB-informed rates) ---
     crew_water_use       = params["crew_water_l_per_day"]
     recovered_water      = crew_water_use * params["urine_recovery"]
@@ -396,13 +400,9 @@ def run_simulation_tick(state: dict) -> dict:
     state["fuel_used_today"]  = round(fuel_used, 2)
     if res["fuel_kg"] <= 0:
         env["light_intensity"] = 0.1
-        state["active_events"].append("fuel_depleted")
+        _add_event("fuel_depleted")
 
     # --- Random events (KB-informed probabilities) ---
-    def _add_event(name):
-        state["active_events"].append(name)
-        state["recent_events"].append({"event": name, "day": day})
-
     if random.random() < params["dust_storm_prob"]:
         env["light_intensity"] = 0.4
         _add_event("dust_storm")

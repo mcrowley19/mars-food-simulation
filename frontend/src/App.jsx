@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import Mars from "./components/Mars";
@@ -6,7 +6,9 @@ import Stars from "./components/Stars";
 import InitialiseSession from "./components/InitialiseSession";
 import LearnMore from "./components/LearnMore";
 import GreenhouseScene from "./components/greenhouse/GreenhouseScene";
+import LandingCanvasErrorBoundary from "./components/LandingCanvasErrorBoundary.jsx";
 import { getSessionId } from "./utils/session";
+import { isFirefoxFamilyBrowser } from "./utils/browser.js";
 import { API_BASE_URL } from "./utils/api";
 import {
   DEFAULT_FERTILIZER_KG,
@@ -23,6 +25,25 @@ function App() {
   const [screen, setScreen] = useState("landing");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [awaitAgents, setAwaitAgents] = useState(false);
+
+  const landingGl = useMemo(
+    () =>
+      isFirefoxFamilyBrowser()
+        ? {
+            antialias: false,
+            alpha: true,
+            powerPreference: "default",
+            failIfMajorPerformanceCaveat: false,
+            stencil: false,
+          }
+        : {
+            antialias: true,
+            alpha: true,
+            powerPreference: "default",
+            failIfMajorPerformanceCaveat: false,
+          },
+    [],
+  );
 
   const isDashboard = screen === "dashboard";
   const isGreenhouse = screen === "greenhouse";
@@ -255,38 +276,32 @@ function App() {
           isTransitioning || isDashboard ? "canvas-container--dashboard" : ""
         }`}
       >
-        <Canvas
-          camera={{ position: [0, 0, 5.5], fov: 45 }}
-          gl={{
-            antialias: true,
-            alpha: true,
-            powerPreference: "default",
-            failIfMajorPerformanceCaveat: false,
-          }}
-        >
-          <ambientLight intensity={0.08} />
-          <directionalLight
-            position={[5, 2, 5]}
-            intensity={2.2}
-            color="#fff0dc"
-          />
-          <directionalLight
-            position={[-4, -1, 3]}
-            intensity={0.15}
-            color="#ff8050"
-          />
-          <pointLight position={[-6, 3, -4]} intensity={0.4} color="#ffd4b8" />
-          <Suspense fallback={null}>
-            <Mars dashboardActive={isTransitioning || isDashboard} />
-            <Stars />
-          </Suspense>
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            rotateSpeed={0.3}
-            autoRotate={false}
-          />
-        </Canvas>
+        <LandingCanvasErrorBoundary>
+          <Canvas camera={{ position: [0, 0, 5.5], fov: 45 }} gl={landingGl}>
+            <ambientLight intensity={0.08} />
+            <directionalLight
+              position={[5, 2, 5]}
+              intensity={2.2}
+              color="#fff0dc"
+            />
+            <directionalLight
+              position={[-4, -1, 3]}
+              intensity={0.15}
+              color="#ff8050"
+            />
+            <pointLight position={[-6, 3, -4]} intensity={0.4} color="#ffd4b8" />
+            <Suspense fallback={null}>
+              <Mars dashboardActive={isTransitioning || isDashboard} />
+              <Stars />
+            </Suspense>
+            <OrbitControls
+              enableZoom={false}
+              enablePan={false}
+              rotateSpeed={0.3}
+              autoRotate={false}
+            />
+          </Canvas>
+        </LandingCanvasErrorBoundary>
       </div>
 
       <div

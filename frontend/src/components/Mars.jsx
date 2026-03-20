@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react'
 import { useFrame, useLoader, useThree, extend } from '@react-three/fiber'
 import * as THREE from 'three'
 import { shaderMaterial } from '@react-three/drei'
+import { isFirefoxFamilyBrowser } from '../utils/browser.js'
 
 const AtmosphereMaterial = shaderMaterial(
   {
@@ -61,10 +62,15 @@ export default function Mars({ dashboardActive = false }) {
   const marsTexture = useMemo(() => {
     const t = loaded.clone()
     t.colorSpace = THREE.SRGBColorSpace
-    t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy())
+    const maxA = gl.capabilities.getMaxAnisotropy() || 1
+    // Gecko + some Intel GPUs: high anisotropy on large spheres can break texturing.
+    const cap = isFirefoxFamilyBrowser() ? Math.min(2, maxA) : Math.min(8, maxA)
+    t.anisotropy = cap
     t.needsUpdate = true
     return t
   }, [loaded, gl])
+
+  const showAtmosphereShell = !isFirefoxFamilyBrowser()
 
   useFrame((_, delta) => {
     if (spinRef.current) {
@@ -109,7 +115,9 @@ export default function Mars({ dashboardActive = false }) {
     <group ref={containerRef}>
       <group ref={spinRef} rotation={[0.4, 0, 0.08]}>
         <mesh castShadow receiveShadow>
-          <sphereGeometry args={[1.6, 128, 128]} />
+          <sphereGeometry
+            args={[1.6, showAtmosphereShell ? 128 : 72, showAtmosphereShell ? 128 : 72]}
+          />
           <meshStandardMaterial
             map={marsTexture}
             roughness={0.9}
@@ -118,15 +126,17 @@ export default function Mars({ dashboardActive = false }) {
           />
         </mesh>
 
-        <mesh scale={[1.03, 1.03, 1.03]}>
-          <sphereGeometry args={[1.6, 96, 96]} />
-          <atmosphereMaterial
-            transparent
-            side={THREE.BackSide}
-            depthWrite={false}
-            blending={THREE.NormalBlending}
-          />
-        </mesh>
+        {showAtmosphereShell ? (
+          <mesh scale={[1.03, 1.03, 1.03]}>
+            <sphereGeometry args={[1.6, 96, 96]} />
+            <atmosphereMaterial
+              transparent
+              side={THREE.BackSide}
+              depthWrite={false}
+              blending={THREE.NormalBlending}
+            />
+          </mesh>
+        ) : null}
       </group>
     </group>
   )

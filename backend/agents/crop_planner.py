@@ -1,5 +1,6 @@
-from strands import Agent
 from strands.models.bedrock import BedrockModel
+
+from agents.agent_factory import build_agent
 from tools.greenhouse_tools import search_mars_kb
 from tools.simulation_tools import get_current_state
 
@@ -46,7 +47,7 @@ Use integers for planting_sol and harvest_sol — not strings like "sol-141"."""
 
 
 def create_crop_planner():
-    return Agent(
+    return build_agent(
         system_prompt=SYSTEM_PROMPT,
         model=MODEL,
         max_iterations=5,
