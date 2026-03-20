@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './InitialiseSession.css'
 
-const SEED_OPTIONS  = ['Potato', 'Wheat', 'Lettuce', 'Tomato', 'Soybean', 'Spinach', 'Radish', 'Pea', 'Kale', 'Carrot']
+const SEED_OPTIONS  = ['Potato', 'Wheat', 'Lettuce', 'Tomato', 'Soybean', 'Radish', 'Pea', 'Kale', 'Carrot']
 
 // Kcal per kg for each crop and maturity days — used to compute minimum food supplies
 const CROP_DATA = {
@@ -10,7 +10,6 @@ const CROP_DATA = {
   Lettuce: { maturity: 30 },
   Tomato:  { maturity: 70 },
   Soybean: { maturity: 80 },
-  Spinach: { maturity: 40 },
   Radish:  { maturity: 25 },
   Pea:     { maturity: 60 },
   Kale:    { maturity: 55 },
@@ -33,7 +32,7 @@ const DEFAULTS = {
   fertilizer: 500,
   water:       2000,
   soil:        1500,
-  space:       80,
+  space:       20,
   seedAmt:     40,
   seedTypes:   ['Potato', 'Wheat', 'Lettuce'],
   bugs:        20,
@@ -98,6 +97,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
   const [mode, setMode]           = useState(null) // null = choosing, 'manual' = form, 'ai' = loading, 'ai-review' = summary
   const [cfg, setCfg]             = useState(DEFAULTS)
   const [launching, setLaunching] = useState(false)
+  const [manualError, setManualError] = useState('')
   const [aiState, setAiState]     = useState(null)
   const [aiLogs, setAiLogs]       = useState([])
   const [aiError, setAiError]     = useState('')
@@ -140,12 +140,15 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
 
   const handleBegin = async () => {
     setLaunching(true)
+    setManualError('')
     try {
       if (onBeginSimulation) {
         await onBeginSimulation(cfg)
       } else {
         await new Promise(resolve => setTimeout(resolve, 1200))
       }
+    } catch (e) {
+      setManualError(e?.message || 'Something went wrong while starting the manual setup. Please try again.')
     } finally {
       setLaunching(false)
     }
@@ -459,7 +462,7 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
               <Stepper value={cfg.fertilizer} onChange={v => set('fertilizer', v)} step={50} unit="kg" />
             </ParamRow>
             <ParamRow label="Water">
-              <Stepper value={cfg.water} onChange={v => set('water', v)} step={100} unit="L" />
+              <Stepper value={cfg.water} onChange={v => set('water', v)} step={1000} unit="L" />
             </ParamRow>
             <ParamRow label="Soil">
               <Stepper value={cfg.soil} onChange={v => set('soil', v)} step={100} unit="kg" />
@@ -487,6 +490,9 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
             <ParamRow label="Floor Space">
               <Stepper value={cfg.space} onChange={v => set('space', v)} step={10} min={10} unit="m²" />
             </ParamRow>
+            <div className="is-card__hint">
+              0.25 m² per plant → max {Math.floor(cfg.space / 0.25)} plants
+            </div>
             <ParamRow label="Seed Amount">
               <Stepper value={cfg.seedAmt} onChange={v => set('seedAmt', v)} step={5} unit="packs" />
             </ParamRow>
@@ -634,6 +640,9 @@ export default function InitialiseSession({ onBack, disableBackdropClose = false
           </div>
 
           <div className="is-ov__actions">
+            {manualError && (
+              <div className="is-card__hint">{manualError}</div>
+            )}
             <button className="is-btn-reset" onClick={reset}>Reset Defaults</button>
             <button
               className={`is-btn-begin${launching ? ' is-btn-begin--loading' : ''}`}

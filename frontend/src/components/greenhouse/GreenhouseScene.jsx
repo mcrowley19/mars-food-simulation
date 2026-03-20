@@ -19,6 +19,7 @@ import {
   INITIAL_WATER,
   DOME_DEFS_BASE,
   CROP_COLORS,
+  SPACE_PER_PLANT_M2,
   lerp,
   easeInOut,
   scaleDomeDefs,
@@ -246,9 +247,10 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
     return () => clearTimeout(t);
   }, [agentInitTimedOut]);
 
-  const statePollMs = isLogsSidebarOpen ? 400 : 900;
-  const simState = useGreenhouseState(true, statePollMs);
+  const statePollMs = isLogsSidebarOpen ? 200 : 400;
+  const [simState, refreshSimState] = useGreenhouseState(true, statePollMs);
   const simStateRef = useRef(null);
+  const logBurstTimeoutsRef = useRef([]);
 
   const lerpedRef = useRef({
     sunIntensityMul: 1.0,
@@ -321,17 +323,38 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
   const simulateTick = useCallback(async () => {
     if (tickInFlightRef.current) return;
     tickInFlightRef.current = true;
+    logBurstTimeoutsRef.current.forEach(clearTimeout);
+    logBurstTimeoutsRef.current = [];
     try {
       const sessionId = getSessionId();
-      await fetch(`${API_BASE_URL}/simulate-tick`, {
+      const res = await fetch(`${API_BASE_URL}/simulate-tick`, {
         method: "POST",
         headers: { "x-session-id": sessionId },
       });
+      if (res.ok) {
+        refreshSimState();
+        // Orchestrator runs after the tick response; pull /state a few times so logs land quickly.
+        const delaysMs = [100, 250, 500, 900, 1600, 2600];
+        delaysMs.forEach((ms) => {
+          const id = setTimeout(() => {
+            refreshSimState();
+            logBurstTimeoutsRef.current = logBurstTimeoutsRef.current.filter((t) => t !== id);
+          }, ms);
+          logBurstTimeoutsRef.current.push(id);
+        });
+      }
     } catch {
       // ignore transient network/backend errors; polling will recover
     } finally {
       tickInFlightRef.current = false;
     }
+  }, [refreshSimState]);
+
+  useEffect(() => {
+    return () => {
+      logBurstTimeoutsRef.current.forEach(clearTimeout);
+      logBurstTimeoutsRef.current = [];
+    };
   }, []);
 
 
@@ -385,16 +408,19 @@ export default function GreenhouseScene({ onExit, totalDays = 450, awaitAgents =
       h = window.innerHeight;
     const { renderer, scene, camera } = initScene(canvas, w, h);
     buildTerrain(scene);
-    // Distribute crop count per dome so bed slots match actual crop count
-    const totalCrops = simStateRef.current?.crops?.length ?? 60;
+    // Build bed slots for the maximum plant capacity of the floor space
+    const ss = simStateRef.current;
+    const floorM2 =
+      ss?.resources?.floor_space_m2 ?? ss?.floor_space_m2 ?? ss?.greenhouse?.floor_space_m2 ?? 20;
+    const maxPlants = Math.floor(floorM2 / SPACE_PER_PLANT_M2);
     const areas = DOME_DEFS.map(d => Math.PI * d.r * d.r);
     const totalArea = areas.reduce((a, b) => a + b, 0);
     const cropCounts = {};
     let assigned = 0;
     DOME_DEFS.forEach((d, i) => {
       const c = i < DOME_DEFS.length - 1
-        ? Math.round(totalCrops * (areas[i] / totalArea))
-        : totalCrops - assigned;
+        ? Math.round(maxPlants * (areas[i] / totalArea))
+        : maxPlants - assigned;
       cropCounts[d.id] = Math.max(4, c);
       assigned += c;
     });

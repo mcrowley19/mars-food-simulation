@@ -11,7 +11,6 @@ export const CROP_COLORS = {
   wheat: "#DAA520",
   tomato: "#FF6347",
   soybean: "#9ACD32",
-  spinach: "#33cc55",
   radish: "#FF4500",
   pea: "#90EE90",
   kale: "#228B22",
@@ -21,6 +20,7 @@ export const CROP_EMPTY_COLOR = "#3a2a1e";
 export const CROP_DEAD_COLOR = "#8B4513";
 export const CROP_HARVEST_EMISSIVE = "#FFD700";
 export const INITIAL_WATER = 4800;
+export const SPACE_PER_PLANT_M2 = 0.25;
 
 export const DOME_DEFS_BASE = [{ id: "DOME_01", x: 0, z: 0, r: 24 }];
 
