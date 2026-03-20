@@ -183,7 +183,7 @@ function PanelChevron({ collapsed }) {
   );
 }
 
-const SOL_TICK_MS = 4500;
+const SOL_TICK_MS = 8000;
 
 export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DAYS, awaitAgents = false }) {
   const canvasRef = useRef(null);

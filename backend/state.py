@@ -1,4 +1,5 @@
 import os
+import threading
 import boto3
 from decimal import Decimal
 from contextvars import ContextVar
@@ -8,6 +9,36 @@ REGION = os.environ.get("DYNAMODB_REGION", "us-west-2")
 
 _table = boto3.resource("dynamodb", region_name=REGION).Table(TABLE_NAME)
 _SESSION_KEY_CTX: ContextVar[str] = ContextVar("session_key", default="current")
+
+# Thread-local state cache — agent tool calls read/write this instead of hitting DynamoDB each time.
+# flush_state_cache() writes the final result to DynamoDB once at the end of the agent run.
+_tl = threading.local()
+
+
+def _cache_key() -> str:
+    return _resolve_session_key()
+
+
+def _get_cache() -> dict | None:
+    return getattr(_tl, "state_cache", None)
+
+
+def _set_cache(state: dict):
+    _tl.state_cache = state
+
+
+def clear_state_cache():
+    _tl.state_cache = None
+
+
+def flush_state_cache():
+    """Write the cached state to DynamoDB and clear the cache. Call once after agent run completes."""
+    cached = _get_cache()
+    if cached is not None:
+        key = _resolve_session_key()
+        cached["key"] = key
+        _table.put_item(Item=_native_to_decimals(cached))
+        clear_state_cache()
 
 
 def normalize_session_key(raw: str | None) -> str:
@@ -67,6 +98,9 @@ def _native_to_decimals(obj):
 
 
 def get_state(session_key: str | None = None) -> dict:
+    cached = _get_cache()
+    if cached is not None:
+        return cached
     key = _resolve_session_key(session_key)
     resp = _table.get_item(Key={"key": key})
     item = resp.get("Item")
@@ -78,6 +112,11 @@ def get_state(session_key: str | None = None) -> dict:
 
 
 def update_state(state: dict, session_key: str | None = None):
+    cached = _get_cache()
+    if cached is not None:
+        # During an agent run: update the in-memory cache only; flush_state_cache() writes to DB.
+        _set_cache(state)
+        return
     key = _resolve_session_key(session_key)
     state["key"] = key
     _table.put_item(Item=_native_to_decimals(state))

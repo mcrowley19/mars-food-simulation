@@ -11,6 +11,7 @@ import traceback
 from state import (
     get_state, update_state, delete_state, normalize_session_key,
     set_request_session, reset_request_session,
+    flush_state_cache, clear_state_cache, _set_cache,
 )
 from agents.simulator import run_simulation_tick, clear_kb_params_cache
 
@@ -20,7 +21,7 @@ _ai_setup_registry = {}
 _ai_setup_registry_guard = threading.Lock()
 _orchestrator_call_lock = threading.Lock()
 # Orchestrator = Bedrock + optional sub-agents. Simulation still advances every tick; this only throttles LLM runs.
-_ORCHESTRATOR_MISSION_DAY_INTERVAL = 1  # every sol; increase to throttle LLM / agent log volume
+_ORCHESTRATOR_MISSION_DAY_INTERVAL = 2  # every 2 sols; reduces DB contention from concurrent tool calls
 _MAX_PARSED_LOG_ENTRIES_PER_AGENT = 48
 _MAX_PARSED_LINES_PER_TASK = 3
 _MAX_PARSED_LINES_PER_RESPONSE = 18
@@ -486,18 +487,23 @@ def invoke_agent(req: PromptRequest, x_session_id: str | None = Header(default=N
     def _run():
         try:
             with _session_context(session_key):
+                s = get_state(session_key=session_key)
+                _set_cache(s)
                 from agents.orchestrator import get_orchestrator
                 orchestrator = get_orchestrator()
                 with _orchestrator_call_lock:
                     result = orchestrator(req.prompt)
+                flush_state_cache()
                 _append_state_agent_log(session_key, "orchestrator", req.prompt, str(result))
         except Exception as e:
+            flush_state_cache()
             message = str(e)
             if "AccessDeniedException" in message or "explicit deny" in message:
                 message = "Agent invocation blocked by AWS IAM policy."
             _append_state_agent_log(session_key, "orchestrator", req.prompt, f"Invocation error: {message}")
             traceback.print_exc()
         finally:
+            clear_state_cache()
             lock.release()
 
     threading.Thread(target=_run, daemon=True).start()
@@ -618,6 +624,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
         try:
             with _session_context(session_key):
                 s = get_state(session_key=session_key)
+                _set_cache(s)
                 env = s["environment"]
                 res = s["resources"]
                 events = s["active_events"]
@@ -691,8 +698,10 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
                 orchestrator = get_orchestrator()
                 with _orchestrator_call_lock:
                     result = orchestrator(context)
+                flush_state_cache()
                 _append_state_agent_log(session_key, "orchestrator", context, str(result))
         except Exception as e:
+            flush_state_cache()
             err_text = str(e)
             if "AccessDeniedException" in err_text or "explicit deny" in err_text:
                 err_text = (
@@ -707,6 +716,7 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
             )
             traceback.print_exc()
         finally:
+            clear_state_cache()
             lock.release()
 
     mission_day = state.get("mission_day", 0)
