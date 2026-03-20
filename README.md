@@ -147,6 +147,27 @@ All endpoints accept an `x-session-id` header for session isolation.
 
 ---
 
+## Testing
+
+From the repo root (uses `backend/.venv` if you created it; otherwise install `backend/requirements.txt` first):
+
+```bash
+chmod +x scripts/run_all_tests.sh
+./scripts/run_all_tests.sh
+```
+
+That runs the **frontend production build** and **`python -m unittest discover`** in `backend/tests/` (simulator ticks, `manual_setup` validation, JSON extraction, orchestrator schedule vs `api.py`).
+
+**Legacy script** (prints full manual state; includes `ai_optimised_setup` which needs Bedrock):
+
+```bash
+cd backend && .venv/bin/python test_setup_modes.py
+```
+
+Optional CI: add `.github/workflows/ci.yml` (see template in `scripts/ci-workflow.example.yml`) to run the same build + tests on push/PR. Pushing workflow files requires a Git PAT with the **workflow** scope.
+
+---
+
 ## Further Docs
 
 - Backend deep-dive: `backend/README.md`

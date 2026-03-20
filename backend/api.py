@@ -19,6 +19,8 @@ _lock_registry_guard = threading.Lock()
 _ai_setup_registry = {}
 _ai_setup_registry_guard = threading.Lock()
 _orchestrator_call_lock = threading.Lock()
+# Orchestrator = Bedrock + optional sub-agents. Simulation still advances every tick; this only throttles LLM runs.
+_ORCHESTRATOR_MISSION_DAY_INTERVAL = 2  # set to 1 to invoke every sol
 _MAX_PARSED_LOG_ENTRIES_PER_AGENT = 48
 _MAX_PARSED_LINES_PER_TASK = 3
 _MAX_PARSED_LINES_PER_RESPONSE = 18
@@ -707,7 +709,12 @@ def simulate_tick(x_session_id: str | None = Header(default=None, alias="x-sessi
         finally:
             lock.release()
 
-    if lock.acquire(blocking=False):
+    mission_day = state.get("mission_day", 0)
+    run_orchestrator = (
+        _ORCHESTRATOR_MISSION_DAY_INTERVAL <= 1
+        or mission_day % _ORCHESTRATOR_MISSION_DAY_INTERVAL == 0
+    )
+    if run_orchestrator and lock.acquire(blocking=False):
         threading.Thread(target=_run_agent, daemon=True).start()
 
     return _state_with_parsed_logs(state)
