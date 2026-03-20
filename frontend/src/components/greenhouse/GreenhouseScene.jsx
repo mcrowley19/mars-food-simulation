@@ -853,12 +853,22 @@ export default function GreenhouseScene({ onExit, totalDays = DEFAULT_MISSION_DA
   useEffect(() => {
     if (!simState?.setup_complete || !isPlaying) return;
     const interval = isFastForward ? SOL_TICK_MS / 3 : SOL_TICK_MS;
+    let timer = null;
+    let cancelled = false;
+
+    const schedule = () => {
+      if (cancelled) return;
+      simulateTick().finally(() => {
+        if (!cancelled) timer = setTimeout(schedule, interval);
+      });
+    };
+
     // Trigger one tick immediately so agent logs start flowing without initial delay.
-    simulateTick();
-    const timer = setInterval(() => {
-      simulateTick();
-    }, interval);
-    return () => clearInterval(timer);
+    schedule();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [
     simState?.setup_complete,
     simulateTick,
