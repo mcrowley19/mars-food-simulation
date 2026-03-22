@@ -133,16 +133,16 @@ These values are fallbacks — the KB lookup may return slightly different value
 
 All endpoints accept an `x-session-id` header for session isolation.
 
-| Method | Path                  | Description                                                                  |
-| ------ | --------------------- | ---------------------------------------------------------------------------- |
-| `GET`  | `/health`             | Service health check                                                         |
-| `GET`  | `/setup-status`       | Setup completion status for current session                                  |
-| `POST` | `/setup/manual`       | Initialise state with user-provided mission config                           |
-| `POST` | `/setup/ai-optimised` | Start async AI-generated mission config                                      |
-| `POST` | `/invoke`             | Fire-and-forget orchestrator prompt (marks `agents_initialised` immediately) |
-| `POST` | `/simulate-tick`      | Advance sim by one sol and trigger background agent run                      |
-| `POST` | `/simulate-jump`      | Fast-forward to a target sol (capped at 500 ticks)                           |
-| `GET`  | `/state`              | Full session state + parsed agent logs                                       |
+| Method | Path                  | Description                                                                      |
+| ------ | --------------------- | -------------------------------------------------------------------------------- |
+| `GET`  | `/health`             | Service health check                                                             |
+| `GET`  | `/setup-status`       | Setup completion status for current session                                      |
+| `POST` | `/setup/manual`       | Initialise state with user-provided mission config                               |
+| `POST` | `/setup/ai-optimised` | Start async AI-generated mission config                                          |
+| `POST` | `/invoke`             | Fire-and-forget orchestrator prompt (marks `agents_initialised` immediately)     |
+| `POST` | `/simulate-tick`      | Advance sim by one sol and trigger background agent run                          |
+| `POST` | `/simulate-jump`      | Fast-forward to a target sol (capped at 500 ticks)                               |
+| `GET`  | `/state`              | Full session state + parsed agent logs                                           |
 | `POST` | `/reset`              | Delete this session’s row in DynamoDB (recreated blank on next read for that id) |
 
 ---
@@ -169,6 +169,8 @@ Key top-level fields returned by `/state`:
 ---
 
 ## Project Structure
+
+![System Architecture](system_architecture.png)
 
 ```
 mars-food-simulation/
