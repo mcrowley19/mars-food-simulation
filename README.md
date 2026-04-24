@@ -4,6 +4,7 @@
 
 A full-stack, multi-agent greenhouse simulator for long-duration Mars missions. Configure a colony, launch AI-managed agricultural systems, and watch your crew survive — or not.
 
+![Demo Video](https://www.youtube.com/watch?v=oY_2HvcdY9s)
 ---
 
 ## Stack
